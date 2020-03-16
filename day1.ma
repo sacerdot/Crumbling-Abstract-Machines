@@ -63,15 +63,15 @@ with Substitution: Type[0] ≝
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
 interpretation "Substitution" 'substitution v b =(subst v b).
 
-notation "( b break, e )" non associative with precedence 90 for @{ 'ccrumble $b $e }.
-interpretation "Crumble creation" 'ccrumble b e =(CCrumble b e).
-(*
-notation "λ x . y" right associative with precedence 40 for @{ 'lambda $x $y}.
+(*notation "〈 b break, e 〉" non associative with precedence 90 for @{ 'ccrumble $b $e }.
+*)
+interpretation "Crumble creation" 'pair b e =(CCrumble b e).
+
+notation "𝛌 x . y" right associative with precedence 40 for @{ 'lambda $x $y}.
 interpretation "Abstraction" 'lambda x y = (lambda x y ).
 
-lemma test_lambda0: ∀x: Value. ∀y:Crumble. (λx.y) = (lambda x y).
+lemma test_lambda0: ∀x: Value. ∀y:Crumble. (𝛌x.y) = (lambda x y).
 #x #y normalize // qed.
-*)
 
 let rec push e a ≝  
  match e with
@@ -110,10 +110,10 @@ definition e1: Environment ≝ Cons e0 [v0 ← b0].
 definition v1: Value ≝ var 1.
 definition e2: Environment ≝ Cons e0 [v1 ← b0].
 
-definition c0: Crumble ≝ ( b0, e1 ).
+definition c0: Crumble ≝ 〈 b0, e1 〉.
 lemma test1:  e2 = e2. // qed.
 
 lemma test2: c0 = CCrumble b0 e1. // qed.
 
-lemma test3: ((b0, e1) @ e2) = (b0, concat e1 e2).
+lemma test3: (〈 b0, e1 〉 @ e2) = 〈 b0, concat e1 e2 〉.
 // qed.

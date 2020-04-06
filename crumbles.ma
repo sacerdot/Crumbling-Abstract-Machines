@@ -14,8 +14,11 @@
 
 include "arithmetics/nat.ma".
 
-definition max : nat → nat → nat ≝ λa,b. match a with [ O ⇒ b | S n ⇒ match b with [ O ⇒ a | S m ⇒ max n m]].
-definition min : nat → nat → nat ≝ λa,b:nat. match a with [ O ⇒ a | S n ⇒ match b with [ O ⇒ b | S m ⇒ min n m]].
+inductive Variable: Type[0] ≝
+ | variable: nat → Variable
+.
+
+(*record variable instead*)
 
 inductive Crumble : Type[0] ≝
  | CCrumble: Byte → Environment → Crumble 
@@ -27,10 +30,7 @@ with Byte : Type[0] ≝
 with Value : Type[0] ≝
  | var : Variable → Value
  | lambda: Variable → Crumble → Value
- 
-with Variable: Type[0] ≝
- | variable: nat → Variable
- 
+  
 with Environment : Type[0] ≝
  | Epsilon: Environment
  | Cons: Environment → Substitution → Environment
@@ -39,12 +39,18 @@ with Substitution: Type[0] ≝
  | subst: Variable → Byte → Substitution
 .
 
-inductive Term : Type[0] ≝ 
- | c: Crumble → Term
- | e: Environment → Term
- | b: Byte → Term
- | v: Value → Term
-.
+inductive pifTerm : Type[0] ≝
+ | val_to_term: pifValue → pifTerm
+ | appl: pifTerm → pifTerm → pifTerm
+ 
+with pifValue : Type[0] ≝
+ | pvar: Variable → pifValue
+ | abstr: Variable → pifTerm → pifValue
+ .
+ 
+inductive pifSubst : Type[0] ≝
+ | psubst: Variable → pifTerm → pifSubst
+ .
 
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
 interpretation "Substitution" 'substitution v b =(subst v b).

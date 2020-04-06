@@ -14,8 +14,11 @@
 
 include "arithmetics/nat.ma".
 
-definition max : nat → nat → nat ≝ λa,b. match a with [ O ⇒ b | S n ⇒ match b with [ O ⇒ a | S m ⇒ max n m]].
-definition min : nat → nat → nat ≝ λa,b:nat. match a with [ O ⇒ a | S n ⇒ match b with [ O ⇒ b | S m ⇒ min n m]].
+inductive Variable: Type[0] ≝
+ | variable: nat → Variable
+.
+
+(*record variable instead*)
 
 inductive Crumble : Type[0] ≝
  | CCrumble: Byte → Environment → Crumble 
@@ -25,24 +28,29 @@ with Byte : Type[0] ≝
  | AppValue: Value → Value → Byte
 
 with Value : Type[0] ≝
- | var \nu var : Variable → Value
+ | var : Variable → Value
  | lambda: Variable → Crumble → Value
- 
-with Variable: Type[0] ≝
- | variable: nat → Variable
- 
+  
 with Environment : Type[0] ≝
  | Epsilon: Environment
  | Cons: Environment → Substitution → Environment
  
 with Substitution: Type[0] ≝
- | subst: Value → Byte → Substitution
+ | subst: Variable → Byte → Substitution
 .
 
-inductive Term : Type[0] ≝ 
- | c → Crumble → Term
- | e → Environment → Term
- | 
+inductive pifTerm : Type[0] ≝
+ | val_to_term: pifValue → pifTerm
+ | appl: pifTerm → pifTerm → pifTerm
+ 
+with pifValue : Type[0] ≝
+ | pvar: Variable → pifValue
+ | abstr: Variable → pifTerm → pifValue
+ .
+ 
+inductive pifSubst : Type[0] ≝
+ | psubt: Variable → pifTerm → pifSubst
+ .
 
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
 interpretation "Substitution" 'substitution v b =(subst v b).
@@ -66,7 +74,7 @@ let rec push e a ≝
  | Cons e1 a1 ⇒ Cons (push e1 a) (a1)
  ].
  
-lemma push_test0: Cons (Cons Epsilon [var ν 0 ← CValue (var ν0)]) [var ν1 ← CValue (var ν3)] = push ((Cons Epsilon [var ν1 ← CValue (var ν3)])) ([var ν0 ← CValue (var ν0)]).
+lemma push_test0: Cons (Cons Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Cons Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
 normalize //. qed. 
 
 let rec concat a b ≝ 
@@ -78,8 +86,8 @@ let rec concat a b ≝
                       ]
  ].
 
-lemma concat_test0: concat (Cons (Cons Epsilon [var \nu 0 ← CValue (var \nu 0)]) [var \nu 1 ← CValue (var \nu 3)]) (Cons (Cons Epsilon [var \nu 2 ← CValue (var \nu 3)]) [var \nu 1 ← CValue (var \nu 2)])=
-(Cons (Cons (Cons (Cons Epsilon [var \nu 0 ← CValue (var \nu 0)]) [var \nu 1 ← CValue (var \nu 3)]) [var \nu 2 ← CValue (var \nu 3)]) [var \nu 1 ← CValue (var \nu 2)]).//. qed.
+lemma concat_test0: concat (Cons (Cons Epsilon [ν0 ← CValue (var ν 0)]) [ν1 ← CValue (var \nu 3)]) (Cons (Cons Epsilon [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)])=
+(Cons (Cons (Cons (Cons Epsilon [ν0 ← CValue (var \nu 0)]) [ν1 ← CValue (var \nu 3)]) [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)]).//. qed.
 
 definition at: Crumble → Environment → Crumble ≝ λa,b.
 match a with
@@ -89,13 +97,13 @@ match a with
 notation "hvbox(c @ e)" with precedence 35 for @{ 'at $c $e }.
 interpretation "@ operation" 'at c e =(at c e).
 
-definition v0: Value ≝ var \nu 0.
+definition v0: Value ≝ var ν0.
 definition b0: Byte ≝ CValue v0.
 definition e0: Environment ≝ Epsilon.
-definition e1: Environment ≝ Cons e0 [v0 ← b0].
+definition e1: Environment ≝ Cons e0 [ν0 ← b0].
 
 definition v1: Value ≝ var \nu 1.
-definition e2: Environment ≝ Cons e0 [v1 ← b0].
+definition e2: Environment ≝ Cons e0 [ν1 ← b0].
 
 definition c0: Crumble ≝ 〈 b0, e1 〉.
 lemma test1:  e2 = e2. // qed.

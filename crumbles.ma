@@ -74,6 +74,13 @@ let rec push e a ≝
  | Cons e1 a1 ⇒ Cons (push e1 a) (a1)
  ].
  
+let rec e_size e on e ≝ 
+ match e with
+ [ Epsilon ⇒ O
+ | Cons e s ⇒ S (e_size e)
+ ]
+. 
+ 
 lemma push_test0: Cons (Cons Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Cons Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
 normalize //. qed. 
 

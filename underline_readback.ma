@@ -240,13 +240,13 @@ read_back_v v ≝
 (* in modo che l'induzione su e mi assicuri la diminuzione della dimensione del termine*)
 (* purtroppo però, la chiamata ricorsiva sul byte non mi assicura che la dimensione diminuisca*)
 (* suppongo che questo sia dovuto al fatto che un byte può a sua volta contenere un  *)
-(* crumble la cui dimensione è arbitraria
+(* crumble la cui dimensione è arbitraria *)
 
-
-let rec read_back b e on e ≝ 
+(*
+let rec read_back rbb e on e ≝ 
  match e with
- [ Epsilon ⇒ read_back_b b 
- | Cons e1 s ⇒ match s with [ subst x' b1 ⇒ pif_subst (read_back b e1) (psubst x' (read_back_b b1))]
+ [ Epsilon ⇒ rbb 
+ | Cons e1 s ⇒ match s with [ subst x' b1 ⇒ pif_subst (read_back rbb e1) (psubst x' (read_back_b b1))]
  ]                
  
 and
@@ -263,10 +263,10 @@ read_back_v v ≝
  match v with
  [ var x ⇒ val_to_term (pvar x)
  | lambda x c ⇒ match c with 
-                [ CCrumble b e ⇒ val_to_term (abstr x (read_back b e))]
+                [ CCrumble b e ⇒ val_to_term (abstr x (read_back (read_back_b b) e))]
  ]
  .
- *)
+*)
 
 (* Definizione 3: ragionevolmente giusta, ma dà il seguente errore: read_back_b b *)
 (* is not smaller. Faccio fatica a capirne il motivo, perché il fatto che la *)
@@ -276,7 +276,9 @@ read_back_v v ≝
 (* un termine abbiano come taglia un intero sempre decrescente, cosa che, con *)
 (* la definizione di taglia data da c_len non si verifica. L'errore, dunque, *)
 (* dovrebbe somigliare a quello del punto precedente.
+*)
 
+(*
 let rec read_back (n: nat) : Πc: Crumble. c_len c = n → pifTerm ≝
  match n return λn.Πc: Crumble. c_len c = n → pifTerm with
  [ O ⇒ λc. match c return λc.c_len c = O → pifTerm with 
@@ -306,9 +308,9 @@ read_back_v v ≝
  ]
  .
 
-cut (c_len 〈b, e〉 = S m) [ @p | normalize cases e normalize [ #H destruct | #e1 #s1 //]
+lapply p
+normalize cases e normalize [ #H destruct | #e1 #s1 // ]
 qed.
-
 *)
 
 (* Definizione 4: provo a definire una funzione size più accurata: la taglia *) 
@@ -317,15 +319,16 @@ qed.
 (* la suddetta definizione mi garantirebbe la diminuzione della taglia del *) 
 (* termine ad ogni chiamata ricorsiva. Ma quando vado a fornire la dimostrazione *)
 (* mi si solleva un altro problema: come faccio ad esprimere il fatto che e = Cons e1 s ?
+*)
 
 let rec read_back (n: nat) : Πc: Crumble. c_size c = n → pifTerm ≝
  match n return λn.Πc: Crumble. c_size c = n → pifTerm with
  [ O ⇒ λc. match c return λc.c_size c = O → pifTerm with 
           [ CCrumble b e ⇒ λp.(read_back_b b) ]
  | S m ⇒ λc. match c return λc.c_size c = S m → pifTerm with
-    [ CCrumble b e ⇒ match e with 
+    [ CCrumble b e ⇒ match e return λe. c_size (CCrumble b e) = S m → pifTerm with 
         [ Epsilon ⇒  λabs.(read_back_b b) 
-        | Cons e1 s ⇒ λp.match s with [ subst x' b1 ⇒ pif_subst (read_back m 〈b, e_pop e〉 ?) (psubst x' (read_back_b b1))]
+        | Cons e1 s ⇒ λp.match s with [ subst x' b1 ⇒ pif_subst (read_back m 〈b, e1〉 ?) (psubst x' (read_back_b b1))]
         ]
     ]
  ]
@@ -348,5 +351,5 @@ read_back_v v ≝
  ]
  .
 
-cut (c_size 〈b, e〉 = S m) [ @p | normalize cases e normalize [ #H
-*)
+lapply p normalize #H
+ 

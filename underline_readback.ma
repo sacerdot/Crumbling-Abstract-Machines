@@ -426,7 +426,58 @@ lemma value_lemma: ∀v: pifValue. read_back_v (overline v) = val_to_term v.
  [ #x normalize //
  | #x #t elim x #nx cases nx 
   [ normalize cases t [ normalize #v'   
-*)  
+*)
+
+inductive list' (A: Type[0]) : nat → Type[0] ≝
+   Nil' : list' A 0
+ | Cons' : ∀n. A → list' A n → list' A (S n).
+
+let rec list_ind' (A: Type[0]) (P : ∀m. list' A m → Prop)
+(H1 : P 0 (Nil' A)) (H2: ∀m. ∀hd. ∀tl. P m tl → P (S m) (Cons' A m hd tl))
+(n: nat) (l : list' A n) on l
+: P n l
+≝
+ match l
+ return λn.λl. P n l
+ with
+  [ Nil' ⇒ H1
+  | Cons' m hd tl ⇒
+     H2 m hd tl (list_ind' A P H1 H2 m tl)
+  ].
+
+
+inductive T1 (A: Type[0]) : nat → Type[0] ≝
+  B : T1 A 0
+| K : ∀n. T2 A n → T1 A (S n)
+
+with T2 : nat → Type[0] ≝
+  K2 : ∀n. T1 A n → T2 A n. 
+
+let rec T1_ind (A: Type[0]) (P : ∀n. T1 A n → Prop) (Q: ∀n. T2 A n → Prop)
+(H1: P 0 (B A))
+(H2: ∀m. ∀y. Q m y → P (S m) (K A m y))
+(H3: ∀n. ∀x. P n x → Q n (K2 A n x))
+(n: nat) (x: T1 A n) on x : P n x
+≝
+ match x
+ return λn.λx. P n x
+ with
+ [ B ⇒ H1
+ | K m y ⇒ H2 m y (T2_ind A P Q H1 H2 H3 m y)
+ ]
+
+and T2_ind (A: Type[0]) (P : ∀n. T1 A n → Prop) (Q: ∀n. T2 A n → Prop)
+(H1: P 0 (B A))
+(H2: ∀m. ∀y. Q m y → P (S m) (K A m y))
+(H3: ∀n. ∀x. P n x → Q n (K2 A n x))
+ (n: nat) (y: T2 A n) on y: Q n y
+≝ 
+ match y
+ return λn.λy. Q n y
+ with
+ [ K2 n x ⇒ H3 n x (T1_ind A P Q H1 H2 H3 n x)
+ ].
+
 (*
 axiom pifTerm_ind: ∀P: pifTerm →  Prop. (∀v: pifValue. P (val_to_term v)) → (∀t1: pifTerm. ∀t2: pifTerm. ((P t1) → (P t2) → P (appl t1 t2))) → ∀t: pifTerm. P t.
 *)

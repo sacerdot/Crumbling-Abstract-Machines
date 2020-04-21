@@ -74,7 +74,7 @@ let rec push e a ≝
  | Cons e1 a1 ⇒ Cons (push e1 a) (a1)
  ].
  
-let rec e_size e on e ≝ 
+let rec e_size e ≝ 
  match e with
  [ Epsilon ⇒ O
  | Cons e s ⇒ S (e_size e)

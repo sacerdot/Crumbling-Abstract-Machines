@@ -12,3 +12,57 @@
 (*                                                                        *)
 (**************************************************************************)
 
+include "basics/logic.ma".
+include "basics/bool.ma".
+
+
+inductive nat: Type [0] ≝
+| O: nat
+| S: nat → nat
+.
+
+inductive bintree: Type [0] ≝
+| leaf: nat → bintree
+| node: nat → bintree →  bintree → bintree
+.
+
+let rec max a b on a ≝
+ match a with 
+ [ O ⇒ b
+ | S n ⇒ match b with [ O ⇒ a | S m ⇒ S (max n m)]
+ ]
+ . 
+
+let rec height t on t ≝
+ match t with
+ [ leaf n ⇒  O
+ | node n a b ⇒  S (max (height a) (height b))
+ ]
+ .
+
+let rec ge n m on n ≝
+ match n with
+ [ O ⇒ match m with [ O ⇒ true | S n ⇒ false] 
+ | S n' ⇒ match m with [ O ⇒ true | S m' ⇒ ge n' m'] 
+ ]
+ .
+ 
+let rec plus a b on a ≝
+ match a with
+ [ O ⇒ b
+ | S n ⇒ S (plus n b)
+ ]
+ .
+ 
+let rec nodes t on t ≝ 
+ match t with
+ [ leaf n ⇒ O
+ | node n a b ⇒ S (plus (nodes a) (nodes b))
+ ]
+ .
+
+lemma ge_plus: ∀ a,b,c,d. ge a b = true → ge c d = true → ge (plus a c) (plus b d) = true.
+#a #b #c #d #H1 #H2 elim a [normalize elim (b) [normalize @H2 | #b' ]]
+ 
+theorem tree_height: ∀t. ge (nodes t) (height t)= true.
+#t elim t[ #x normalize // | #x #t1 #t2 #H1 #H2 

@@ -39,7 +39,7 @@ with Substitution: Type[0] ≝
  | subst: Variable → Byte → Substitution
 .
 
-inductive pifTerm : Type[0] ≝
+coinductive pifTerm : Type[0] ≝
  | val_to_term: pifValue → pifTerm
  | appl: pifTerm → pifTerm → pifTerm
  
@@ -49,7 +49,7 @@ with pifValue : Type[0] ≝
  .
  
 inductive pifSubst : Type[0] ≝
- | psubt: Variable → pifTerm → pifSubst
+ | psubst: Variable → pifTerm → pifSubst
  .
 
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
@@ -73,6 +73,13 @@ let rec push e a ≝
  [ Epsilon ⇒ Cons Epsilon a
  | Cons e1 a1 ⇒ Cons (push e1 a) (a1)
  ].
+ 
+let rec e_size e on e ≝ 
+ match e with
+ [ Epsilon ⇒ O
+ | Cons e s ⇒ S (e_size e)
+ ]
+. 
  
 lemma push_test0: Cons (Cons Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Cons Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
 normalize //. qed. 

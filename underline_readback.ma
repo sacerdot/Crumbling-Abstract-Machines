@@ -107,14 +107,88 @@ fv_byte b ≝
  ]
  .
  
+let rec domb x c on c ≝
+ match c with
+ [ CCrumble b e ⇒ domb_e x e ]
+ 
+and domb_e x e on e ≝
+ match e with
+ [ Epsilon ⇒ false
+ | Cons e s ⇒ match s with [ subst y b ⇒ (veqb x y) ∨ (domb_e x e)]
+ ]
+ . 
+
+ 
+let rec fvb x c on c : bool ≝ 
+ match c with
+ [ CCrumble b e ⇒ ((fvb_b x b) ∧ ¬(domb_e x e)) ∨ fvb_e x e ]
+
+and fvb_b x b on b ≝ 
+ match b with
+ [ CValue v ⇒ fvb_v x v
+ | AppValue v w ⇒ (fvb_v x v) ∨ (fvb_v x w)
+ ]
+ 
+and fvb_e x e on e ≝ 
+ match e with
+ [ Epsilon ⇒ false
+ | Cons e s ⇒ match s with [subst y b ⇒ ((fvb_e y e) ∧ (¬ veqb x y)) ∨ fvb_b x b]
+ ]
+ 
+and fvb_v x v on v ≝ 
+ match v with
+ [ var y ⇒ veqb x y
+ | lambda y c ⇒ (¬(veqb y x) ∧ fvb x c)
+ ]
+ .
+ 
+let rec fresh_var c on c ≝
+ match c with
+ [ CCrumble b e ⇒  max (fresh_var_b b) (fresh_var_e e)]
+ 
+and fresh_var_b b on b ≝
+ match b with
+ [ CValue v ⇒ fresh_var_v v
+ | AppValue v w ⇒ max (fresh_var_v v) (fresh_var_v w)
+ ]
+
+and fresh_var_e e on e ≝ 
+ match e with
+ [ Epsilon ⇒ O
+ | Cons e s ⇒ max (fresh_var_e e) (fresh_var_s s) 
+ ]
+
+and fresh_var_v v on v ≝ 
+ match v with
+ [ var y ⇒ match y with [ variable x ⇒ S x ]
+ | lambda y c ⇒ match y with [ variable x ⇒ max (S x) (fresh_var c)]
+ ]
+ 
+and fresh_var_s s on s ≝ 
+ match s with
+ [ subst x b ⇒ match x with [ variable x ⇒ max (S x) (fresh_var_b b)] ]
+ .
+
+let rec fresh_var_t t on t ≝
+ match t with
+ [ val_to_term v ⇒ fresh_var_tv v
+ | appl v w ⇒ max (fresh_var_t v) (fresh_var_t w)
+ ]
+
+and fresh_var_tv v on v ≝
+ match v with
+ [ pvar v ⇒ match v with [variable x ⇒ S x]
+ | abstr v t ⇒ match v with [variable x ⇒ max (S x) (fresh_var_t t)]
+ ]
+ .
+(*
 let rec fresh_var e ≝
  match e with 
  [ Epsilon ⇒  O
  | Cons e' s ⇒  match s with [ subst v b ⇒ match v with [ variable n ⇒ max (S n) (fresh_var e')]]
  ]
  .
-
-(*
+  
 let rec underline_pifTerm (t: pifTerm) :Crumble ≝
  match t with
  [ val_to_term v ⇒ 〈CValue (overline v), Epsilon〉
@@ -127,28 +201,47 @@ let rec underline_pifTerm (t: pifTerm) :Crumble ≝
                 ]
  ]
 *)
+(* deve restituire una coppia 〈crumble, numero di variabili già inserite〉 per usare il parametro destro sommato al numero di variabili presenti nel termine all'inizio per dare sempre una variabile fresca*)
 
-let rec underline_pifTerm (t: pifTerm):Crumble ≝
+let rec underline_pifTerm (t: pifTerm) (s: nat): Crumble × nat≝
  match t with
- [ val_to_term v ⇒ CCrumble (CValue (overline v)) Epsilon
+ [ val_to_term v ⇒ match overline v s with
+   [ mk_Prod vv n ⇒  mk_Prod Crumble nat 〈(CValue vv), Epsilon 〉 n]
  | appl t1 t2 ⇒ match t2 with
-                [ val_to_term v2 ⇒ match t1 with
-                                   [ val_to_term v1 ⇒ 〈AppValue (overline v1) (overline v2), Epsilon〉
-                                   | appl u1 u2 ⇒ match underline_pifTerm t1 with [ CCrumble b e ⇒ 〈AppValue (var ν(fresh_var e)) (overline v2), push e [(ν(fresh_var e)) ← b]〉]
-                                   ]
-                | appl u1 u2 ⇒ match underline_pifTerm t2 with [CCrumble b1 e1 ⇒ match t1 with
-                                                                                     [ val_to_term v1 ⇒ at 〈AppValue (overline v1) (var ν(fresh_var e1)), Epsilon〉 (push e1 [ν(fresh_var e1)←b1])
-                                                                                     | appl u1 u2 ⇒ match underline_pifTerm t1 with [CCrumble b e ⇒ 〈AppValue (var (ν(fresh_var e))) (var (ν(fresh_var e1))), concat (push e1 [ν(fresh_var e) ← b1]) (push e [ν(fresh_var e1) ← b])〉]
-                                                                                     ]
-                                                               ]
-                ]
- ]
+   [ val_to_term v2 ⇒ match t1 with
+     [ val_to_term v1 ⇒ match overline v1 s with 
+       [ mk_Prod vv n ⇒ match overline v2 (s+n) with
+         [ mk_Prod ww m ⇒ mk_Prod Crumble nat 〈AppValue (vv) (ww), Epsilon〉 (m+n) ]
+       ]
+     | appl u1 u2 ⇒ match underline_pifTerm t1 s with
+       [ mk_Prod c n ⇒ match c with 
+         [ CCrumble b e ⇒ match overline v2 (s+n) with 
+           [ mk_Prod vv m ⇒ mk_Prod Crumble nat 〈AppValue (var ν(s+n+m)) (vv), push e [(ν(s+n)) ← b]〉 (S (n+m))]
+         ]
+       ]
+     ]
+   | appl u1 u2 ⇒ match underline_pifTerm t2 s with 
+     [ mk_Prod c n ⇒ match c with
+       [ CCrumble b1 e1 ⇒ match t1 with
+         [ val_to_term v1 ⇒ match overline v1 (s+n) with
+           [ mk_Prod vv m ⇒  mk_Prod Crumble nat (at 〈AppValue (vv) (var ν(s+n+m)), Epsilon〉 (push e1 [ν(s+n)←b1])) (S n)]
+         | appl u1 u2 ⇒ match underline_pifTerm t1 (s+n) with
+          [ mk_Prod c1 n1 ⇒ match c1 with
+            [ CCrumble b e ⇒ mk_Prod Crumble nat 〈AppValue (var (ν(s+n+n1))) (var (ν(S(s+n+n1)))), concat (push e1 [ν(s+n+n1) ← b1]) (push e [ν(S(s+n+n1)) ← b])〉 (S (S (n + n1)))]
+          ]
+         ]
+       ]
+     ]
+   ]
+ ] 
+
 and
  
-overline (x:pifValue): Value ≝
+overline (x:pifValue) (s: nat): Value × nat≝
  match x with
- [ pvar v ⇒ var v
- | abstr v t ⇒ lambda (v) (underline_pifTerm t)
+ [ pvar v ⇒ mk_Prod Value nat (var v) O
+ | abstr v t ⇒ match underline_pifTerm t s with 
+   [ mk_Prod c n ⇒ mk_Prod Value nat (lambda (v) (c)) n ]
  ]
  .
 
@@ -235,6 +328,19 @@ let rec e_pop e on e ≝
  match e with
  [ Epsilon ⇒ e
  | Cons e s ⇒ e
+ ]
+ .
+ 
+let rec fv_pt x t on t≝
+ match t with 
+ [ val_to_term v ⇒ fv_pv x v
+ | appl t1 t2 ⇒  orb (fv_pt x t1) (fv_pt x t2)
+ ]
+ 
+and fv_pv x v on v ≝ 
+ match v with
+ [ pvar y ⇒ veqb x y
+ | abstr y t ⇒ if veqb x y then false else fv_pt x t
  ]
  .
 
@@ -427,79 +533,31 @@ lemma value_lemma: ∀v: pifValue. read_back_v (overline v) = val_to_term v.
  | #x #t elim x #nx cases nx 
   [ normalize cases t [ normalize #v'   
 *)
-
-inductive list' (A: Type[0]) : nat → Type[0] ≝
-   Nil' : list' A 0
- | Cons' : ∀n. A → list' A n → list' A (S n).
-
-let rec list_ind' (A: Type[0]) (P : ∀m. list' A m → Prop)
-(H1 : P 0 (Nil' A)) (H2: ∀m. ∀hd. ∀tl. P m tl → P (S m) (Cons' A m hd tl))
-(n: nat) (l : list' A n) on l
-: P n l
-≝
- match l
- return λn.λl. P n l
- with
-  [ Nil' ⇒ H1
-  | Cons' m hd tl ⇒
-     H2 m hd tl (list_ind' A P H1 H2 m tl)
-  ].
-
-
-inductive T1 (A: Type[0]) : nat → Type[0] ≝
-  B : T1 A 0
-| K : ∀n. T2 A n → T1 A (S n)
-
-with T2 : nat → Type[0] ≝
-  K2 : ∀n. T1 A n → T2 A n. 
-
-let rec T1_ind (A: Type[0]) (P : ∀n. T1 A n → Prop) (Q: ∀n. T2 A n → Prop)
-(H1: P 0 (B A))
-(H2: ∀m. ∀y. Q m y → P (S m) (K A m y))
-(H3: ∀n. ∀x. P n x → Q n (K2 A n x))
-(n: nat) (x: T1 A n) on x : P n x
-≝
- match x
- return λn.λx. P n x
- with
- [ B ⇒ H1
- | K m y ⇒ H2 m y (T2_ind A P Q H1 H2 H3 m y)
- ]
-
-and T2_ind (A: Type[0]) (P : ∀n. T1 A n → Prop) (Q: ∀n. T2 A n → Prop)
-(H1: P 0 (B A))
-(H2: ∀m. ∀y. Q m y → P (S m) (K A m y))
-(H3: ∀n. ∀x. P n x → Q n (K2 A n x))
- (n: nat) (y: T2 A n) on y: Q n y
-≝ 
- match y
- return λn.λy. Q n y
- with
- [ K2 n x ⇒ H3 n x (T1_ind A P Q H1 H2 H3 n x)
- ].
-
-(*
-axiom pifTerm_ind: ∀P: pifTerm →  Prop. (∀v: pifValue. P (val_to_term v)) → (∀t1: pifTerm. ∀t2: pifTerm. ((P t1) → (P t2) → P (appl t1 t2))) → ∀t: pifTerm. P t.
-*)
-axiom pifValue_ind: ∀P: pifValue → Prop. ∀x: Variable. P (pvar x) → ∀v. P v.
-
-theorem test: ∀n. S n = n → False. 
-#n elim n [ #abs destruct | #x #H #Abs destruct @(H e0)] qed.
-
 (*
 lemma c4: ∀e: Environment. ∀x:Variable. ((has_member (dom_list e) x) = false)  → ((has_member (fv_env e) x) = false) → 
           ∀c: Crumble. ∀b: Byte. read_back (at c (push e [x←b]))= pif_subst (read_back (at c e)) (psubst x  (read_back 〈b, e〉)).
-
-#e #x #H1 #H2 #c #b cases (c) #b' #e' cases e [ normalize cases e'[ normalize //
- | #e'' #s normalize cases s #b'' #x normalize
+#e #x #H1 #H2 #c #b elim c
 *)
 
-lemma value_lemma: ∀v: pifValue. read_back_v (overline v) = val_to_term v.
-#v elim v
+definition ol ≝ λv. fst Value nat (overline v (fresh_var_tv v)).    
+definition ul ≝ λt. fst Crumble nat (underline_pifTerm t (fresh_var_t t)).
 
-lemma term_lemma: ∀t: pifTerm. read_back (underline_pifTerm t)  = t.
-#t elim t
-[ #v normalize cases v
- [ #x elim (x) #nx normalize // | #x #u cases (value_lemma (abstr x u)) //]
-| #t1 #t2 #H1 #H2 cases t1 
- [ #v normalize
+lemma value_lemma: ∀v: pifValue. read_back_v (ol v) = val_to_term v.
+#v @(pifValue_ind … v)
+[ @(λt. (read_back (ul t) = t))
+| #v0 #Hind normalize lapply Hind cases v0
+ [ #x normalize //
+ | #x #t normalize cases x normalize #n /2/  
+|
+| #x normalize //
+| #t1 #x #Hind elim x #n elim n
+ [ normalize lapply Hind cases t1
+  [ normalize #v #H >H //
+  | #t1 #t2 cases (t1) normalize  #H 
+
+
+
+
+ #t1 #t2
+
+

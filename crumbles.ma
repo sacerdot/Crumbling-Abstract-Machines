@@ -121,10 +121,10 @@ lemma test3: (〈 b0, e1 〉 @ e2) = 〈 b0, concat e1 e2 〉.
 // qed.
 
 let rec pifTerm_ind (P: pifTerm → Prop) (Q: pifValue → Prop)
-(H1: ∀v. Q v → P (val_to_term v))
-(H2: ∀t1, t2. P t1 → P t2 → P (appl t1 t2))
-(H3: ∀x. Q (pvar x))
-(H4: ∀t.∀x. P t → Q (abstr x t))
+(H1: ?)
+(H2: ?)
+(H3: ?)
+(H4: ?)
 (t: pifTerm) on t: P t ≝ 
 match t return λt. P t with
  [ val_to_term v ⇒ H1 v (pifValue_ind P Q H1 H2 H3 H4 v)
@@ -132,16 +132,20 @@ match t return λt. P t with
  ]
  
 and pifValue_ind (P: pifTerm → Prop) (Q: pifValue → Prop)
-(H1: ∀v. Q v → P (val_to_term v))
-(H2: ∀t1, t2. P t1 → P t2 → P (appl t1 t2))
-(H3: ∀x. Q (pvar x))
-(H4: ∀t.∀x. P t → Q (abstr x t))
+(H1: ?)
+(H2: ?)
+(H3: ?)
+(H4: ?)
 (v: pifValue) on v: Q v ≝ 
 match v return λv. Q v with
  [ pvar x ⇒ H3 x
  | abstr x t ⇒ H4 t x (pifTerm_ind P Q H1 H2 H3 H4 t)
  ]
  .
+ 
+lemma pifValueTerm_ind: ∀P,Q,H1,H2,H3,H4.
+ (∀t. P t) ∧ (∀v. Q v) ≝ 
+  λP,Q,H1,H2,H3,H4. conj … (pifTerm_ind P Q H1 H2 H3 H4) (pifValue_ind P Q H1 H2 H3 H4).
  
  
 let rec Crumble_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) (S: Value → Prop)
@@ -225,3 +229,14 @@ on s: U s ≝
 match s return λs. U s with
 [subst x b ⇒ H8 x b (Byte_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 b)]
 .
+ 
+lemma Crumble_mutual_ind: ∀P,Q,R,S,U,H1,H2,H3,H4,H5,H6,H7,H8.
+ (∀c. P c) ∧ (∀b. Q b) ∧ (∀e. R e) ∧ (∀v. S v) ∧ (∀s. U s)≝ 
+  λP,Q,R,S,U,H1,H2,H3,H4,H5,H6,H7,H8. conj … (conj … (conj … (conj … 
+  (Crumble_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8)
+  (Byte_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
+  (Environment_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
+  (Value_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
+  (Substitution_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8)
+  .
+ 

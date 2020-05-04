@@ -12,57 +12,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+include "arithmetics/nat.ma".
 include "basics/logic.ma".
-include "basics/bool.ma".
 
+lemma foo: ∀a, b. leb a b = false → b < a.
+#a #b #H lapply (leb_false_to_not_le … H) #H @(not_le_to_lt … H) qed.
 
-inductive nat: Type [0] ≝
-| O: nat
-| S: nat → nat
-.
-
-inductive bintree: Type [0] ≝
-| leaf: nat → bintree
-| node: nat → bintree →  bintree → bintree
-.
-
-let rec max a b on a ≝
- match a with 
- [ O ⇒ b
- | S n ⇒ match b with [ O ⇒ a | S m ⇒ S (max n m)]
- ]
- . 
-
-let rec height t on t ≝
- match t with
- [ leaf n ⇒  O
- | node n a b ⇒  S (max (height a) (height b))
- ]
- .
-
-let rec ge n m on n ≝
- match n with
- [ O ⇒ match m with [ O ⇒ true | S n ⇒ false] 
- | S n' ⇒ match m with [ O ⇒ true | S m' ⇒ ge n' m'] 
- ]
- .
- 
-let rec plus a b on a ≝
- match a with
- [ O ⇒ b
- | S n ⇒ S (plus n b)
- ]
- .
- 
-let rec nodes t on t ≝ 
- match t with
- [ leaf n ⇒ O
- | node n a b ⇒ S (plus (nodes a) (nodes b))
- ]
- .
-
-lemma ge_plus: ∀ a,b,c,d. ge a b = true → ge c d = true → ge (plus a c) (plus b d) = true.
-#a #b #c #d #H1 #H2 elim a [normalize elim (b) [normalize @H2 | #b' ]]
- 
-theorem tree_height: ∀t. ge (nodes t) (height t)= true.
-#t elim t[ #x normalize // | #x #t1 #t2 #H1 #H2 
+lemma le_aux2: ∀m: nat. ∀P: Prop. ((0 ≤ m) → P) → P.
+#m #P #H cut (∀n. 0≤n) [ #n cases n //| #H1 @(H (H1 m))] qed.

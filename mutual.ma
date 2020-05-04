@@ -55,12 +55,14 @@ and size_list_tree l ≝
  match l with
  [ Nil ⇒ 0
  | Cons hd tl ⇒ size_tree hd + size_list_tree tl ].
+ 
+check tree_list_tree_ind. 
 
 lemma foo:
  (∀t. 0 ≤ size_tree t) ∧ (∀l. 0 ≤ size_list_tree l).
  @tree_list_tree_ind
- [ (* goal 1 *)
- | (* goal 2 *)
- | (* goal 3 *)
+ [ normalize // (* goal 1 *)
+ | normalize // (* goal 2 *)
+ | #t #t1 #h #h1 normalize // (* goal 3 *)
  ]
 qed.

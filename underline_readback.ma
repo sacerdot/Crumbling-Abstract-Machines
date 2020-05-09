@@ -1,3 +1,4 @@
+
 (**************************************************************************)
 (*       ___                                                              *)
 (*      ||M||                                                             *)
@@ -118,6 +119,18 @@ and domb_e x e on e ≝
  ]
  .
 
+let rec fvb_t x t on t ≝
+ match t with
+ [val_to_term v ⇒ fvb_tv x v
+ |appl t1 t2 ⇒ orb (fvb_t x t1) (fvb_t x t2)
+ ]
+ 
+and fvb_tv x v on v ≝
+ match v with 
+ [ pvar y ⇒ veqb x y
+ | abstr y t ⇒ (¬(veqb x y) ∧ fvb_t x t)
+ ]
+.
 
 let rec fvb x c on c : bool ≝
  match c with
@@ -216,7 +229,7 @@ let rec underline_pifTerm (t: pifTerm) (s: nat): Crumble × nat≝
      | appl u1 u2 ⇒ match underline_pifTerm t1 s with
        [ mk_Prod c n ⇒ match c with
          [ CCrumble b e ⇒ match overline v2 (s+n) with
-           [ mk_Prod vv m ⇒ mk_Prod Crumble nat 〈AppValue (var ν(s+n+m)) (vv), push e [(ν(s+n)) ← b]〉 (S (n+m))]
+           [ mk_Prod vv m ⇒ mk_Prod Crumble nat 〈AppValue (var ν(s+n+m)) (vv), push e [(ν(s+n+m)) ← b]〉 (S (s+n+m))]
          ]
        ]
      ]
@@ -247,12 +260,17 @@ overline (x:pifValue) (s: nat): Value × nat≝
 
 let rec pif_subst t s ≝
  match t with
- [ val_to_term v ⇒ match v with [ pvar x ⇒ match s with [psubst v' t ⇒ match veqb v' x with [true ⇒ t | false ⇒ val_to_term v]]
-                                | abstr x t1 ⇒ match s with [psubst v' t2 ⇒ match veqb v' x with [true ⇒ val_to_term v | false ⇒ val_to_term (abstr x (pif_subst t1 s))]]
-                                ]
+ [ val_to_term v ⇒ pif_subst_v v s
  | appl t' u ⇒  appl (pif_subst t' s) (pif_subst u s)
  ]
- .
+ 
+and pif_subst_v (v: pifValue) s on v ≝
+ match v with 
+ [ pvar x ⇒ match s with [psubst v' t' ⇒ match veqb v' x with [true ⇒ t' | false ⇒ val_to_term (pvar x)]]
+ | abstr x t1 ⇒ match s with [psubst v' t2 ⇒ match veqb v' x with [true ⇒ val_to_term v | false ⇒ val_to_term (abstr x (pif_subst t1 s))]]
+ ].
+ 
+ 
 (*
 let rec c_size c on c ≝
  match c with
@@ -557,9 +575,147 @@ lemma le_aux1: ∀a, b. leb a b = false → b < a.
 lemma le_aux2: ∀m: nat. ∀P: Prop. ((0 ≤ m) → P) → P.
 #m #P #H cut (∀n. 0≤n) [ #n cases n //| #H1 @(H (H1 m))] qed.
 
+lemma max_O: ∀x. max x O = x.
+#x cases x //. qed.
+
+lemma and_true: ∀x. (x ∧ true) = x.
+#x cases x // qed.
+
+lemma or_false: ∀x. (x ∨ false) = x.
+#x cases x // qed.
+
+lemma max_n_m: ∀n,m. max n m =n ∨ max n m = m.
+#n #m cases n [ normalize //| cases m #nn 
+ [ normalize /2/ | #mm normalize cases (leb mm nn) normalize /2/] qed.
+
+lemma if_leb_x_O: ∀x. if (leb x O) then O else x =x.
+#x cases x normalize [// |#m //] qed.
+
+lemma veqb_comm: ∀x.∀y. veqb x y  = veqb y x.
+#x #y elim x #nx elim y #ny normalize //. qed.
+
 lemma lt_to_le: ∀n, m. n<m → n ≤ m.
 /2/ qed.
 
+lemma veqb_trans: ∀x,y,z. (veqb x y) = true → (veqb y z) = true → (veqb x z)=true.
+#x #y #z lapply ((veqb_true_to_eq x y)) #H1 lapply ((veqb_true_to_eq y z)) #H2
+#H3 #H4 normalize in H1; normalize in H2; cut (x=z)
+[ @(And_ind … H1) #H1' #H1'' -H1 @(And_ind … H2) #H2' #H2'' -H2 lapply (H1' H3) lapply (H2' H4) //
+| #H destruct -H1 -H2 -H3 -H4 elim z #nz normalize //] qed.
+
+lemma veqb_simm: ∀x,y. (veqb x y) = veqb y x.
+#x #y elim x #nx elim y #ny normalize /2/ qed. 
+
+lemma veqb_true: ∀x. veqb x x = true.
+#x elim x #nx elim nx normalize // qed.
+
+lemma veqb_fv: ∀x,z.∀t. veqb x z =true →  fvb_t x t = fvb_t z t. 
+#x #z #t #h lapply (veqb_true_to_eq x z) normalize #H @(And_ind … H) -H
+#H' #H'' lapply (H' h) #Heq destruct //. qed.
+
+lemma if_id_f: if false then true else false = false. // qed.
+lemma if_id_t: if true then true else false = true. // qed.
+
+lemma if_not_t: if true then false else true = false. // qed.  
+lemma if_not_f: if false then false else true = true. // qed.
+
+lemma if_t: ∀A.∀x:A.∀y:A. if true then x else y = x.
+#A #x #y normalize // qed.
+
+lemma if_f: ∀A.∀x:A.∀y:A. if false then x else y = y.
+#A #x #y normalize // qed. 
+
+lemma pif_subst_fv_lemma: 
+ (∀t.∀x.∀t'.∀y. fvb_t y (pif_subst (t) (psubst x t')) = ((((fvb_t x t) ∧ (fvb_t y t')) ∨ (fvb_t y t) ∧ (¬(veqb x y) ∨ fvb_t y t')))) ∧ 
+  (∀v. ∀x. ∀t'.∀y. fvb_t y (pif_subst_v v (psubst x t')) = ((((fvb_tv x v) ∧ (fvb_t y t')) ∨ (fvb_tv y v) ∧ (¬(veqb x y) ∨ fvb_t y t')))).
+
+  
+@pifValueTerm_ind
+[ #pV #H assumption 
+| #t1 #t2 #H1 #H2 #x #t' #y normalize >(H1 x t' y) >(H2 x t' y) cases (fvb_t y t2) cases (fvb_t y t1) cases (fvb_t y t') cases (fvb_t x t1) cases (fvb_t x t2) cases (fvb_t x t')normalize // cases (veqb x y) normalize // 
+| #z #x #t' #y normalize cut (veqb x z=true ∨ veqb x z=false)
+ [//| cut (veqb y z=true ∨ veqb y z=false) [//
+  | #H1 #H2 elim H1 elim H2 -H1 -H2 #H1 #H2 lapply (veqb_comm y z) #Hok lapply H2 >Hok -H2 -Hok #H2 
+   [lapply (veqb_trans x z y H1 H2) #H3 lapply (veqb_true_to_eq x z) #H normalize in H;
+    @(And_ind … H) #H' #H'' lapply (H' H1) -H1 -H' -H'' #H1 destruct -H 
+    lapply (veqb_true_to_eq z y) #H normalize in H;
+    @(And_ind … H) #H' #H'' lapply (H' H2) -H2 -H3 -H' -H'' #H1 destruct -H
+    lapply (veqb_true y) #H >H normalize cases (fvb_t y t') //
+   | lapply (veqb_true_to_eq z y) #H normalize in H;
+    @(And_ind … H) #H' #H'' lapply (H' H2) -H2 -H' -H'' #H2 destruct -H lapply (veqb_true y) #H >H normalize
+    >H1 normalize //
+   | lapply (veqb_true_to_eq x z) #H normalize in H;
+    @(And_ind … H) #H' #H'' lapply (H' H1) -H1 -H' -H'' #H1 destruct -H lapply (veqb_true y) #H >H >H2 normalize
+    lapply(veqb_true z) -H #H >H normalize cases (fvb_t y t') //
+   | >H1 >H2 normalize //]
+  ]
+ ]
+| #t #z #H #x #t' #y normalize cut (veqb x z = true ∨ veqb x z = false) //
+  #Hxz elim Hxz -Hxz #Hxz >Hxz normalize
+  [ cut (veqb x y = veqb y z) lapply (veqb_true_to_eq x z) #Heq normalize in Heq;
+    elim Heq -Heq #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct //
+    #Hsimm >Hsimm elim (veqb y z) normalize // cases (fvb_t y t) //
+  | cut (veqb y z = true ∨ veqb y z = false) // #Hyz elim Hyz -Hyz #Hyz
+    [ cut (veqb x y = veqb x z) lapply (veqb_true_to_eq y z) #Heq normalize in Heq;
+    elim Heq -Heq #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct // #_ >(veqb_true z)
+    normalize
+     
+
+
+lemma fv_lemma: 
+ (∀c.∀x. fvb x c = fvb_t x (read_back c)) ∧
+  (∀b.∀x. fvb_b x b = fvb_t x (read_back_b b)) ∧
+   (∀e.∀b.∀x. fvb_b x b = fvb_t x (read_back_b b) → fvb x 〈b, e〉 = fvb_t x (read_back 〈b,e〉)) ∧
+    (∀v.∀x. fvb_v x v = fvb_t x (read_back_v v)) ∧
+     (∀s.∀b.∀e.∀x. fvb_b x b = fvb_t x (read_back_b b) →  fvb x 〈b, (Cons e s)〉 = fvb_t x (read_back 〈b, (Cons e s)〉)).
+
+@Crumble_mutual_ind
+[ #b #e #H1 #H2 #x lapply (H1 x) lapply (H2 b x) /2/
+| #v #H normalize assumption
+| #v #w #H1 #H2 #x normalize >(H1 x) >(H2 x) //
+| #x #y normalize //
+| #x #c cases c #b #e normalize #H #y lapply (H y) >(veqb_comm y x) elim (veqb x y) normalize
+ [ #Hinutile  // | #Hutile @Hutile] 
+| #b #x normalize #H <H cases (fvb_b x b) //  
+| #e #s #H1 #H2 #b #x #H3 @(H2 b e x) //
+| #x #b #H #b' #e #y #H1  normalize cases e normalize cases (read_back_b b')
+ [ #v
+ 
+
+
+lemma fesh_lemma:
+ (∀c. fresh_var c = fresh_var_t (read_back c)) ∧
+  (∀b. fresh_var_b b = fresh_var_t (read_back_b b)) ∧
+   (∀e.∀b. fresh_var 〈b, e〉 = fresh_var_t (read_back 〈b,e〉)) ∧
+    (∀v. fresh_var_v v = fresh_var_t (read_back_v v)) ∧
+     (∀s.∀b.∀e. fresh_var 〈b, (Cons e s)〉 = fresh_var_t (read_back 〈b, (Cons e s)〉)).
+
+@Crumble_mutual_ind
+[ #b #e #H1 #H2 lapply (H2 b) -H2 #H2 assumption
+| #v #H normalize assumption
+| #v #w #H1 #H2 normalize change with (max ? ?) in match  (if ? then ? else ?) in ⊢ % ;
+  change with (max ? ?) in match (if leb (fresh_var_t (read_back_v v)) (fresh_var_t (read_back_v w))  then ? else ? ) in ⊢%;
+  >H1 >H2 //
+| #x normalize //
+| #x #c elim x #nx cases c #b #e normalize change with (max ? ?) in match  ( if leb (fresh_var_b b) (fresh_var_e e)  then ? else ?) in ⊢ % ;
+  #H >H //
+| #b normalize change with (max ? ?) in match  ( if ? then ? else ?) in ⊢ %; >max_O
+ [ #v normalize cases v
+  [ #x normalize //
+  | #x #c elim x #nx cases c #b #e normalize change with (max ? ?) in match  ( if leb ? ? then ? else ?) in ⊢ %;
+  
+   #s #H1 #H2 #b @ (H2 b e)
+| #x #b #H #b #e normalize 
+ #b normalize cases b
+ [#v normalize change with (max ? ?) in match  ( if ? then ? else ?) in ⊢ %; >max_O cases v #x normalize //
+  #c elim x #nx normalize cases c #b #e change with (max ? ?) in match  ( if leb (fresh_var_b b) (fresh_var_e e)  then ? else ?) in ⊢ % ;
+  normalize
+  change with (fresh_var_v (lambda (ν?) 〈?, ? 〉)) in match  ( if ? then ? else ?) in ⊢ %;
+  change with (fresh_var_tv (abstr (ν?) 〈?, ? 〉)) in match  ( if ? then ? else ?) in ⊢ %;
+  case
+
+
+     
 lemma value_lemma:
   ∀v: pifValue. ∀ n. n ≥ fresh_var_tv v →
   match (overline v n) with
@@ -572,60 +728,49 @@ lemma value_lemma:
 | #v0 cases v0 (*devo dimostrare per ogni v0*)
  [#x elim x #nx normalize /2/
  | #x elim x #nx #t normalize #HI #m lapply (HI m ) cases (underline_pifTerm t m)
-   #c #fv_c normalize cases c #b #e normalize cases (fresh_var_b b) cases (fresh_var_e e) cases (fresh_var_t t) normalize
-   [ #H assumption | #nc #H assumption | #ne cases (leb nx ne) normalize #H assumption
-   | #na #nb cases (leb nx nb) normalize #H assumption | #na cases (leb nx na) normalize #H assumption
-   | #na #nb cases (leb nx na) cases (leb nx nb) normalize #H assumption
-   | #na #nb cases (leb nb na) normalize cases (leb nx na) normalize
-     cases (leb nx nb) normalize #H assumption
-   | #nc #nd #ne cases (leb ne nd) normalize
-    cases (leb nx nd) normalize cases (leb nx nc) normalize
-    cases (leb nx ne) normalize #H assumption
+   #c #fv_c normalize cases c #b #e normalize
+   change with (max ? ?) in match  (if leb ? ? then ? else ?) in ⊢ % ;
+   cases fresh_var_t normalize
+   change with (max ? ?) in match  (if leb ? ? then ? else ?) in ⊢ % ;
+   cases (max (fresh_var_b b) (fresh_var_e e))
+   normalize
+   change with (max ? ?) in match  (if leb ? ? then ? else ?) in ⊢ % ;
+   [ normalize #H @H
+   | #n cases (leb nx n) normalize #H @H
+   | #n #H @H
+   | #n #m cases (leb nx n) normalize #H @H 
    ]
  ]
 | #t1 #t2 cases t2
  [ #v2 cases t1
   [ #v1 normalize #H1 #H2 #n lapply (H1 n) cases (overline v1 n) #vv #m lapply (H2 (n+m)) normalize
-    cases (overline v2 (n+m)) #ww #mm
-    (**)
-    cut (leb (fresh_var_tv v1) (fresh_var_tv v2)=true ∨ leb (fresh_var_tv v1) (fresh_var_tv v2)=false)
-    [ // | #Htf1 elim Htf1 #Htf1' >Htf1' normalize
-      cut (leb (fresh_var_v ww) 0=true ∨ leb (fresh_var_v ww) 0=false)
-      [ 1,3: // | 2,4: #Htf2 elim Htf2 #Htf2' >Htf2' normalize
-        cut (leb (fresh_var_v vv) (fresh_var_v ww)=true ∨ leb (fresh_var_v vv) (fresh_var_v ww)=false)
-        [ 1,3,5,7:// | 2,4,6,8: #Htf3 elim Htf3 #Htf3' >Htf3' normalize cut (leb (fresh_var_v ww) O=true ∨ leb (fresh_var_v ww) O=false)
-          [ 1,3,5,7,9,11,13,15: // | 2,4,6,8,10,12,14,16:
-            #Htf4 elim Htf4 #Htf4' >Htf4' normalize cut (leb (fresh_var_v vv) O=true ∨ leb (fresh_var_v vv) O=false)
-           [1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31: // | 2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32:
-           cut (leb (fresh_var_v vv) O=true ∨ leb (fresh_var_v vv) O=false)
-             [1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31: // | 2,4,6,8,10,12,14,16:
-              #Htf4 elim Htf4 #Htf4' >Htf4' normalize #Hinpi #H1 #H2 #Hle @(And_ind … (H1 (le_plus_a_r … Hle))) #H1' #Hf
-                 cut (fresh_var_tv v1 ≤ n )
-                 [1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31: lapply (leb_true_to_le … Htf1') #Haux @(transitive_le … (fresh_var_tv v2)) //
-                 |2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32: #Hb @(And_ind … (H2 Hb)) #H2' #Hf2 >H1' >H2' %
-                   [1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31: //
-                   |2,4,10,14,18,20,26,30: //
-                   |6,8: lapply (leb_true_to_le … Htf2') #Haux @((le_plus_a_r … Haux))
-                   |12,16,22,24,28,32: /2/
-                   ]
-                 ]
-               | 18,20,22,24,26,28,30,32: #Htf4 elim Htf4 #Htf4' >Htf4' normalize #Hinpi #H1 #H2 #Hle
-                 @(And_ind … (H2 (Hle))) #H2' #Hf
-                 lapply (H1 (le_plus_a_r … (lt_to_le … (lt_to_le_to_lt … (not_le_to_lt … (leb_false_to_not_le … Htf1')) Hle))))
-                 #H1 @(And_ind … H1) #H1' #Hf' % //
-                 [3,4,5,6: lapply(le_plus_a mm … Hf) //
-                 |1,2: lapply(le_plus_a_r (mm+m+n)…(leb_true_to_le … Htf2')) //
-                 ]
-            ]
-          ]
-        ]
-      ]
-    ]
-  ]
-| #u1 #u2  #H1 #H2 #n lapply (H1 n) normalize #c #m
- lapply (H2 (n+m)) normalize cases (overline v2 (n+m)) #vv #mm normalize
-  cases c #b #e #H1 #H2 normalize cases (overline v2 (n+m)) #vv #mm cases (overline v1 n)
+    cases (overline v2 (n+m)) #ww #mm normalize
+    change with (max ? ?) in match  (if ? then ? else ?) in ⊢ % ;
+    change with (max ? ?) in match  (if leb (fresh_var_tv v1) (fresh_var_tv v2) then ? else ?) in ⊢ % ;
+    change with (max ? ?) in match  (if leb (fresh_var_v ?) (fresh_var_v ?) then ? else ?) in ⊢ % ;
+    >max_O
+    change with (max ? ?) in match  (if ? then ? else ?) in ⊢ % ;
+    >max_O
+    -H1 -H2 #H1 #H2 #H3 lapply (le_maxl ? ? ? H3) #H4 lapply (H2 H4) -H2 #H2 -H4 lapply (le_maxr ? ? ? H3) #H5
+    lapply (H1 (le_plus_a_r … H5)) -H1 -H5 #H1 >if_leb_x_O 
+    @(And_ind … H1) @(And_ind … H2) -H1 -H2 #H1 #H1' #H2 #H2' 
+    %[ >H1 >H2 // | cut (max (fresh_var_v vv) (fresh_var_v ww) =(fresh_var_v vv) ∨ max (fresh_var_v vv) (fresh_var_v ww)= (fresh_var_v ww))
+     [ @max_n_m | #Hor elim Hor -Hor #Hor >Hor [ /2/ | /2/   ]]]
+| #u1 #u2  #H1 #H2 #n lapply (H1 n) whd in match (underline_pifTerm ? ?) in ⊢ (? → %); -H1 cases (underline_pifTerm (appl u1 u2) n)
+#c #m normalize lapply (H2 (n+m)) cases (overline v2 (n+m)) #vv #mm
+change with (max ? ?) in match  (if leb ? ? then ? else ?) in ⊢ % ;
+change with (max ? ?) in match (if leb (max ? ?) ? then ? else ?) in ⊢ %; -H2
+#H2 #H1 #H3
+change with (fresh_var_t (appl ? ?)) in match (max (fresh_var_t ?) (fresh_var_t ?)) in H3;
+change with (fresh_var_t (val_to_term ?)) in match (fresh_var_tv ?) in H3;
+change with (fresh_var_t (appl ? ?)) in match (max (fresh_var_t ?) ?) in H3;
+lapply H1 cases c #b #e -H1 #H1 whd in ⊢ %;
 
+ normalize
+change with (max ? ?) in match  (if ? then ? else ?) in ⊢ % ;
+change with (?) in match (match fresh_var_v vv in nat return λ_:ℕ.bool with 
+         [O⇒false|S (q:ℕ)⇒leb (n+m+mm) q]) in ⊢ %;
+ cases (fresh_var_v vv) normalize
 
 lemma term_lemma:
  ∀t: pifTerm. ∀n. n= fresh_var_t t →

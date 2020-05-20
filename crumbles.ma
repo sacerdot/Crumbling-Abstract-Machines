@@ -79,7 +79,13 @@ let rec e_size e ≝
  [ Epsilon ⇒ O
  | Cons e s ⇒ S (e_size e)
  ]
-. 
+.
+
+let rec pi1ps s on s ≝ 
+ match s with [psubst x t ⇒ x] .
+
+let rec pi2ps s on s≝ 
+ match s with [psubst x t ⇒ t] .
  
 lemma push_test0: Cons (Cons Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Cons Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
 normalize //. qed. 
@@ -240,3 +246,69 @@ lemma Crumble_mutual_ind: ∀P,Q,R,S,U,H1,H2,H3,H4,H5,H6,H7,H8.
   (Substitution_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8)
   .
  
+ 
+let rec Crumble_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+(U: Substitution → Prop)
+(H1: ∀b.∀e. Q b → P 〈b, e〉)
+(H2: ∀v: Value. S v → Q (CValue v))
+(H3: ∀v:Value. ∀w:Value. S v → S w → Q (AppValue v w))
+(H4: ∀x. S (var x))
+(H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
+(H8: ∀x. ∀b. Q b → U (subst x b))
+(c: Crumble)
+on c: P c ≝
+match c return λc. P c with
+[ CCrumble b e ⇒ (H1 b e (Byte_ind2 P Q S U H1 H2 H3 H4 H5 H8 b))]
+
+and Byte_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+(U: Substitution → Prop)
+(H1: ∀b.∀e. Q b → P 〈b, e〉)
+(H2: ∀v: Value. S v → Q (CValue v))
+(H3: ∀v:Value. ∀w:Value. S v → S w → Q (AppValue v w))
+(H4: ∀x. S (var x))
+(H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
+(H8: ∀x. ∀b. Q b → U (subst x b))
+(b: Byte)
+on b: Q b ≝
+match b return λb. Q b with
+[ CValue v ⇒ H2 v (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8 v)
+| AppValue v w ⇒ H3 v w (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8 v) (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8 w)
+]
+
+and Value_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+(U: Substitution → Prop)
+(H1: ∀b.∀e. Q b → P 〈b, e〉)
+(H2: ∀v: Value. S v → Q (CValue v))
+(H3: ∀v:Value. ∀w:Value. S v → S w → Q (AppValue v w))
+(H4: ∀x. S (var x))
+(H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
+(H8: ∀x. ∀b. Q b → U (subst x b))
+(v: Value)
+on v: S v ≝
+match v return λv. S v with
+[ var x ⇒ H4 x
+| lambda x c ⇒ H5 x c (Crumble_ind2 P Q S U H1 H2 H3 H4 H5 H8 c)
+]
+
+and Substitution_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+(U: Substitution → Prop)
+(H1: ∀b.∀e. Q b → P 〈b, e〉)
+(H2: ∀v: Value. S v → Q (CValue v))
+(H3: ∀v:Value. ∀w:Value. S v → S w → Q (AppValue v w))
+(H4: ∀x. S (var x))
+(H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
+(H8: ∀x. ∀b. Q b → U (subst x b))
+(s: Substitution)
+on s: U s ≝ 
+match s return λs. U s with
+[subst x b ⇒ H8 x b (Byte_ind2 P Q S U H1 H2 H3 H4 H5 H8 b)]
+.
+
+lemma Crumble_mutual_ind2: ∀P,Q,S,U,H1,H2,H3,H4,H5,H8.
+ (∀c. P c) ∧ (∀b. Q b) ∧ (∀v. S v) ∧ (∀s. U s)≝ 
+  λP,Q,S,U,H1,H2,H3,H4,H5,H8. conj … (conj … (conj … 
+  (Crumble_ind2 P Q S U H1 H2 H3 H4 H5 H8)
+  (Byte_ind2 P Q S U H1 H2 H3 H4 H5 H8))
+  (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8))
+  (Substitution_ind2 P Q S U H1 H2 H3 H4 H5 H8)
+  .

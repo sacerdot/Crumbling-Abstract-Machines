@@ -320,7 +320,21 @@ and pif_subst_v (n: nat) s: Πv. (v_size v  ≤ n) → Σu: pifTerm. t_size u = 
 .
 *)
 
+lemma foo:
+ ∀A,P. 
+  ∀Q: A → Prop.
+   ∀c: Σx:A.P x. 
+   (∀z. z = pi1 ?? c → P z → Q z) →
+     Q (pi1 ?? c).
+#A #P #Q * /2/
+qed.
 
+(*
+lemma generalize_foo:
+ ∀n,s,p,P.
+  (∀q. P (pif_subst n s t q)) →
+    P (pif_subst n s t p).
+*)
 
 let rec pif_subst (n: nat) s: Πt. (t_size t ≤ n) → Σu: pifTerm. t_size u = (t_size t)+ (free_occ_t (match s with [psubst x t ⇒ x]) t) * ((t_size (match s with [psubst x t ⇒ t])) - 1)≝
  match n return λn. Πt. (t_size t ≤ n) → Σu: pifTerm. t_size u = (t_size t)+ (free_occ_t (match s with [psubst x t ⇒ x]) t) * ((t_size (match s with [psubst x t ⇒ t])) - 1) with
@@ -358,7 +372,10 @@ let rec pif_subst (n: nat) s: Πt. (t_size t ≤ n) → Σu: pifTerm. t_size u =
            match psubst y t' in pifSubst return λ_:pifSubst.pifTerm with 
            [psubst (x0:Variable)   (t0:pifTerm)⇒t0]
            -1);
- normalize
+  @foo #k #k_def #k_size
+  normalize >k_size >h normalize
+ 
+ xxx
  
 | lapply (pif_subst m s t1)
  4,5,7,8: normalize in p; oiuy

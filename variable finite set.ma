@@ -47,7 +47,7 @@ lemma neqb_false: ∀x. neqb x (S x) =false.
 lemma neqb_false1: ∀x. neqb (S x) x =false.
 #x elim x [// | #y #Hind normalize @Hind].qed.
 
-lemma foo: ∀n, m. neqb n m = true ↔ n=m.
+lemma neqb_iff_eq: ∀n, m. neqb n m = true ↔ n=m.
 #n elim n
  [*
   [ /2/
@@ -114,7 +114,7 @@ lemma var_m: ∀a, b. variable a =variable b ↔ a=b.
 
 theorem veqb_true_to_eq: ∀a,b: Variable. (veqb a b=true)↔(a=b).
 #a #b cases a cases b #na #nb >var_n normalize % #H [ cases (var_m na nb) #H1 #H2 cases (var_n na nb)
-lapply H cases (foo na nb) #H29 #H30 #H31 cut (na =nb) cut (neqb nb na =true) // /2/
+lapply H cases (neqb_iff_eq na nb) #H29 #H30 #H31 cut (na =nb) cut (neqb nb na =true) // /2/
 | cases (aux na nb) /2/ qed.
 
 definition DeqVar ≝ mk_DeqSet Variable veqb veqb_true_to_eq.

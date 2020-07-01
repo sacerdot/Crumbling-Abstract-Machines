@@ -958,10 +958,14 @@ lemma fv_lemma:
 
 lemma fv_push_e: ∀e, x, b. fresh_var_e (push e [νx ← b]) = max (max (fresh_var_e e) (S x)) (fresh_var_b b).
 
+<<<<<<< HEAD
 #e #x #b cases e
 [ normalize //
 | #e #s normalize change with (max ? ?) in match (if ? then ? else ?);
 *)
+=======
+<<<<<<< HEAD
+>>>>>>> edd9902... progress
 lemma four_dot_two:  
     (∀t.∀s. (s ≥ fresh_var_t t) → read_back (fst ?? (underline_pifTerm t s)) = t ∧
       (snd ?? (underline_pifTerm t s) + s ≥ (fresh_var (fst ?? (underline_pifTerm t s))))) ∧
@@ -1251,3 +1255,10 @@ lemma value_lemma: ∀v: pifValue. read_back_v (ol v) = val_to_term v.
 
  #t1 #t2
 *)
+=======
+lemma if_t: ∀A.∀x:A.∀y:A. if true then x else y = x.
+#A #x #y normalize // qed.
+
+lemma if_f: ∀A.∀x:A.∀y:A. if false then x else y = y.
+#A #x #y normalize // qed. 
+>>>>>>> c0f8d5b... progress

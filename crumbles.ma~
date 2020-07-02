@@ -315,21 +315,8 @@ lemma Crumble_mutual_ind2: ∀P,Q,S,U,H1,H2,H3,H4,H5,H8.
 
 let rec Environment_simple_ind (P: Environment → Prop) (Q: Substitution → Prop) 
 (H1: P Epsilon)
-(H2: ∀e.∀s. P e → Q s → P (Cons e s))
-(H3: ∀s. Q s)
+(H2: ∀e.∀s  P e → Q s → P (Cons e s)) 
 e on e ≝
  match e return λe. P e with
- [ Epsilon ⇒ H1
- | Cons e s ⇒ H2 e s (Environment_simple_ind P Q H1 H2 H3 e) (H3 s)
- ].
-
-let rec Environment_simple_ind2 (P: Environment → Prop)
-(H1: P Epsilon)
-(H2: ∀e.∀s. P e → P (Cons e s))
-e on e ≝
- match e return λe. P e with
- [ Epsilon ⇒ H1
- | Cons e s ⇒ H2 e s (Environment_simple_ind2 P H1 H2 e)
- ].
- 
- 
+ [ Epsilon ⇒ H
+ | 

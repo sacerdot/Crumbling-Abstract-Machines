@@ -975,8 +975,8 @@ lemma four_dot_two:
 [ #v normalize in match (fresh_var_tv ?); @foo #z #z_def #z_prop #HI #s #Hsz lapply (HI s Hsz)
  -HI -Hsz * normalize cases (overline v s) #vv #nn normalize #H1 #H2 % // lapply H2
  cases (fresh_var_v vv) normalize //
-| #t1 #t2 cases t2 #v2
-  [ cut (t1=t1) // #Ht1 
+| #t1 #t2 cases t2
+  [ #v2 cut (t1=t1) // #Ht1 
     cases t1  
     [ #v1 normalize @foo #zv1 #zv1_def #zv1_prop @foo #zv2 #zv2_def #zv2_prop #H1 #H2 
       #s lapply (H1 s) cases (overline v1 s) #vv #n -H1 #H1 normalize lapply (H2 (s+n))
@@ -1041,7 +1041,7 @@ lemma four_dot_two:
         #Hmax1 #Hmax2 lapply (Hu1u2 Hmax2) -Hu1u2 * #Hu1u21 #Hu1u22
         cut (zv2 ≤ s+n) /2/ -Hmax1 -Hmax2 -Hmax #Hmax lapply (Hv2 Hmax)
         -Hv2 * #Hv21 #Hv22 %
-        [
+        [ >Hv21 normalize
         | @(to_max …) [@(to_max …) /2/ | normalize lapply Hu1u22
           @(Environment_simple_ind2 … e)
           [ normalize change with (leb (S ?) ?) in match (match fresh_var_b b in nat return λ_:ℕ.bool with 
@@ -1060,6 +1060,9 @@ lemma four_dot_two:
             ]
           ]  ]
         ]
+      ]
+    | #u1 #u2 #H1 #H2 #s #Hs lapply (H1 s) cases (underline_pifTerm t1 s) #c #n
+      cases c #b #e lapply (H2 (s+n)) normalize
         
     
       

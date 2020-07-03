@@ -239,3 +239,5 @@ lemma if_t: ∀A.∀x:A.∀y:A. if true then x else y = x.
 
 lemma if_f: ∀A.∀x:A.∀y:A. if false then x else y = y.
 #A #x #y normalize // qed.
+
+lemma not_gt_lt: ∀n, m. n>m → n ≤ m → False. /3/ qed. 

@@ -19,6 +19,13 @@ include "basics/deqsets.ma".
 include "basics/finset.ma".
 include "crumbles.ma".
 
+let rec gtb n m on n ≝
+ match n with
+ [ O ⇒ false
+ | S n' ⇒ match m with [ O ⇒ true | S m' ⇒ gtb n' m']
+ ]
+.
+
 let rec neqb n m ≝
  match n with
  [ O ⇒ match m with
@@ -72,6 +79,9 @@ let rec veqb (n: Variable) (m: Variable) ≝
 
 lemma eq_to_veq: ∀a, b: Variable. a=b → (veqb a b = true).
 #a #b #H destruct cases b #n cases n //#m normalize // qed.
+
+lemma leq_to_geq: ∀x,y. x ≤ y → y ≥ x.
+#x #y #H // qed.
 
 lemma aux: ∀a, b: nat. veqb (variable a) (variable b)= true → neqb a b = true.
 #na
@@ -240,4 +250,93 @@ lemma if_t: ∀A.∀x:A.∀y:A. if true then x else y = x.
 lemma if_f: ∀A.∀x:A.∀y:A. if false then x else y = y.
 #A #x #y normalize // qed.
 
-lemma not_gt_lt: ∀n, m. n>m → n ≤ m → False. /3/ qed. 
+lemma not_gt_lt: ∀n, m. n>m → n ≤ m → False. /3/ qed.
+
+lemma leq_Sx_x_false: ∀x. S x ≤ x → False.
+#x elim x #Hf /2/ qed.
+
+lemma le_n_max_n: ∀n,m. n ≤ max n m.
+#n #m normalize cut (leb n m = true ∨ leb n m = false)
+// * #Htf >Htf normalize // @(leb_true_to_le …) // qed.
+
+lemma le_le_max: ∀x, y, z. x ≤ y → x ≤ max y z.
+#x #y #z #H /2/ qed.
+
+lemma if_id_f: if false then true else false = false. // qed.
+lemma if_id_t: if true then true else false = true. // qed.
+
+lemma if_not_t: if true then false else true = false. // qed.
+lemma if_not_f: if false then false else true = true. // qed.
+lemma if_then_false_else_false: ∀b. if b then false else false = false. #b cases b // qed.
+lemma if_then_true_else_false: ∀b. if b then true else false = b. #b cases b // qed.
+lemma if_monotone: ∀P.∀b.∀(A:P). if b then A else A = A.
+#P #b cases b normalize // qed.
+
+lemma max_fact: ∀ x, y, z. max (max x z) (max y z) = max (max x y) z.
+#x #y #z normalize cut (leb x z = true ∨ leb x z = false) // * #Hxz
+>Hxz normalize
+[ cut (leb y z = true ∨ leb y z = false) // * #Hyz >Hyz normalize
+  [ cut (leb x y = true ∨ leb x y = false) // * #Hxy >Hxy normalize
+    [ >Hyz normalize >if_monotone //
+    | >if_monotone >Hxz normalize //
+    ]
+  | lapply (leb_false_to_not_le … Hyz) #Hyz'
+    lapply (not_le_to_lt … Hyz') -Hyz' #Hyz'
+    lapply (lt_to_le … Hyz') -Hyz' #Hyz'
+    lapply (le_to_leb_true … Hyz') -Hyz' #Hyz' >Hyz' normalize
+    cut (leb x y = true)
+    [ lapply (leb_true_to_le … Hxz)
+      lapply (leb_true_to_le … Hyz')
+      -Hxz -Hyz' #Hzy #Hxz lapply (transitive_le … Hxz Hzy ) #Hxy
+      @(le_to_leb_true …) @Hxy
+    | #Hxy >Hxy normalize >Hyz normalize //
+    ]
+  ]
+| cut (leb y z = true ∨ leb y z = false) // * #Hyz >Hyz normalize
+  [ cut (leb y x=true)
+    [ lapply (leb_false_to_not_le … Hxz) #Hxz'
+      lapply (not_le_to_lt … Hxz') -Hxz' #Hxz'
+      lapply (lt_to_le … Hxz') -Hxz' #Hxz'
+      lapply (le_to_leb_true … Hxz') -Hxz' #Hxz' >Hxz'
+      lapply (leb_true_to_le … Hyz)
+      lapply (leb_true_to_le … Hxz')
+      -Hyz -Hxz' #Hyz #Hxz' lapply (transitive_le … Hxz' Hyz) #Hyx
+      @(le_to_leb_true …) @Hyx
+    | #Hyx cut (leb x y = false)
+      [ lapply (leb_true_to_le … Hyx) #Hyx'
+        lapply (leb_true_to_le … Hyz) #Hyz'
+        lapply (leb_false_to_not_le … Hxz) #Hxz'
+        lapply (not_le_to_lt … Hxz') -Hxz' #Hxz'
+        cut (y < x)
+        [ @(le_to_lt_to_lt …Hyz' Hxz')
+        | -Hyx #Hyx lapply (lt_to_not_le …Hyx) #Hxy
+          @(not_le_to_leb_false … Hxy)
+        ]
+      | #Hxy >Hxy normalize >Hxz //
+      ]
+    ]
+  | cut (leb x y = true ∨ leb x y = false) // * #Hxy
+   >Hxy normalize
+   [ >Hyz normalize //
+   | >Hxz normalize //
+   ]
+  ]
+]
+qed.
+
+lemma plus_tree: ∀w, x, y, z. plus (plus w x) (plus y z) = plus (plus w y) (plus x z).
+#w #x #y #z /2/ qed.
+
+lemma gtb_O: ∀x. gtb x O = false → x=0.
+#x cases x normalize // #nx #abs destruct qed.
+
+lemma times_O: ∀x. x*O=O.
+#x // qed.
+
+lemma gtb_O_true: ∀x. gtb x O=true → ∃y. x =S y.
+#x cases x
+[ normalize #H destruct
+| #m normalize #_ @(ex_intro …)
+  [ @m | //]
+]
+qed.

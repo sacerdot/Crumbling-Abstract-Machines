@@ -82,4 +82,8 @@ cut (leb (S x) y= true ∨ leb (S x) y = false) // * #Hleb2
 | >Hleb2 normalize /2/
 ] qed.
 
-   
+lemma persistent_case: ∀n. n =0 ∨ ∃x. S x=n.
+#n cases n
+[ % //
+| #m cut (∃x. S x= S m) /2/
+] qed.

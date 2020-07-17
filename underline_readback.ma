@@ -622,7 +622,7 @@ lemma pif_subst_distro:
   ]
 | #t #x #H #y #t' lapply (H y t') -H #H
   change with (pi1 … (pif_subst_sig ? ? ? ?)) in match ( pif_subst ? ?);
-
+*)
 lemma fresh_var_lemma:
  (∀c. fresh_var_t (read_back c) ≤ fresh_var c) ∧
   (∀b. fresh_var_t (read_back_b b) ≤ fresh_var_b b ) ∧
@@ -701,6 +701,7 @@ lemma fresh_var_lemma:
   #H1'
   change with (pif_subst (aux_read_back (read_back_b b) e) ?)
   in match (read_back ?);
+  normalize
   @sigma_prop_gen #z #z_def * #_ #z_prop
  whd in match (fresh_var_v ?);
   change with (max ? ?) in match (if ? then ? else ?);
@@ -824,7 +825,8 @@ lemma fresh_dom_e: ∀x, e. domb_e (νx) e =true → x ≤ fresh_var_e e.
   | >if_f #H #HH lapply (H HH) -H -HH #H @le_le_max assumption
   ]
 qed.
-
+axiom pif_subst_lemma: ∀ny.
+ (∀t. fresh_var_t t ≤ ny → ∀t'. pif_subst t (psubst (νny) t')=t).
 
 (*
 il lemma seguente non è dimostrabile in questa formulazione perché la pif_subst
@@ -937,7 +939,7 @@ lemma pif_subst_lemma: ∀ny.
 
 lemma aux_read_back3: ∀t, e, b.
   (fresh_var_t t ≤ b) →
-   (interval_dom e b) →
+   (interval_dom e b) → (*interval_dom ≝  λe, b. ∀x. domb_e (νx) e =true → b ≤ x.*)
      aux_read_back t e = t.
 
 #t #e #b #H1
@@ -1069,8 +1071,15 @@ lemma four_dot_two:
       >(atomic_subst …) >Hu1u21 >(push_lemma …)
       change with (psubst ? (read_back_b ?)) in match (match [ν(s+n+m)←b] return λ_:Substitution.pifSubst with 
         [subst (x:Variable)   (b0:Byte)⇒psubst x (read_back_b b0)]); >(aux_read_back3 … ((m+s+n))) (*? controllare S?*)
-        [ lapply (le_maxl … Hv22) -Hv22 #Hv22 lapply Hv22 <Hv21 >zv2_def in Hmax1;
+        [ @eq_f lapply (le_maxl … Hv22) -Hv22 #Hv22 lapply Hv22 <Hv21 >zv2_def in Hmax1;
+          change with (fresh_var_tv ?) in match (pi1 nat ? ?); >Hv21 #Hfvv2
+          cut (fresh_var_t (val_to_term v2) ≤ s)
+          [ <(fresh_var_val_to_term) assumption]
+          -Hfvv2#Hfvv2 #_ @pif_subst_lemma /2/
+        | normalize
         | normalize lapply (le_maxr … Hu1u22) #He normalize in He;
+          (*anche questa conclusione sulla fresh_var è difficilmente dimostrabile
+            con la definizione della pif_subst usata sinora*)
           change with (fresh_var_t (val_to_term v2)) in match (fresh_var_tv_Sig … );
           #x #Hx lapply (fresh_dom_e … Hx) -Hx #Hx
       ]

@@ -131,6 +131,9 @@ and fresh_var_s s on s ≝
 
  definition fresh_var_t  ≝  λt: pifTerm. pi1 nat ? (fresh_var_t_Sig t).
  definition fresh_var_tv  ≝  λv: pifValue. pi1 nat ? (fresh_var_tv_Sig v).
+ 
+ lemma fresh_var_val_to_term: ∀v. fresh_var_tv v = fresh_var_t (val_to_term v).
+ #v normalize // qed.
 
  lemma fresh_var_gt: ∀x.(∀t. (free_occ_t (νx) t ≥ 1) → (fresh_var_t t) > x) ∧
                          (∀v. (free_occ_v (νx) v ≥ 1) → (fresh_var_tv) v > x).

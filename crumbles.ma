@@ -89,7 +89,7 @@ let rec pi2ps s on s≝
  
 lemma push_test0: Cons (Cons Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Cons Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
 normalize //. qed. 
-
+(*
 let rec concat a b ≝ 
  match a with
  [ Epsilon ⇒ b
@@ -98,6 +98,12 @@ let rec concat a b ≝
                       | Cons e' b' ⇒ Cons (concat e (push e' a')) b'
                       ]
  ].
+*)
+
+let rec concat a b on b≝ 
+ match b with
+ [ Epsilon ⇒ a
+ | Cons b' s ⇒ Cons (concat a b') s].
 
 lemma concat_test0: concat (Cons (Cons Epsilon [ν0 ← CValue (var ν 0)]) [ν1 ← CValue (var \nu 3)]) (Cons (Cons Epsilon [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)])=
 (Cons (Cons (Cons (Cons Epsilon [ν0 ← CValue (var \nu 0)]) [ν1 ← CValue (var \nu 3)]) [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)]).//. qed.
@@ -331,5 +337,13 @@ e on e ≝
  [ Epsilon ⇒ H1
  | Cons e s ⇒ H2 e s (Environment_simple_ind2 P H1 H2 e)
  ].
+ 
+
+lemma concat_e_epsilon: ∀e. concat e Epsilon =e.
+@Environment_simple_ind2 // qed.
+
+lemma concat_epsilon_e: ∀e. concat Epsilon e=e.
+@Environment_simple_ind2 // #e' #s normalize #H >H // qed.
+
  
  

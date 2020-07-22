@@ -15,3 +15,12 @@ lemma sigma_prop_gen:
      Q (pi1 ?? c).
 #A #P #Q * /2/
 qed.
+
+lemma orb_to_prop: ∀b, b'. orb b b' = true → b=true ∨ b' = true.
+#b #b' cases b cases b' /2/ 
+change with (false) in match (false ∨false); #abs destruct qed.
+
+lemma bool_inverse: ∀(A: Type[0]).∀(B: Type[0]).∀(f: A → bool).∀(g: B → bool).∀(x: A).∀(y: B).
+ (f x=true → g y =true) → (g y =false → f x=false).
+ 
+#A #b #f #g #x #y cases f cases g // #H #_ <H // qed. 

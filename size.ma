@@ -69,11 +69,11 @@ lemma size_env_push: ∀e, s. c_size_e (Cons e s) = c_size_e (push e s).
   <H normalize //
 ] qed.
 
-lemma size_env_concat: ∀e, e'. c_size_e (concat e e') = c_size_e e + c_size_e e' .
-#e @(Environment_simple_ind2 … e)
+lemma size_env_concat: ∀e', e. c_size_e (concat e e') = c_size_e e + c_size_e e' .
+@(Environment_simple_ind2)
 [ normalize //
-| #e1 #s #H #e' cases e' [ normalize //] #e'' #s' normalize
-  lapply (H (push e'' s)) #H' >H' <size_env_push normalize //
+| #e1 #s #H #e  cases e [ normalize >(concat_epsilon_e e1) //] #e'' #s' normalize
+  >(H (Cons e'' s')) normalize //
 ] qed.
 
 

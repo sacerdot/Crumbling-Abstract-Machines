@@ -340,3 +340,117 @@ lemma gtb_O_true: ∀x. gtb x O=true → ∃y. x =S y.
   [ @m | //]
 ]
 qed.
+
+
+lemma neqb_refl: ∀x. neqb x x = true.
+#x elim x // qed.
+
+lemma gtb_O_plus_to_or: ∀n,m. gtb (plus n m) O = true → 
+ (gtb n O) = true ∨ (gtb m O) = true.
+
+#n #m cases n cases m /2/ qed.
+
+lemma lt_to_le_S: ∀n, m. n < m → S n ≤ m.
+#n cases n // qed.
+
+lemma max_bound: ∀ n, m, x. max n m ≤ x → n ≤ x ∧ m ≤ x.
+#n #m cases n cases m #x normalize
+[ #H % //
+| #m' #H % //
+| #n' #H % //
+| #n' #m' cut (leb n' x = true ∨ leb n' x = false) // * #Htf >Htf normalize
+  [ #H % // lapply (leb_true_to_le … Htf) #H1 cut (x < m') [/2/] #H2
+    lapply (le_to_lt_to_lt … H1 H2) //
+  | #H % // lapply (leb_false_to_not_le … Htf) #Hnle
+    lapply (not_le_to_lt … Hnle) #H1 -Hnle -Htf
+    normalize in H1; 
+    change with (n' < m') in H;
+    lapply (lt_to_le … (le_to_lt_to_lt … H1 H)) //
+  ]
+] qed.
+
+lemma max_swap2: ∀a, b, c. max (max a b) c = max (max a c) b.
+#a #b #c >(max_comm a b) >max_comm  >max_swap >max_comm 
+ >(max_comm a c) // qed.
+ 
+lemma max_hop: ∀a,b,c,d. max (max a b) (max c d) = max (max a c) (max b d).
+#a #b #c #d normalize
+cut (leb a b = true ∨ leb a b = false) // * #Hab >Hab normalize
+[ cut (leb c d = true ∨ leb c d = false) // * #Hcd >Hcd normalize
+  [ cut (leb b c = true ∨ leb b c = false) // * #Hbc
+    [ cut (leb a c = true ∧ leb b d = true)
+      [ >(le_to_leb_true …
+        (transitive_le … (leb_true_to_le … Hab) (leb_true_to_le … Hbc)))
+        >(le_to_leb_true …
+        (transitive_le … (leb_true_to_le … Hbc) (leb_true_to_le … Hcd))) /2/
+      | * #Hac #Hbd >Hac >Hbd normalize >Hcd //
+      ]
+    | cut (leb b d = true ∨ leb b d = false) // * #Hbd >Hbd normalize
+      [ cut (leb a c = true ∨ leb a c = false) // * #Hac >Hac normalize
+        [ >Hcd normalize //
+        | >(le_to_leb_true …
+        (transitive_le … (leb_true_to_le … Hab) (leb_true_to_le … Hbd))) //
+        ]
+      | cut (leb a c = true ∨ leb a c = false) // * #Hac >Hac normalize
+        [ >(le_to_leb_true … (lt_to_le … 
+           (not_le_to_lt …(leb_false_to_not_le … Hbc)))) //
+        | >Hab //
+        ]
+      ]
+    ]
+  | cut (leb b d = true ∨ leb b d = false) // * #Hbd >Hbd normalize
+    [ cut (leb a c=true ∧ leb b c = true)
+      [ > (le_to_leb_true … (transitive_le …
+                (transitive_le … (leb_true_to_le … Hab) (leb_true_to_le … Hbd))
+                (lt_to_le … (not_le_to_lt … (leb_false_to_not_le … Hcd)))))
+        > (le_to_leb_true … (transitive_le …
+                (leb_true_to_le … Hbd)
+                (lt_to_le … (not_le_to_lt … (leb_false_to_not_le … Hcd))))) /2/
+      | * #Hac #Hbc >Hac >Hbc normalize >Hcd normalize //
+      ]
+    | cut (leb a c = true ∨ leb a c = false) // * #Hac >Hac 
+      [ normalize change with (max ? ? = max ? ?) in ⊢ %; @max_comm
+      | normalize >Hab normalize
+        >(not_le_to_leb_false … (lt_to_not_le … (lt_to_le_to_lt … 
+                (not_le_to_lt … (leb_false_to_not_le … Hac))
+                (leb_true_to_le … Hab)))) //
+      ]
+    ]
+  ]
+| cut (leb c d = true ∨ leb c d = false) // * #Hcd >Hcd normalize
+  [ cut (leb a c = true ∨ leb a c = false) // * #Hac >Hac normalize
+    [ >(le_to_leb_true … (transitive_le … (leb_true_to_le … Hac)
+                                            (leb_true_to_le … Hcd)))
+      > (le_to_leb_true …
+              (transitive_le … (lt_to_le … (not_le_to_lt … (leb_false_to_not_le … Hab)))
+              (transitive_le … (leb_true_to_le … Hac)
+                                            (leb_true_to_le … Hcd))
+              ))
+      normalize >Hcd normalize //
+    | cut (leb b d = true ∨ leb b d = false) // * #Hbd >Hbd normalize //
+      >Hab normalize
+      >(not_le_to_leb_false … 
+       (lt_to_not_le … 
+       (le_to_lt_to_lt …
+       (lt_to_le … (not_le_to_lt … (leb_false_to_not_le … Hbd)))
+       (not_le_to_lt … (leb_false_to_not_le … Hab))))) //
+    ]
+  | cut (leb a c = true ∨ leb a c = false) // * #Hac >Hac normalize
+    [ cases (leb b d) normalize
+      [ >Hcd //
+      | > (not_le_to_leb_false …
+               (lt_to_not_le … (lt_to_le_to_lt … 
+               (not_le_to_lt … (leb_false_to_not_le … Hab))
+               (leb_true_to_le … Hac)))) //
+      ]
+    | cases (leb b d) normalize
+      [ > (not_le_to_leb_false …
+               (lt_to_not_le …
+               (le_to_lt_to_lt …
+               (lt_to_le … (not_le_to_lt … (leb_false_to_not_le … Hcd)))
+               (not_le_to_lt … (leb_false_to_not_le … Hac))))) //
+      | >Hab //
+      ]
+    ]
+  ]
+] qed.

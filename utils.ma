@@ -24,3 +24,6 @@ lemma bool_inverse: ∀(A: Type[0]).∀(B: Type[0]).∀(f: A → bool).∀(g: B 
  (f x=true → g y =true) → (g y =false → f x=false).
  
 #A #b #f #g #x #y cases f cases g // #H #_ <H // qed. 
+
+lemma orb_false: ∀a,b. orb a b = false → a=false ∧ b=false.
+#a #b cases a cases b normalize /2/ qed.

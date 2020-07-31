@@ -71,6 +71,39 @@ definition fv_v ≝ λx.λv. (free_occ_v x v)>0.
 definition fvb_t ≝ λx.λt. gtb (free_occ_t x t) 0.
 definition fvb_tv ≝ λx.λv. gtb (free_occ_v x v) 0.
 
+let rec free_occ x c on c ≝
+ match c with
+  [ CCrumble b e ⇒ match domb_e x e with
+   [ true ⇒ O
+   | false ⇒ free_occ_b x b + free_occ_e x e
+   ]
+  ]
+
+and free_occ_b x b on b ≝
+ match b with
+  [ CValue v ⇒ free_occ_val x v
+  | AppValue v w ⇒ free_occ_val x v +free_occ_val x w
+  ]
+
+and free_occ_val x v on v ≝
+ match v with
+  [ var y ⇒ match veqb x y with [ true ⇒ 1 | false ⇒ O ]
+  | lambda y c ⇒ match veqb x y with [ true ⇒ O | false ⇒ free_occ x c ] 
+  ]
+ 
+and free_occ_e x e on e ≝
+ match e with
+  [ Epsilon ⇒ O
+  | Cons e s ⇒ match s with 
+    [ subst y b ⇒ free_occ_b x b + match veqb x y with
+      [ true ⇒ O
+      | false ⇒ free_occ_e x e
+      ]
+    ]
+  ]
+. 
+
+
 lemma dom_push: ∀x.∀e.∀s. domb_e x (push e s) =domb_e x (Cons e s).
 #x @Environment_simple_ind2
 
@@ -137,6 +170,19 @@ and fresh_var_s s on s ≝
  match s with
  [ subst x b ⇒ match x with [ variable x ⇒ max (S x) (fresh_var_b b)] ]
  .
+
+lemma fvb_t_distr: ∀x,t,u. fvb_t x (appl t u)=(fvb_t x t ∨ fvb_t x u).
+#x #t #u normalize cases free_occ_t cases free_occ_t normalize // qed.
+
+lemma dom_to_in: ∀e, x. domb_e x e =true → inb_e x e =true.
+@Environment_simple_ind2
+[ #x normalize //
+| #e * * #y #b normalize #HI * #x lapply (HI νx)
+  cases veqb
+  [ normalize >if_monotone //
+  | >if_f >if_f #HI' #H >(HI' H) //
+  ]
+] qed. 
 
  let rec fresh_var_t_Sig t on t : Σn: nat. (∀x. (free_occ_t (νx) t ≥ 1) → (n > x)) ≝
   match t return λt. Σn: nat. (∀x. (free_occ_t (νx) t ≥ 1) → (n > x)) with
@@ -254,6 +300,26 @@ and fresh_var_s s on s ≝
 ]
 qed.
 
+lemma fv_concat: ∀f, e, x. fvb_e x (concat e f) = ((fvb_e x e ∧ ¬ domb_e x f) ∨ fvb_e x f).
+@Environment_simple_ind2
+[ #e #x >concat_e_epsilon normalize
+  >if_then_true_else_false >if_then_true_else_false //
+| #f * #y #b #HI #e #x 
+  whd in match (concat ? (Cons ? ?));
+  whd in match (fvb_e ? (Cons ? ?));
+  whd in match (fvb_e ? (Cons ? ?));
+  whd in match (domb_e ? (Cons ? ?));
+  >HI
+  cases (fvb_b x b)
+  [ >if_monotone >if_monotone normalize >if_monotone //
+  | >if_then_true_else_false >if_then_true_else_false
+    cases veqb
+    [ normalize >if_monotone >if_monotone >if_monotone >if_f //
+    | normalize >if_then_true_else_false >if_then_true_else_false
+      //
+    ]
+  ]
+] qed.
 
  lemma veqb_fv: ∀x,z.∀t. veqb x z =true →  fvb_t x t = fvb_t z t.
  #x #z #t #h lapply (veqb_true_to_eq x z) normalize #H @(And_ind … H) -H
@@ -580,7 +646,14 @@ lemma fresh_var_to_in_crumble:
   | >Htf //
   ]
 ] qed.
-  
-    
-  
- 
+
+lemma fv_push: ∀x, e, y, b. fvb_e x (push e [y←b]) = (fvb_e x e ∨ (¬domb_e x e ∧ fvb_b x b)).
+#x @Environment_simple_ind2
+[ #y #b normalize cases fvb_b //
+| #e' * * #k #p #H #y #b 
+  whd in match (push ? ?);
+  whd in match (fvb_e x (Cons (push ? ?) ?));
+  whd in match (fvb_e x (Cons (?) ?));
+  whd in match (domb_e ? ?); >H
+  cases fvb_e cases fvb_b cases fvb_b cases veqb normalize cases domb_e //
+] qed.

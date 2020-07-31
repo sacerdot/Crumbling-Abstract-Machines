@@ -70,7 +70,7 @@ lemma irrelevant:
      | false ⇒ λH: veqb v v' = false.
         λp: 1 ≤ S n'.
          «val_to_term (pvar v'), ?(*HHF' H p*)»
-     ] (refl bool (veqb v v')) H')
+     ] (refl bool (veqb v v')) H')  
   )
   [4: #UU @UU
   |skip

@@ -24,6 +24,41 @@ lemma pif_size_not_zero: (∀t. t_size t ≥ O) ∧ (∀v. v_size v ≥ O).
 ]
 qed.
 
+let rec sc_size c on c ≝
+ match c with
+ [ CCrumble b e ⇒ S (sc_size_b b + sc_size_e e) ]
+
+and
+
+sc_size_b b on b ≝
+ match b with
+ [ CValue v ⇒ S (sc_size_v v)
+ | AppValue v w ⇒ S (sc_size_v v + sc_size_v w)
+ ]
+
+and
+
+sc_size_e e on e ≝
+ match e with
+ [ Epsilon ⇒ O
+ | Cons e s ⇒ (sc_size_e e) + sc_size_s s
+ ]
+
+and
+
+sc_size_v v on v ≝
+ match v with
+ [ var x ⇒ S O
+ | lambda x c ⇒ S (sc_size c)
+ ]
+
+and
+
+sc_size_s s on s ≝
+ match s with
+ [ subst x b ⇒ S (sc_size_b b)]
+ .
+ 
 let rec c_size c on c ≝
  match c with
  [ CCrumble b e ⇒ (c_size_b b + c_size_e e) ]

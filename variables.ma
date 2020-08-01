@@ -75,8 +75,8 @@ let rec free_occ x c on c ≝
  match c with
   [ CCrumble b e ⇒ match domb_e x e with
    [ true ⇒ O
-   | false ⇒ free_occ_b x b + free_occ_e x e
-   ]
+   | false ⇒ free_occ_b x b 
+   ] + free_occ_e x e
   ]
 
 and free_occ_b x b on b ≝
@@ -94,14 +94,14 @@ and free_occ_val x v on v ≝
 and free_occ_e x e on e ≝
  match e with
   [ Epsilon ⇒ O
-  | Cons e s ⇒ match s with 
-    [ subst y b ⇒ free_occ_b x b + match veqb x y with
-      [ true ⇒ O
-      | false ⇒ free_occ_e x e
-      ]
-    ]
+  | Cons e s ⇒ match veqb x (match s with [subst y b ⇒ y]) with 
+    [ true ⇒ O
+    | false ⇒ free_occ_e x e
+    ] + free_occ_s x s
   ]
-. 
+and free_occ_s x s on s ≝ 
+ match s with
+ [ subst y b ⇒ free_occ_b x b ]. 
 
 
 lemma dom_push: ∀x.∀e.∀s. domb_e x (push e s) =domb_e x (Cons e s).
@@ -141,8 +141,89 @@ and fvb_v x v on v ≝
 
 let rec fvb_s x s on s ≝
  match s with
- [subst y b ⇒ (¬ veqb x y) ∧ fvb_b x b]
+ [subst y b ⇒ fvb_b x b]
  .
+ 
+lemma veqb_comm: ∀x.∀y. veqb x y  = veqb y x.
+#x #y elim x #nx elim y #ny normalize //. qed.
+
+lemma veqb_true: ∀x. veqb x x = true.
+#x elim x #nx elim nx normalize // qed.
+
+lemma veqb_trans: ∀x,y,z. (veqb x y) = true → (veqb y z) = true → (veqb x z)=true.
+#x #y #z lapply ((veqb_true_to_eq x y)) #H1 lapply ((veqb_true_to_eq y z)) #H2
+#H3 #H4 normalize in H1; normalize in H2; cut (x=z)
+[ @(And_ind … H1) #H1' #H1'' -H1 @(And_ind … H2) #H2' #H2'' -H2 lapply (H1' H3) lapply (H2' H4) //
+| #H destruct -H1 -H2 -H3 -H4 elim z #nz normalize //] qed.
+
+lemma veqb_simm: ∀x,y. (veqb x y) = veqb y x.
+#x #y elim x #nx elim y #ny normalize /2/ qed.
+
+ 
+lemma free_occ_to_fv_crumble:
+ (∀c.∀x. free_occ x c = 0 ↔ fvb x c = false) ∧
+  (∀b.∀x. free_occ_b x b = 0  ↔ fvb_b x b = false) ∧
+   (∀e.∀x. free_occ_e x e = 0 ↔ fvb_e x e = false) ∧
+    (∀v.∀x. free_occ_val x v = 0 ↔ fvb_v x v = false) ∧
+     (∀s.∀x. free_occ_s x s = 0 ↔ fvb_s x s = false).
+
+@Crumble_mutual_ind
+
+[ #b #e #Hb #He #x %
+  [ normalize cases domb_e normalize
+    [ #H lapply (He x) * -He #He #_ >(He H) >if_monotone >if_f @refl
+    | #H cut (free_occ_b x b = 0 ∧ free_occ_e x e = 0)
+      [ % lapply H cases free_occ_b // #n normalize #H destruct
+      | * -H #H1 #H2 lapply (Hb x) lapply (He x) * -He #He #_ * -Hb #Hb #_
+        >He // >Hb //
+      ]
+    ]
+  | normalize cases domb_e normalize
+    [ >if_monotone >if_f #H lapply (He x) * #_ -He #He @He //
+    | >if_then_true_else_false lapply (Hb x) lapply (He x) * -He -Hb
+      #_ #He * #_ #Hb lapply He lapply Hb cases fvb_b cases fvb_e normalize
+      [ 1,2,3: #_ #_ #abs destruct ] #Hb #He >Hb // >He //
+    ]
+  ]
+| #v #H #x normalize @H
+| #v #w #Hv #Hw #x normalize %
+  [ #H cut (free_occ_val x v = 0 ∧ free_occ_val x w = 0)
+    [ % lapply H cases free_occ_val cases free_occ_val // #n #m
+      normalize #abs destruct
+    ]
+    * #Hv' #Hw' lapply (Hv x) * -Hv #Hv #_ lapply (Hw x) * -Hw #Hw #_
+    >Hv // >Hw //
+  | #H lapply (orb_false … H) * #Hv' #Hw' lapply (Hv x) * #_ #Hv' >Hv' //
+    lapply (Hw x) * #_ #Hw' >Hw' //
+  ]
+| #y #x % normalize cases veqb normalize [1,3: #abs destruct ] //
+| #y #c #H #x %
+  [ normalize >veqb_comm cases veqb normalize // lapply (H x) * -H #H #_ @H
+  | normalize >veqb_comm cases veqb normalize // lapply (H x) * -H #_ #H @H
+  ]
+| #c normalize % //
+| #e * #y #b #He #Hs #x %
+  [ normalize lapply (Hs x) normalize * -Hs #Hs #_
+    cases veqb normalize
+    [ >if_monotone >if_f @Hs
+    | #H cut (free_occ_e x e=0 ∧ free_occ_b x b=O)
+      [ % lapply H cases free_occ_e cases free_occ_b //
+        #n #m normalize #abs destruct
+      ]
+      * #He' #Hb' >Hs // lapply (He x) * -He' #He' #_ >He' //
+    ]
+  | normalize lapply (Hs x) normalize * -Hs #_ #Hs
+     cases veqb normalize
+    [ >if_monotone >if_f @Hs
+    | >if_then_true_else_false #Hor lapply (orb_false … Hor) * #He' #Hb'
+      >Hs // lapply (He x) * #_ -He #He >He //
+    ]
+  ]
+| #y #b #H #x %
+  [ normalize lapply (H x) * #H' #_ @H'
+  | normalize lapply (H x) * #_ #H' @H'
+  ]
+] qed. 
 
 let rec fresh_var c on c ≝
  match c with
@@ -258,21 +339,6 @@ lemma dom_to_in: ∀e, x. domb_e x e =true → inb_e x e =true.
    cut (S z ≰ z) // #H1 #H2  @(not_ge_1_to_O … (H2 H1))
  ]
  qed.
-
- lemma veqb_comm: ∀x.∀y. veqb x y  = veqb y x.
- #x #y elim x #nx elim y #ny normalize //. qed.
-
- lemma veqb_true: ∀x. veqb x x = true.
- #x elim x #nx elim nx normalize // qed.
-
- lemma veqb_trans: ∀x,y,z. (veqb x y) = true → (veqb y z) = true → (veqb x z)=true.
- #x #y #z lapply ((veqb_true_to_eq x y)) #H1 lapply ((veqb_true_to_eq y z)) #H2
- #H3 #H4 normalize in H1; normalize in H2; cut (x=z)
- [ @(And_ind … H1) #H1' #H1'' -H1 @(And_ind … H2) #H2' #H2'' -H2 lapply (H1' H3) lapply (H2' H4) //
- | #H destruct -H1 -H2 -H3 -H4 elim z #nz normalize //] qed.
-
- lemma veqb_simm: ∀x,y. (veqb x y) = veqb y x.
- #x #y elim x #nx elim y #ny normalize /2/ qed.
  
  lemma domb_concat_distr: 
  ∀x, f, e. domb_e x (concat e f) = (domb_e x e ∨ domb_e x f).
@@ -657,3 +723,44 @@ lemma fv_push: ∀x, e, y, b. fvb_e x (push e [y←b]) = (fvb_e x e ∨ (¬domb_
   whd in match (domb_e ? ?); >H
   cases fvb_e cases fvb_b cases fvb_b cases veqb normalize cases domb_e //
 ] qed.
+
+let rec oab_occ x c on c ≝ 
+ match c with
+ [ CCrumble b e ⇒ match (domb_e x e) with [ true ⇒  (oab_occ_b x b) | false ⇒ O ] + (oab_occ_e x e false) ]
+
+and oab_occ_b x b on b ≝ 
+ match b with
+ [ CValue v ⇒ (oab_occ_v x v)
+ | AppValue v w ⇒ (oab_occ_v x v) + (oab_occ_v x w)
+ ]
+ 
+and oab_occ_v x v on v ≝
+ match v with
+ [ var y ⇒ match veqb x y with [ true ⇒ 1 | false ⇒ O] 
+ | lambda y c ⇒ O
+ ] 
+
+and oab_occ_e x e d on e ≝
+ match e with
+ [ Epsilon ⇒ O
+ | Cons e s ⇒ match s with 
+   [ subst y b ⇒  match d with 
+     [ true ⇒ oab_occ_b x b
+     | false ⇒ O 
+     ] + oab_occ_e x e (orb (veqb x y) d)
+   ]
+ ]
+(*
+and oab_occ_e x e d on e ≝
+ match e with
+ [ Epsilon ⇒ O
+ | Cons e s ⇒ oab_occ_s x s + match d with 
+   [ true  ⇒  oab_occ_e x e (veqb x match s with [ subst y b ⇒ y])
+   | false ⇒ O
+   ]  
+ ]
+ 
+and oab_occ_s x s on s ≝
+ match s with
+ [ subst y b ⇒ oab_occ_b x b]
+ *).

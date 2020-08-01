@@ -454,3 +454,6 @@ cut (leb a b = true ∨ leb a b = false) // * #Hab >Hab normalize
     ]
   ]
 ] qed.
+
+lemma le_Sn_n: ∀n. S n ≤ n → False.
+#n elim n /2/ qed. 

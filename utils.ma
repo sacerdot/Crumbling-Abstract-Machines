@@ -27,3 +27,16 @@ lemma bool_inverse: ∀(A: Type[0]).∀(B: Type[0]).∀(f: A → bool).∀(g: B 
 
 lemma orb_false: ∀a,b. orb a b = false → a=false ∧ b=false.
 #a #b cases a cases b normalize /2/ qed.
+
+lemma letin_inline:
+ ∀A.∀(B:Type[0]).
+   ∀P:(B→ Prop).
+   ∀(x).
+    ∀(y:(A→ B)). 
+    (∀z.(z=x → P (y z))) → 
+    P (let (z:A) ≝ x in (y z)).
+#A #B #P #x #y #H
+normalize @H // qed.
+
+lemma test_lil: (let x≝ plus 2 1 in x+2)=5.
+@letin_inline #z #H >H // qed.

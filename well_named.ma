@@ -75,6 +75,18 @@ lemma well_named_push: ∀e, s. well_named_e (push e s) = well_named_e (Cons e s
   [ >if_then_true_else_false | >if_monotone ] //
 ] qed.
 
+lemma dist_dom_conservative: ∀e, s. dist_dom (Cons e s) =true → dist_dom e=true.
+@Environment_simple_ind2
+[ #s normalize //
+| #e * #y #b #H * #y' #b'
+  whd in match (dist_dom ?);
+  whd in match (match ? return λ_:Substitution.Variable with 
+         [subst (y0:Variable)   (b0:Byte)⇒y0]);
+  lapply (H ([y←b]))
+  cases (dist_dom (Cons e [y←b])) //
+  >if_monotone #_ #abs destruct
+] qed.
+
 lemma well_named_concat:
  ∀f, e. well_named_e (concat e f) = (well_named_e e ∧ well_named_e f).
 
@@ -353,3 +365,116 @@ lemma four_dot_one_dot_four:
   lapply (H s (le_maxr … Hm)) normalize cases underline_pifTerm * #b #e #n
   normalize >if_then_true_else_false >if_then_true_else_false #h' @h'
 ] qed.
+
+definition w_well_named ≝ λc. 
+ match c with
+ [CCrumble b e ⇒ dist_dom e ].
+ 
+lemma well_named_relax: ∀c. well_named c=true → w_well_named c=true.
+* #b #e normalize cases well_named_b cases well_named_e normalize //
+#abs destruct qed.
+
+lemma dist_dom_s_dom: ∀e, y, b. dist_dom (Cons e [y←b]) =true → domb_e y e =false.
+
+@Environment_simple_ind2
+[ #y #b normalize //
+| #e * #y' #b' #H #y #b lapply (H y b) -H #HI
+  normalize
+  cut (veqb y y' = true ∨ veqb y y' = false) // * #Hyy'
+  [ elim(veqb_true_to_eq y y') #Heq #_ lapply (Heq Hyy') -Heq #Heq destruct
+    >Hyy' normalize #H >H @refl
+  | >Hyy' >if_f cases domb_e
+    [ normalize #H >H @refl
+    | #_ @refl
+    ]
+  ]
+] qed.
+
+lemma dist_dom_concat:
+ ∀e, f. dist_dom (concat e f) =true →
+  dist_dom e = true ∧ dist_dom f = true.
+
+#e @Environment_simple_ind2
+[ normalize #H >H % @refl
+| #f #s
+  whd in match (concat ? (Cons ? ?));
+  #HI #H lapply (HI (dist_dom_conservative … H)) *
+  #Ha #Hb >Ha % //
+  lapply H cases s #y #b
+  whd in match (dist_dom ?);
+  whd in match (match ? in Substitution with [_⇒?]);
+  >(dist_dom_conservative … H) >if_then_true_else_false
+  >domb_concat_distr
+  #Hdd cut (domb_e y f = false)
+  [ lapply Hdd cases domb_e cases domb_e normalize // ]
+  normalize #HH >HH normalize @Hb
+] qed.
+
+  
+lemma dist_dom_concat3:
+ ∀e, f. dist_dom (concat e f)=true →
+  ∀x. domb_e x f = true →
+   domb_e x e = false.
+
+#e #f #Hwn lapply (dist_dom_concat e f) >Hwn  #H' lapply (H' (refl …)) -H'
+lapply Hwn
+@(Environment_simple_ind2 …f) normalize
+[ #_ #_ #j #abs destruct ] 
+#f' * #y #b #H
+whd in match (well_named_s ?);  whd in match (match ? in Substitution with [_⇒?]);
+>domb_concat_distr #Hwn'
+* #Ha lapply H -H
+cut (dist_dom f' = true ∨ dist_dom f' = false) // * #Hddf >Hddf
+[ 2: >if_monotone #_ #abs destruct ]
+>if_then_true_else_false >Ha #H
+cut (dist_dom (concat e f')= true ∨ dist_dom (concat e f')= false) // *
+[ 2: #Htf lapply Hwn' >Htf >if_monotone #abs destruct ]
+#Hyh lapply (H Hyh (conj … (refl …)(refl …))) -H #H
+cut (domb_e y f' = true ∨ domb_e y f' = false) // * #Hdd >Hdd normalize
+[ 1: #abs destruct] #_ lapply Hwn' >Hdd whd in match (orb ? ?);
+>if_then_true_else_false >Hyh >if_then_true_else_false #Hju #x
+cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
+[ elim (veqb_true_to_eq x y) #Heq #_ lapply (Heq Hxy) -Heq #Heq destruct
+  #_ lapply Hju cases domb_e normalize //
+| @H
+] qed.
+  
+lemma four_dot_five_dot_three:
+ (∀t,C,b,e,s. fresh_var_t t ≤ s → \fst (underline_pifTerm t s) = plug_c C 〈b, e〉 → 
+  ∀x. (domb_cc x C ∧ fvb_b x b) = false).
+  
+#t #C #b #e cases C
+  [ normalize //
+  | #bb #ec #s #H cases ec #ee #y normalize #H' #x
+    lapply (dis_dom t s x H)
+    lapply (four_dot_one_dot_four) * #H414 #_
+    lapply (H414 t s H)
+    lapply H' cases underline_pifTerm * #bbb #eee #n -H' #H' destruct
+    #Hwn
+    cut (dist_dom (concat (Cons ee [y←b]) e)=true)
+    [ lapply Hwn normalize cases dist_dom // >if_monotone #abs destruct ]
+    -Hwn #Hdd lapply (dist_dom_concat3 … Hdd) #Hdd'
+    normalize
+    
+    
+    >fv_concat >domb_concat_distr
+    whd in match (fvb_e ? ?); whd in match (domb_e ? (Cons ? ?));
+    lapply (Hdd' x) normalize
+    cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
+    [ elim (veqb_true_to_eq x y) #Heq #_ lapply (Heq Hxy) -Heq
+      #Heq destruct cases domb_e
+      [ #H lapply (H (refl …)) #abs destruct ]
+       #_ >if_monotone >if_f >if_f >if_then_true_else_false >if_monotone >if_t
+       cases fvb_b normalize // #H @H @refl
+    | >if_then_true_else_false >if_then_true_else_false
+      cases (domb_e x e)
+      [ #Hyee >Hyee normalize //
+      | normalize >if_then_true_else_false >if_then_true_else_false
+        cases fvb_b
+        [ >if_then_true_else_false >if_monotone >if_t #_ #H @H //
+        | >if_monotone //
+        ]
+      ]
+    ]
+  ]
+qed.

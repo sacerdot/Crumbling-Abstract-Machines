@@ -18,8 +18,6 @@ inductive Variable: Type[0] ≝
  | variable: nat → Variable
 .
 
-(*record variable instead*)
-
 inductive Crumble : Type[0] ≝
  | CCrumble: Byte → Environment → Crumble 
  
@@ -52,6 +50,15 @@ inductive pifSubst : Type[0] ≝
  | psubst: Variable → pifTerm → pifSubst
  .
 
+inductive EnvContext: Type [0] ≝
+| envc : Environment → Variable → EnvContext
+.
+
+inductive CrumbleContext: Type[0] ≝
+| hole : CrumbleContext
+| crc: Byte → EnvContext → CrumbleContext
+.
+
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
 interpretation "Substitution" 'substitution v b =(subst v b).
 
@@ -64,6 +71,7 @@ interpretation "Abstraction" 'lambda x y = (lambda x y ).
 
 notation "ν x" non associative with precedence 90 for @{ 'variable $x}.
 interpretation "Variable contruction" 'variable x = (variable x).
+
 
 lemma test_lambda0: ∀x: Variable. ∀y:Crumble. (𝛌x.y) = (lambda x y).
 #x #y normalize // qed.
@@ -104,6 +112,18 @@ let rec concat a b on b≝
  match b with
  [ Epsilon ⇒ a
  | Cons b' s ⇒ Cons (concat a b') s].
+
+let rec plug_e ec c on ec ≝
+ match ec with
+ [ envc e x ⇒ match c with [ CCrumble b f ⇒ concat (Cons e [x←b]) f]]
+ .
+
+let rec plug_c cc c on c ≝
+ match cc with
+ [ hole ⇒ c
+ | crc b ec ⇒ 〈b, plug_e ec c〉
+ ]
+.
 
 lemma concat_test0: concat (Cons (Cons Epsilon [ν0 ← CValue (var ν 0)]) [ν1 ← CValue (var \nu 3)]) (Cons (Cons Epsilon [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)])=
 (Cons (Cons (Cons (Cons Epsilon [ν0 ← CValue (var \nu 0)]) [ν1 ← CValue (var \nu 3)]) [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)]).//. qed.
@@ -344,6 +364,3 @@ lemma concat_e_epsilon: ∀e. concat e Epsilon =e.
 
 lemma concat_epsilon_e: ∀e. concat Epsilon e=e.
 @Environment_simple_ind2 // #e' #s normalize #H >H // qed.
-
- 
- 

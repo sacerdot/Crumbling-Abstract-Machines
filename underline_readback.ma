@@ -21,68 +21,6 @@ include "size.ma".
 include "alternative_pif_subst.ma".
 include "closed.ma".
 
-
-notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
-interpretation "Substitution" 'substitution v b =(subst v b).
-
-(*notation "〈 b break, e 〉" non associative with precedence 90 for @{ 'ccrumble $b $e }.
-*)
-interpretation "Crumble creation" 'pair b e =(CCrumble b e).
-
-notation "𝛌 x . y" right associative with precedence 40 for @{ 'lambda $x $y}.
-interpretation "Abstraction" 'lambda x y = (lambda x y ).
-
-notation "ν x" non associative with precedence 90 for @{ 'variable $x}.
-interpretation "Variable contruction" 'variable x = (variable x).
-
-notation "hvbox(c @ e)" with precedence 35 for @{ 'at $c $e }.
-interpretation "@ operation" 'at c e =(at c e).
-
-(* deve restituire una coppia 〈crumble, numero di variabili già inserite〉 per usare il parametro destro sommato al numero di variabili presenti nel termine all'inizio per dare sempre una variabile fresca*)
-(*
-let rec underline_pifTerm (t: pifTerm) (s: nat): Crumble × nat≝
- match t with
- [ val_to_term v ⇒ match overline v s with
-   [ mk_Prod vv n ⇒  mk_Prod Crumble nat 〈(CValue vv), Epsilon 〉 n]
- | appl t1 t2 ⇒ match t2 with
-   [ val_to_term v2 ⇒ match t1 with
-     [ val_to_term v1 ⇒ match overline v1 s with
-       [ mk_Prod vv n ⇒ match overline v2 (s+n) with
-         [ mk_Prod ww m ⇒ mk_Prod Crumble nat 〈AppValue (vv) (ww), Epsilon〉 (m+n) ]
-       ]
-     | appl u1 u2 ⇒ match underline_pifTerm t1 s with
-       [ mk_Prod c n ⇒ match c with
-         [ CCrumble b e ⇒ match overline v2 (s+n) with
-           [ mk_Prod vv m ⇒ mk_Prod Crumble nat 〈AppValue (var ν(s+n+m)) (vv), push e [(ν(s+n+m)) ← b]〉 (S (s+n+m))]
-         ]
-       ]
-     ]
-   | appl u1 u2 ⇒ match underline_pifTerm t2 s with
-     [ mk_Prod c n ⇒ match c with
-       [ CCrumble b1 e1 ⇒ match t1 with
-         [ val_to_term v1 ⇒ match overline v1 (s+n) with
-           [ mk_Prod vv m ⇒  mk_Prod Crumble nat (at 〈AppValue (vv) (var ν(s+n+m)), Epsilon〉 (push e1 [ν(s+n+m)←b1])) (S n + m)]
-         | appl u1 u2 ⇒ match underline_pifTerm t1 (s+n) with
-          [ mk_Prod c1 n1 ⇒ match c1 with
-            [ CCrumble b e ⇒ mk_Prod Crumble nat 〈AppValue (var (ν(s+n+n1))) (var (ν(S(s+n+n1)))), concat (push e1 [ν(s+n+n1) ← b1]) (push e [ν(S(s+n+n1)) ← b])〉 (S (S (s + n + n1)))]
-          ]
-         ]
-       ]
-     ]
-   ]
- ]
-
-and
-
-overline (x:pifValue) (s: nat): Value × nat≝
- match x with
- [ pvar v ⇒ mk_Prod Value nat (var v) O
- | abstr v t ⇒ match underline_pifTerm t s with
-   [ mk_Prod c n ⇒ mk_Prod Value nat (lambda (v) (c)) n ]
- ]
- .
- *)
-
 let rec underline_pifTerm (t: pifTerm) (s: nat): Crumble × nat≝
  match t with
  [ val_to_term v ⇒ match overline v s with
@@ -1392,6 +1330,13 @@ corollary four_dot_one_dot_one:
 lapply disjoint_dom * #Ht #Hv % [2: @Hv] #t #s #x #h lapply (Ht t s x h) * #H #_ @H
 qed.
 
+corollary dis_dom:
+ (∀t, s, x. fresh_var_t t ≤ s →
+   fvb_e x match (fst … (underline_pifTerm t s)) with [CCrumble c e ⇒ e]=true → 
+   domb_e x match (fst … (underline_pifTerm t s)) with [CCrumble c e ⇒ e]=false).
+lapply disjoint_dom * #Ht #Hv #t #s #x #h lapply (Ht t s x h) * #_ #H @H qed.
+  
+
 lemma closure_lemma:
  (∀t,s. fresh_var_t t ≤ s → 
   closed_t t → 
@@ -1486,7 +1431,6 @@ read_back_v v ≝
 
 let rec aux_read_back rbb e on e ≝
  match e with
-
  [ Epsilon ⇒ rbb
  | Cons e1 s ⇒ match s with [ subst x' b1 ⇒ pif_subst (aux_read_back rbb e1) (psubst x' (read_back_b b1))]
  ]

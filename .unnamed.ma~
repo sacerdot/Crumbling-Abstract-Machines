@@ -1,0 +1,36 @@
+(**************************************************************************)
+(*       ___                                                              *)
+(*      ||M||                                                             *)
+(*      ||A||       A project by Andrea Asperti                           *)
+(*      ||T||                                                             *)
+(*      ||I||       Developers:                                           *)
+(*      ||T||         The HELM team.                                      *)
+(*      ||A||         http://helm.cs.unibo.it                             *)
+(*      \   /                                                             *)
+(*       \ /        This file is distributed under the terms of the       *)
+(*        v         GNU General Public License Version 2                  *)
+(*                                                                        *)
+(**************************************************************************)
+
+include "crumbles.ma".
+
+inductive EnvContext: Type [0] ≝
+| envc : Environment → Variable → EnvContext
+.
+
+inductive CrumbleContext: Type[0] ≝
+| hole : CrumbleContext
+| crc: Byte → EnvContext → CrumbleContext
+.
+
+let rec plug_e ec c on ec ≝
+ match ec with
+ [ envc e x ⇒ match c with [ CCrumble b f ⇒ concat (Cons e [x←b]) f]]
+ .
+
+let rec plug_c cc c on c ≝
+ match cc with
+ [ hole ⇒ c
+ | crc b ec ⇒ 〈b, plug_e ec c〉
+ ]
+.

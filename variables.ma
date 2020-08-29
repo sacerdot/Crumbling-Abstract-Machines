@@ -3,6 +3,52 @@ include "basics/types.ma".
 include "libnat.ma".
 include "utils.ma".
 
+let rec veqb (n: Variable) (m: Variable) ≝
+ match n with
+ [ variable n1 ⇒ match m with [ variable m1 ⇒ neqb n1 m1 ] ].
+
+lemma eq_to_veq: ∀a, b: Variable. a=b → (veqb a b = true).
+#a #b #H destruct cases b #n cases n //#m normalize // qed.
+
+
+lemma aux: ∀a, b: nat. veqb (variable a) (variable b)= true → neqb a b = true.
+#na
+#nb
+cases na
+cases nb
+[ //
+| #n normalize #H destruct
+| #n normalize //
+| #n normalize #m #J @J
+]
+qed.
+
+lemma var_n: ∀a, b. veqb (variable a) (variable b) = neqb a b.
+#a elim a
+ [ * //
+ | #pa #Hind *
+  [ normalize //
+  | #pb normalize //
+  ]
+ ]
+qed.
+
+lemma var_m: ∀a, b. variable a =variable b ↔ a=b.
+*
+[ * normalize
+ [ % //
+ | #m % #H destruct
+ ]
+| #p #q %
+ [ #aux destruct // ]
+#p destruct // qed.
+
+
+theorem veqb_true_to_eq: ∀a,b: Variable. (veqb a b=true)↔(a=b).
+#a #b cases a cases b #na #nb >var_n normalize % #H [ cases (var_m na nb) #H1 #H2 cases (var_n na nb)
+lapply H cases (neqb_iff_eq na nb) #H29 #H30 #H31 cut (na =nb) cut (neqb nb na =true) // /2/
+| cases (aux na nb) /2/ qed.
+
 let rec inb x c on c ≝
  match c with
  [ CCrumble b e ⇒ (inb_b x b) ∨ (inb_e x e) ]
@@ -52,6 +98,17 @@ and domb_e x e on e ≝
  [ Epsilon ⇒ false
  | Cons e s ⇒ match s with [ subst y b ⇒ (veqb x y) ∨ (domb_e x e)]
  ].
+
+let rec domb_ec x ec on ec ≝
+ match ec with
+ [ envc e y ⇒ domb_e x e ∨ veqb x y ]. 
+
+let rec domb_cc x cc on cc ≝
+ match cc with
+ [ hole ⇒ false
+ | crc b ec ⇒ domb_ec x ec
+ ]
+ .
 
 let rec free_occ_t x t on t ≝
  match t with
@@ -308,6 +365,22 @@ lemma dom_to_in: ∀e, x. domb_e x e =true → inb_e x e =true.
      #Hgt2 @(lt_to_le … (le_to_lt_to_lt (S y) z (S x) Hgt Hgt2))
  ] qed.
 
+lemma fresh_var_cons_bes: ∀b,e,s. fresh_var 〈b, e〉≤ fresh_var 〈b, Cons e s〉.
+
+#b @Environment_simple_ind2
+[ * * #y #b
+  change with (max ? O) in match (fresh_var ?); >max_O
+  change with (max ? ?) in match (fresh_var ?);
+  @le_n_max_n
+| #e #s #H #s'
+  change with (max ? ?) in match (fresh_var ?);
+  change with (max ? ?) in match (fresh_var_e ?);
+  change with (max ? ?) in match (fresh_var ?);
+  change with (max ? ?) in match (fresh_var_e (Cons (Cons ? ?) ?));
+  change with (max ? ?) in match (fresh_var_e (Cons ? ?));
+  /2/
+] qed.
+
  definition fresh_var_t  ≝  λt: pifTerm. pi1 nat ? (fresh_var_t_Sig t).
  definition fresh_var_tv  ≝  λv: pifValue. pi1 nat ? (fresh_var_tv_Sig v).
  
@@ -435,6 +508,38 @@ lemma fv_to_in_term:
   [ #abs destruct
   | #H1 @(H H1)
   ]
+] qed.
+
+lemma fresh_var_distr_crumble:
+ (∀c.∀n. fresh_var c ≤ n → 
+   match c with [CCrumble b e ⇒ fresh_var_b b ≤ n ∧ fresh_var_e e ≤ n]) ∧
+  (∀b.∀n. fresh_var_b b ≤ n → 
+   match b with
+    [ CValue v ⇒ fresh_var_v v ≤ n 
+    | AppValue v w ⇒ fresh_var_v v ≤ n ∧ fresh_var_v w ≤ n
+    ]) ∧
+   (∀e.∀n. fresh_var_e e ≤ n → 
+     match e with
+      [ Epsilon ⇒ True 
+      | Cons e s ⇒ fresh_var_e e ≤ n ∧ fresh_var_s s ≤ n
+      ]) ∧
+    (∀v.∀n. fresh_var_v v ≤ n → 
+       match v with
+       [ var x ⇒ match x with [ variable x ⇒ S x ≤ n] 
+       | lambda x c ⇒ match x with [ variable x ⇒ S x ≤ n] ∧ fresh_var c ≤ n
+       ]) ∧
+     (∀s.∀n. fresh_var_s s ≤ n → 
+       match s with
+         [ subst y b ⇒ match y with [variable x ⇒ S x ≤n ] ∧ fresh_var_b b ≤ n]).
+         
+@Crumble_mutual_ind
+
+[ 1,3,7: #b #e #Hb #He #n #H normalize % change with (max ? ?≤n) in H;
+  [ 1,3,5: @(le_maxl … H) | 2,4,6: @(le_maxr … H)]
+| 2,6: //
+| * #y #n #H normalize normalize in H; //
+| 5,8: * #x #c #Hc #n normalize #H % change with (max (S x) ?≤n) in H;
+  [ 1,3: @(le_maxl … H) | 2,4: @(le_maxr … H)]
 ] qed.
 
 lemma fv_to_in_crumble:
@@ -763,4 +868,4 @@ and oab_occ_e x e d on e ≝
 and oab_occ_s x s on s ≝
  match s with
  [ subst y b ⇒ oab_occ_b x b]
- *).
+ *). 

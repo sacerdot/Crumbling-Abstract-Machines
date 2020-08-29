@@ -73,53 +73,8 @@ lemma neqb_iff_eq: ∀n, m. neqb n m = true ↔ n=m.
       ]
      ] qed.
 
-let rec veqb (n: Variable) (m: Variable) ≝
- match n with
- [ variable n1 ⇒ match m with [ variable m1 ⇒ neqb n1 m1 ] ].
-
-lemma eq_to_veq: ∀a, b: Variable. a=b → (veqb a b = true).
-#a #b #H destruct cases b #n cases n //#m normalize // qed.
-
 lemma leq_to_geq: ∀x,y. x ≤ y → y ≥ x.
 #x #y #H // qed.
-
-lemma aux: ∀a, b: nat. veqb (variable a) (variable b)= true → neqb a b = true.
-#na
-#nb
-cases na
-cases nb
-[ //
-| #n normalize #H destruct
-| #n normalize //
-| #n normalize #m #J @J
-]
-qed.
-
-lemma var_n: ∀a, b. veqb (variable a) (variable b) = neqb a b.
-#a elim a
- [ * //
- | #pa #Hind *
-  [ normalize //
-  | #pb normalize //
-  ]
- ]
-qed.
-
-lemma var_m: ∀a, b. variable a =variable b ↔ a=b.
-*
-[ * normalize
- [ % //
- | #m % #H destruct
- ]
-| #p #q %
- [ #aux destruct // ]
-#p destruct // qed.
-
-
-theorem veqb_true_to_eq: ∀a,b: Variable. (veqb a b=true)↔(a=b).
-#a #b cases a cases b #na #nb >var_n normalize % #H [ cases (var_m na nb) #H1 #H2 cases (var_n na nb)
-lapply H cases (neqb_iff_eq na nb) #H29 #H30 #H31 cut (na =nb) cut (neqb nb na =true) // /2/
-| cases (aux na nb) /2/ qed.
 
 lemma leq_zero: ∀n. S n ≤ O → False.
 #n elim n normalize [/2/ | #m #H /2/] qed.

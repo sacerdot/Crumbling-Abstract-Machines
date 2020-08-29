@@ -121,3 +121,9 @@ lemma t_size_gt_O: (∀t. t_size t > 0) ∧
 | #x normalize //
 | #t #x normalize #H1 cases (t_size t)[ // | #n /2/]
 ] qed.
+
+lemma c_size_at: ∀c,e. c_size (c@e) = c_size c +c_size_e e.
+* #b #e @Environment_simple_ind2
+[ normalize //
+| #e' #s normalize #HI /2/
+] qed.

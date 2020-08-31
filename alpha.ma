@@ -15,54 +15,6 @@
 include "well_named.ma".
 include "basics/lists/list.ma".
 
-definition veqb_couple ≝ λx, y. 
- match veqb (fst … x) y with
- [ true ⇒ Some Variable (snd … x)
- | false ⇒ None Variable
- ].
-
-let rec var_l_subst l x on l ≝
- match l with
- [ nil ⇒ x
- | cons h tl ⇒ match veqb_couple h x with
-   [ Some a ⇒ a
-   | None ⇒ var_l_subst tl x
-   ]
- ] 
-.
- 
-(*il seguente approccio che prevede di scorrere la lista ad ogni occorrenza 
-di una variabile cercandovi la variabile da sostituirvi non funziona nel caso 
-in cui l'environment non sia ben nomato: in tal caso si verrebbero a creare due
-coppie a, b tc fst a=fst b una relativa alla prima sostituzione
-ed una alla seconda, ciò mi porta a voler utilizzare un approccio diverso:*)
-let rec list_subst c (l: list (Variable×Variable)) on c≝
- match c with
- [CCrumble b e ⇒ 〈list_subst_b b l, list_subst_e e l〉]
- 
-and list_subst_b b (l: list (Variable×Variable)) on b ≝
- match b with
- [ CValue v ⇒ CValue (list_subst_v v l)
- | AppValue v w ⇒ AppValue (list_subst_v v l) (list_subst_v w l)
- ]
- 
-and list_subst_v v (l: list (Variable×Variable)) on v ≝ 
- match v with
- [ var x ⇒ var (var_l_subst l x)
- | lambda x c ⇒ lambda (var_l_subst l x) (list_subst c l)
- ]
- 
-and list_subst_e e (l: list (Variable×Variable)) on e ≝
- match e with
- [ Epsilon ⇒ Epsilon
- | Cons e s ⇒ Cons (list_subst_e e l) (list_subst_s s l)
- ]
- 
-and list_subst_s s (l: list (Variable×Variable)) on s ≝
- match s with
- [ subst y b ⇒ subst (var_l_subst l y) (list_subst_b b l)]
- .
-
 lemma alpha_lemma1: ∀z,b,e. inb z 〈b,e〉=false → (inb_e z e=false).
 #z #b #e normalize cases inb_e // >if_monotone #H @H qed.
 
@@ -941,7 +893,7 @@ lemma nun_zo: ∀e,b,x,y,z,H2,H8,hjhj.
   change with (read_back_b b) in match (aux_read_back (read_back_b b) Epsilon);
   
   normalize
-*)
+
    
 lemma ssc_over_rb:
  (∀c.∀x,y,H. (read_back (ssc c x (νy) H)) = pif_subst (read_back c) (psubst x (val_to_term (pvar νy)))) ∧
@@ -1113,25 +1065,36 @@ lemma ssc_over_rb:
   letin hjhj ≝ (read_back_b b')
 *)
 lemma alpha_same_rb: 
- ∀b,e,n. fresh_var_e e ≤ n →  
-  read_back 〈b, e〉= read_back (alpha b e n).
+ ∀b,e,n,H. read_back 〈b, e〉= read_back (pi1 Crumble ? (alpha b e n H)).
 #b
 @Environment_simple_ind2
 [ #n normalize //
 | #e * #y #b' #H #n
-  whd in match (alpha ? ? ?);
-  lapply fresh_var_distr_crumble * * * * #_ #_ #Hde #_ #_ #Hfv
-  lapply (Hde … Hfv) * #Hfve #Hfvs
-  lapply (H (S n) (le_S …Hfve))
+  whd in match (alpha …);
+  lapply fresh_var_distr_crumble * * * * #Hdc #_ #Hde #_ #_ #Hfv
+  lapply (Hdc … Hfv) * #Hfvb #Hfve
+  lapply (Hde … Hfve) * -Hfve #Hfve #Hfvs
+  lapply (H (S n) (le_S …?)) [ @to_max // ]
   #Hd
-  whd in match (match [y←b'] return λ_:Substitution.Substitution with 
-     [subst (y0:Variable)   (b0:Byte)⇒[νn←b0]]);
   change with (pif_subst (aux_read_back ? ?) (psubst ? ?)) in match (read_back ?);
   change with ( (aux_read_back ? ?)) in match (read_back ?) in Hd;
   >Hd
+  whd in match (alpha b (Cons e [y←b']) n Hfv);
   (*qui sicuramente erdo roba su alpha*)
-  cases alpha #r #t
-  whd in match (read_back ?);
+  cases alpha * #r #t #rt_prop
+  whd in match (match «CCrumble r t,rt_prop» in Sig 
+    with [ mk_Sig a h ⇒ «at (ssc a y (νn) (alpha_aux3 b e a n y b' h Hfv))(Cons Epsilon [νn←b']),
+     alpha_aux4 b e a n y b' h Hfv»]);
+  whd in match (ssc 〈r,t〉 y (νn) (alpha_aux3 b e 〈r,t〉 n y b' rt_prop Hfv));
+  whd in match (at ? ?);
+  whd in match (concat ? ?);
+  >concat_e_epsilon
+  change with (pif_subst (aux_read_back ? ?) (psubst ? ?)) in match
+    (read_back 〈ssb r y (νn) ?, …〉);
+  change with (read_back 〈ssb r y (νn) ?, sse t y (νn) ?〉) in match 
+    (aux_read_back (read_back_b  (ssb …)) (sse …));
+  change with (ssc y νn 〈r, t〉 ?)
+    in match (〈ssb r y (νn) ? , sse t y (νn) ?〉);
   whd in match (ssc 〈r, t〉 y (νn));
   whd in match (match ? in Crumble with
     [_⇒?] );

@@ -40,3 +40,23 @@ normalize @H // qed.
 
 lemma test_lil: (let x≝ plus 2 1 in x+2)=5.
 @letin_inline #z #H >H // qed.
+
+lemma bool_impl_inv:
+ ∀(A:Type[0]). ∀(B:Type[0]).
+  ∀(f: A → bool).
+   ∀(g: B → bool).
+    ∀x,y,b,d.
+     ((g y = ¬ d) → (f x = ¬ b)) → 
+      (f x = b → g y = d).
+#A #B #f #g #x #y #b #d cases b cases d cases g // normalize cases f //
+#H #_ >H // qed.
+
+lemma bool_impl_inv2:
+ ∀(A:Type[0]). ∀(B:Type[0]). ∀(C:Type[0]). ∀(D:Type[0]).
+  ∀(f: A → B → bool).
+   ∀(g: C → D → bool).
+    ∀x,y,z,w,b,d.
+     ((g y z = ¬ d) → (f x w = ¬ b)) → 
+      (f x w = b → g y z = d).
+#A #B #C #D #f #g #x #y #z #w #b #d cases b cases d cases g // normalize cases f //
+#H #_ >H // qed.

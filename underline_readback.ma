@@ -2057,8 +2057,14 @@ lemma fresh_dom_e: ∀x, e. domb_e (νx) e =true → x ≤ fresh_var_e e.
   | >if_f #H #HH lapply (H HH) -H -HH #H @le_le_max assumption
   ]
 qed.
-axiom pif_subst_lemma: ∀ny.
+
+corollary no_subst_corollary1: ∀ny.
  (∀t. fresh_var_t t ≤ ny → ∀t'. pif_subst t (psubst (νny) t')=t).
+ 
+lapply no_subst30 #Ht #ny #t #H #t' @Ht
+whd in match (match ? in  pifSubst with [_⇒?]);
+lapply fresh_var_to_in *
+#Ht1 #_ @Ht1 @H qed.
 
 (*
 il lemma seguente non è dimostrabile in questa formulazione perché la pif_subst
@@ -2182,7 +2188,7 @@ lemma aux_read_back3: ∀t, e, b.
   change with (pif_subst (aux_read_back t e') (psubst y (read_back_b b')))
   in match (aux_read_back t (Cons e' [y←b'])) ; >H2
   lapply (interval_lemma2 … e' y b' b H1) cases y #ny #Hforte
-  normalize in Hforte; @pif_subst_lemma /2/
+  normalize in Hforte; @no_subst_corollary1 /2/
 ] qed.
 
 lemma aux_read_back4: ∀m,e.
@@ -2355,7 +2361,7 @@ lemma iper_concat_lemma:
       letin t ≝ ((val_to_term (pvar νm)))
       letin z ≝ (aux_read_back t (push f [νm←b1])) -Hfv #Hfv
       lapply (Hfv HH) -Hfv #Hfv
-      lapply no_subst4 * #Hnos1 #_ @Hnos1 @Hfv
+      lapply no_subst5 #Hnos1 @Hnos1 @Hfv
     ]
   ]
 | #e' * * #y #b' #HI #f #b #b1
@@ -2365,7 +2371,7 @@ lemma iper_concat_lemma:
   whd in match (concat ? ?);
   change with (pif_subst ? ?) in match (aux_read_back ? (Cons (concat ? ?) ?));
   >(HI … (le_maxl … H1) H2 H3 H4 (interval_lemma … H5) H6)
-  lapply no_subst4 * #Hns1 #_ @Hns1
+  lapply no_subst5 #Hns1 @Hns1
   cut  (fvb_t (νy) (aux_read_back (val_to_term (pvar νm)) (push f [νm←b1]))
         =true ∨
         fvb_t (νy) (aux_read_back (val_to_term (pvar νm)) (push f [νm←b1]))
@@ -2526,14 +2532,14 @@ lemma four_dot_two:
         [ lapply (transitive_le … (transitive_le … (le_maxl … H) Hsn) Hnm)
           normalize lapply fresh_var_to_in * #_ #Hin #Htmp
           @(Hin … Htmp)
-        | lapply no_subst3 * #Hnsbst #_ #Hy > (Hnsbst … Hy ) //
+        | lapply no_subst3 #Hnsbst #Hy > (Hnsbst … Hy ) //
         ]
       | @Hdome1
       | cut (inb_t (νm) (val_to_term v1) = false)
         [ lapply (transitive_le … (transitive_le … (le_maxl … H) Hsn) Hnm)
           normalize lapply fresh_var_to_in * #_ #Hin #Htmp
           @(Hin … Htmp)
-        | lapply no_subst3 * #Hnsbst #_ #Hy > (Hnsbst … Hy) @(le_maxl …H)
+        | lapply no_subst3 #Hnsbst #Hy > (Hnsbst … Hy) @(le_maxl …H)
         ]
       ]
     | #r1 #r2

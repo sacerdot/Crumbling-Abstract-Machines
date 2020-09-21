@@ -45,7 +45,7 @@ let rec underline_pifTerm (t: pifTerm) (s: nat): Crumble × nat≝
            [ mk_Prod vv m ⇒  mk_Prod Crumble nat (at 〈AppValue (vv) (var (νm)), Epsilon〉 (push e1 [νm←b1])) (S m)]
          | appl u1 u2 ⇒ match underline_pifTerm t1 n with
           [ mk_Prod c1 n1 ⇒ match c1 with
-            [ CCrumble b e ⇒ mk_Prod Crumble nat 〈AppValue (var (ν(S(n1)))) (var (νn1)), concat (push e [ν(S(n1)) ← b]) (push e1 [νn1 ← b1])〉 (S (S (n1)))]
+            [ CCrumble b e ⇒ mk_Prod Crumble nat 〈AppValue (var (ν(S(n1)))) (var (νn1)), concat (push e1 [νn1 ← b1]) (push e [ν(S(n1)) ← b])〉 (S (S (n1)))]
           ]
          ]
        ]
@@ -256,14 +256,16 @@ lemma line_names:
         [ @to_max //
         | @to_max
           [ @to_max
-            [ @(le_S …(le_S … (le_maxr … (H1 (transitive_le … (le_maxl … H)Hsn)))))
-            | @to_max //
-              @(le_S …(le_S … (le_maxl … (H1 (transitive_le … (le_maxl … H) Hsn)))))
+            [ @(le_S …(le_S … (transitive_le … (le_maxr …(H2 (le_maxr … H))) Hnm)))
+            | @to_max
+              [ //
+              | @(le_S …(le_S … (transitive_le … (le_maxl … (H2 (le_maxr … H))) Hnm)))
+              ]
             ]
           | @to_max
-            [ @(le_S …(le_S … (transitive_le … (le_maxr … (H2 (le_maxr … H))) Hnm)))
+            [ @(le_S …(le_S … (le_maxr … (H1 (transitive_le … (le_maxl … H) Hsn)))))
             | @to_max //
-              @(le_S …(le_S … (transitive_le … (le_maxl … (H2 (le_maxr … H))) Hnm)))
+              @(le_S …(le_S … (le_maxl … (H1 (transitive_le … (le_maxl … H) Hsn)))))
             ]
           ]
         ]
@@ -364,7 +366,7 @@ lemma line_dom:
          cut (domb_e (νx) e1 = true ∨ domb_e (νx) e1 =false) // *
          #Htf >Htf
          [ #_ @(H2'' Htf)
-         | >if_then_true_else_false #H @(transitive_le … Hsn (H1' H))
+         | normalize #H @(transitive_le … Hsn (H1' H))
          ]
        ]
      ]
@@ -442,7 +444,7 @@ lemma env_bound_lemma:
          cut (domb_e (νx) e1 = true ∨ domb_e (νx) e1 =false) // *
          #Htf >Htf
          [ #_ @le_S @le_S @(transitive_le … (H2'' Htf) Hnn1)
-         | >if_then_true_else_false #H @le_S @le_S @H1' @H
+         | normalize #H @le_S @le_S @H1' @H
          ]
        ]
      ]
@@ -665,7 +667,7 @@ lemma free_var_bound:
       ]
       >Htf >Htf1 normalize
       cut (fvb_e (νx) e=true ∨ fvb_e (νx) e=false) // * #Hfe >Hfe normalize
-      [ >if_monotone  #_ #Hj #_
+      [ >if_monotone >if_monotone #_ #Hj #_
         @le_S @le_S @Hj @refl ]
       >if_then_true_else_false
       
@@ -1178,18 +1180,16 @@ lemma disjoint_dom:
             lapply H2a >Htf >if_monotone -H2a #H2a
             lapply (gtb_O_true … H2a) -H2a * #n #H2a >H2a % //
             cases (free_occ_t (νx) r1+free_occ_t (νx) r2) //
-          | >Htf1 normalize >if_monotone %
-            [ lapply H2a >Htf >if_monotone #H2a lapply (gtb_O_true … H2a)
-              * #k #Hk >Hk cases (plus (free_occ_t ? ?) ?) //
-            ]
-            cut (domb_e (νx) e=true ∨ domb_e (νx) e=false) // * #Hdome >Hdome // 
+          | >Htf1 normalize %
+            [2: cases domb_e normalize //]
+            cut (domb_e (νx) e=true ∨ domb_e (νx) e=false) // * #Hdome >Hdome
             normalize lapply H1a lapply H2a >Hdome >Htf >Htf1 normalize
-            >if_monotone >if_monotone >if_f
-              change with (fvb_t ? (appl ??))
+            [ >if_monotone >if_monotone >if_f #_ #_
+              change with (fvb_t ? (appl (appl ??)(appl ??)))
                 in match (gtb ? O);
               lapply (Hldom1 … Hdome) #Hnx
-              cut (fresh_var_t (appl u1 u2) ≤ x)
-              [ @(transitive_le … (transitive_le … (le_maxr … Hm) Hsn) Hnx)]
+              cut (fresh_var_t (appl r1 r2) ≤ x)
+              [ @(transitive_le … (transitive_le … (le_maxl … Hm) Hsn) Hnx)]
               #Hfvu
               lapply (fresh_var_to_in) * #Hfin #_
               lapply (Hfin … Hfvu) 
@@ -1200,9 +1200,17 @@ lemma disjoint_dom:
               cut (fresh_var_t (appl u1 u2) ≤ x)
               [ @(transitive_le … (transitive_le … (le_maxr … Hm) Hsn) Hnx)]
               -Hnx #Hfvr
-              lapply (Hfin … Hfvr) #Yee2
-              >(Hfin2 … Yee) >(Hfin2 … Yee2) #abs destruct
+              lapply (Hfin … Hfvr) #Yee2 >fvb_t_distr
+              >(Hfin2 … Yee) >(Hfin2 … Yee2) //
+            | >H2b // normalize
+              >if_then_true_else_false
+              >if_then_true_else_false
+              >if_then_true_else_false
+              >if_monotone
+              #H2' #_ lapply (gtb_O_true … H2') * #n -H2' #H2' >H2'
+              cases (free_occ_t (νx) r1+free_occ_t (νx) r2) //
             ]
+          ]
         | >Htf normalize
           cut (domb_e (νx) e1=true ∨ domb_e (νx) e1=false) // * #Hde1
           [ >Hde1 normalize lapply H1a
@@ -1234,15 +1242,16 @@ lemma disjoint_dom:
             -Hsx #Hfvr
             lapply (Hfin … Hfvr) #Yee2
             >(Hfin2 … Yee) >(Hfin2 … Yee2) whd in match (false ∨ false);
-            >if_then_true_else_false >if_then_true_else_false
-            >if_monotone #_ % //
+            >if_then_true_else_false cases fvb_b normalize
+            [ #abs destruct]
+             #HH <HH normalize % //
           | >Hde1 normalize
             >Htf
             cut (domb_e (νx) e= true ∨ domb_e (νx) e= false) // * #Hde
             [ >Hde normalize
               cut (domb_e (νx) e=true → fvb_e (νx) e=false)
               [ lapply H1b cases domb_e cases fvb_e normalize // #H >H // ]
-              #H1b' >H1b' // normalize
+              #H1b' >H1b' // normalize >if_monotone >if_f
               change with  (fvb_t ? (appl (appl ??)(appl ??)))
                   in match (gtb (plus (plus ??) (plus ??)) 0);
               lapply (Hldom1 … Hde) #Hnx
@@ -1259,23 +1268,19 @@ lemma disjoint_dom:
               [ @(transitive_le … (transitive_le … (le_maxr … Hm) Hsn) Hnx)]
               -Hnx #Hfvr
               lapply (Hfin … Hfvr) #Yee2 >fvb_t_distr
-              lapply (H2a) 
-              change with (fvb_t ? (appl ? ?)) in match (gtb ? 0);
-              >Hde1 >Htf >if_then_true_else_false >if_f >if_then_true_else_false
-              >(Hfin2 … Yee) >(Hfin2 … Yee2) #HH <HH % //
+              >(Hfin2 … Yee) >(Hfin2 … Yee2) % //
             | lapply H2a lapply H1a >Hde >Hde1 normalize >Htf
               >if_then_true_else_false >if_then_true_else_false
               >if_then_true_else_false
               cases (free_occ_t (νx) r1+free_occ_t (νx) r2)
               cases (free_occ_t (νx) u1+free_occ_t (νx) u2)
               normalize
-              [ #a #b <b >if_then_true_else_false >if_then_true_else_false
-                lapply a cases fvb_b cases fvb_e
+              [ #a #b <b normalize lapply a cases fvb_b cases fvb_e
                 normalize [ 1,2,3: #a destruct ] #_ % //
-              | #n #a #b <b normalize % // >if_monotone @refl
+              | #n #a #b <b normalize % //
               | #m #a #b <b normalize % // lapply a cases fvb_b cases fvb_e
                 normalize //
-              | #n #m #a #b <b normalize % // >if_monotone @refl
+              | #n #m #a #b <b normalize % //
               ]
             ]
           ]
@@ -1673,7 +1678,7 @@ lemma size_lemma:
                    +(t_size r1+t_size r2+(t_size u1+t_size u2)+O))))))))))))))
    [@eq_f @eq_f @eq_f @eq_f @eq_f normalize //]
    #HH >HH #H
-   cut (c_size_e e1+c_size_b b1+(c_size_e e+c_size_b b)=c_size_b b1+c_size_e e1+(c_size_b b+c_size_e e))
+   cut (c_size_e e+c_size_b b+(c_size_e e1+c_size_b b1)=c_size_b b1+c_size_e e1+(c_size_b b+c_size_e e))
    [ // ] #Yee >Yee @H
    ]
  ]
@@ -2296,120 +2301,90 @@ lemma ultimate_concat_lemma:
 ] qed.
 
 lemma ultra_concat_lemma:
-  (∀f, x, e. domb_e x f = false → 
-    (∀z. domb_e z f = true → fvb_e z e = false) → 
-     (aux_read_back (val_to_term (pvar x)) (concat e f)
-  =aux_read_back (val_to_term (pvar x)) e)).
+  (∀x, f, e. x ≥ fresh_var_e e →  (aux_read_back (val_to_term (pvar (νx)))
+  (concat e f)
+  =aux_read_back (val_to_term (pvar νx)) f)).
 
-@(Environment_simple_ind2)
-[ #x #e #H #H1 >concat_e_epsilon
-  whd in match (aux_read_back (val_to_term (pvar x)) Epsilon);
+#x #f
+@(Environment_simple_ind2 … f)
+[ #e #H >concat_e_epsilon
+  whd in match (aux_read_back (val_to_term (pvar νx)) Epsilon);
   lapply H
   @(Environment_simple_ind2 … e)
   [ //
   | #e' *
    * #y #b #HI #H'
-    normalize in H'; //
+    normalize in H'; 
+    change with (max (fresh_var_e e') (max (S y) ?)≤ x) in H';
+    change with (pif_subst ? ?) in match (aux_read_back ? ?);
+    >(HI … (le_maxl … H'))
+    >(no_subst (νx) (νy) (read_back_b b)) //
+    lapply (le_maxl … (le_maxr … H'))
+    #Hle normalize
+    cut (neqb y x=true ∨ neqb y x=false) // * #Htf //
+    lapply (neqb_iff_eq y x) * #Heq #_ lapply (Heq Htf)
+    -Heq #Heq destruct @False_ind /2/
   ]
-| #f' * * #y #b  #HIe #x #e #H #H1
-  whd in match (concat ? ?);
+| #f' * * #y #b  #HIe #e'
+  whd in match (concat ? ?); #H
   change with (pif_subst ? ?)
     in match (aux_read_back ? ?);
-  >HIe
-  [ 2: #w #Hw lapply (H1 w) normalize >Hw >if_monotone #HH >HH @refl
-  | 3: lapply H normalize cases domb_e // >if_monotone #H @H
-  ] >no_subst5 // lapply fv_lemma * * * * #_ #_ #He #_ #_
-    cut (fvb (νy) 〈CValue (var x), e〉= false)
-    [ lapply H lapply (H1 νy) normalize >neqb_refl >if_t #H' >H' //
-      >if_then_true_else_false cases x #nx normalize >neq_simm cases neqb
-      normalize [ #abs destruct ] //
-    ]
-    @bool_impl_inv2
-    change with (read_back 〈CValue (var x), e〉)
-      in match (aux_read_back ? ?);
-      @He normalize cases x #n normalize cases neqb normalize //
+  change with (pif_subst ? ?)
+    in match (aux_read_back ? (Cons ? ?));
+  >HIe //
 ] qed.
 
-lemma pre_iper_concat_lemma: ∀e, t.
- (∀x. fvb_t x t = true → domb_e x e = false) → 
- aux_read_back t e = t.
-
-@Environment_simple_ind2
-[ #t #H //
-| #e * * #y #b #HI #t #H change with (pif_subst ? ?) in match (aux_read_back ? ?);
-  >HI [ 2: #z #Hz lapply (H z Hz) normalize cases domb_e // >if_monotone #abs
-  destruct ] @no_subst5 lapply (H νy) cases fvb_t // normalize >neqb_refl
-  >if_t #H @H @refl
-] qed. 
-
-lemma iper_concat_lemma: ∀f, e, x.
-  domb_e x e = false → 
-  (aux_read_back (val_to_term (pvar x)) (concat e f)
-  =aux_read_back (val_to_term (pvar x)) f).
-@Environment_simple_ind2
-[ #e #x #H >concat_e_epsilon normalize >pre_iper_concat_lemma //
-  #z normalize cut (veqb z x = true ∨ veqb z x = false) // * #Hzx >Hzx normalize
-  [ #_ elim (veqb_true_to_eq … z x) #Heq #_ lapply (Heq Hzx) -Heq #Heq destruct
-    @H ] #abs destruct
-| #f * #y #b #HI #e #x #H
-  whd in match (concat ? ?);
-  change with (pif_subst ? ?) in match (aux_read_back ? ?);
-  change with (pif_subst ? ?) in match (aux_read_back ? (Cons ? ?)); >HI //
-] qed.
-
-include "environments.ma".
-(*
 lemma iper_concat_lemma:
- ∀f, m, n, e, b, b1.
+ ∀m, n, e, f, b, b1.
   fresh_var_e e ≤ m → fresh_var_b b ≤ m → 
    fresh_var_e f ≤ n → fresh_var_b b1 ≤ n →
     interval_dom e n →  n≤m → 
    ((aux_read_back (val_to_term (pvar νm))
-    (concat (push e [ν(S m)←b])(push f [(νm)←b1]))
+    (concat (push f [(νm)←b1]) (push e [ν(S m)←b]))
     =aux_read_back (val_to_term (pvar νm)) (push f [(νm)←b1]))).
 
-@(Environment_simple_ind2)
+#m #n #e @(Environment_simple_ind2 … e)
 
-[ #m #n #e #b #b1
-  whd in match (push Epsilon ?);
-  whd in match (concat ? ?); 
+[ #f #b #b1
+  whd in match (push ? ?);
+  change with (Cons ? ?) in match (concat (push f [νm←b1]) (Cons Epsilon [ν(S m)←b]));
   >concat_e_epsilon
-  #Hfve #Hfvb #Hfvf #Hfvb1 #Hie #Hnm
-  change with (pif_subst ? ?) in match (aux_read_back ? (Cons (push e ?) ?)); 
-  change with (read_back 〈 CValue (var ?), push e ?〉)
-    in match ((aux_read_back (val_to_term (pvar νm)) (push e ?)));
+  #_ #Hfvb #Hfvf #Hfvb1 #_ #Hnm
+  change with (pif_subst ? ?) in match (aux_read_back ? (Cons (push f ?) ?)); 
+  change with (read_back 〈 CValue (var ?), push f ?〉)
+    in match ((aux_read_back (val_to_term (pvar νm)) (push f ?)));
   lapply fv_lemma * * * * #Hc #Hb #He #Hv #_ 
-  lapply (Hc 〈CValue (var νm),(push e [νm←b1])〉 ν(S m)) #Hfv
+  lapply (Hc 〈CValue (var νm),(push f [νm←b1])〉 ν(S m)) #Hfv
   whd in match (read_back ?) in Hfv ⊢ %;
   whd in match (read_back_b ?);
-  cut (fvb (ν(S m)) 〈CValue (var (νm)),(push e [νm←b1])〉=false → fvb_t (ν(S m)) (aux_read_back (read_back_b (CValue (var νm))) (push e [νm←b1]))=false)
+  cut (fvb (ν(S m)) 〈CValue (var (νm)),(push f [νm←b1])〉=false → fvb_t (ν(S m)) (aux_read_back (read_back_b (CValue (var νm))) (push f [νm←b1]))=false)
   [ lapply Hfv cases fvb_t cases fvb // #Ht #_ >Ht //
   | -Hfv #Hfv
-    cut (fvb (ν(S m)) 〈CValue (var νm),(push e [νm←b1])〉=false)
+    cut (fvb (ν(S m)) 〈CValue (var νm),(push f [νm←b1])〉=false)
     [ change with (((fvb_b ? ?) ∧ ¬(domb_e ? ?)) ∨ fvb_e ? ?)
        in match (fvb ? ?);
       change with (neqb ? ?) in match (fvb_b (ν (S m)) (CValue (var (νm))));
       cut (neqb (S m) m =false) [//] #Hf >Hf
-      change with (fvb_e (ν(S m)) (push e [νm←b1])=false) -Hf
-      cut (inb_e (ν (S m)) (push e [νm←b1]) = false)
+      change with (fvb_e (ν(S m)) (push f [νm←b1])=false) -Hf
+      cut (inb_e (ν (S m)) (push f [νm←b1]) = false)
       [ lapply (fresh_var_to_in_crumble) * * * * #_ #_ #Hfvtoin #_ #_
       | #Hin lapply fv_to_in_crumble * * * * #_ #_ #Hine #_ #_
-        lapply (Hine (push e [νm←b1]) ν(S m)) -Hine #Hinf
-        cut (inb_e (ν(S m)) (push e [νm←b1])=false → fvb_e (ν(S m)) (push e [νm←b1])=false)
+        lapply (Hine (push f [νm←b1]) ν(S m)) -Hine #Hinf
+        cut (inb_e (ν(S m)) (push f [νm←b1])=false → fvb_e (ν(S m)) (push f [νm←b1])=false)
         [ lapply Hinf cases fvb_e cases inb_e // #Ht >Ht //
         | -Hinf #Hinf >Hinf //
         ]
       ] @Hfvtoin <fresh_var_push
       change with (max ? (max ? ?)) in match (fresh_var_e ?);
       @to_max
-      [ @(le_S … Hfve)
+      [ @(le_S … (transitive_le … Hfvf Hnm))
       | @to_max // @(le_S … (transitive_le … Hfvb1 Hnm))
       ]
     | #HH whd in match (read_back_b ?) in Hfv; lapply Hfv
       letin t ≝ ((val_to_term (pvar νm)))
-      letin z ≝ (aux_read_back t (push e [νm←b1])) -Hfv #Hfv
+      letin z ≝ (aux_read_back t (push f [νm←b1])) -Hfv #Hfv
       lapply (Hfv HH) -Hfv #Hfv
-      lapply no_subst5 #Hnos1 >Hnos1 @Hfv
+      lapply no_subst5 #Hnos1 @Hnos1 @Hfv
     ]
   ]
 | #e' * * #y #b' #HI #f #b #b1
@@ -2493,7 +2468,7 @@ lemma iper_concat_lemma:
         ]
       ]
     ] qed.  
-*)
+  
 lemma four_dot_two:
     (∀t.∀s. (s ≥ fresh_var_t t) → read_back (fst ?? (underline_pifTerm t s)) = t ) ∧
     (∀v.∀s. (s ≥ fresh_var_tv v) →read_back_v (fst ?? (overline v s)) = val_to_term v).
@@ -2502,10 +2477,8 @@ lemma four_dot_two:
       (λv.∀ s. (s ≥ fresh_var_tv v) →read_back_v (fst ?? (overline v s)) = val_to_term v ))
 [ #v normalize in match (fresh_var_tv ?); #HI #s #Hsz lapply (HI s Hsz)
  -HI -Hsz normalize cases (overline v s) #vv #nn normalize //
-| lapply line_monotone_names * #Hmono1 #Hmono2
+| lapply line_monotone_names * #Hmono1 #Hmono2 #t1 #t2 cases t2
   lapply (line_names) * #Hline1 #Hline2
-  lapply (four_dot_one_dot_one) * #H411t #H411v
-  lapply (env_bound_lemma) #Hbound #t1 #t2 cases t2
   [ #v2
     cases t1
     [ #v1 normalize #H1 #H2
@@ -2548,18 +2521,11 @@ lemma four_dot_two:
   | #u1 #u2 #H1 #H2 #s lapply (H2 s)
     lapply (Hline1 (appl u1 u2) s)
     lapply (line_dom (appl u1 u2) s)
-    lapply (Hbound … (appl u1 u2) s)
-    lapply (H411t … (appl u1 u2) s)
     lapply (Hmono1 (appl u1 u2) s) normalize
     change with (underline_pifTerm (appl u1 u2) s)
       in match (match u2 in pifTerm with [_ ⇒ ?]);
     cases ((underline_pifTerm (appl u1 u2) s)) * #b1 #e1 #n normalize
-    change with (fresh_var_t ?)
-      in match (pi1 … (fresh_var_t_Sig u1));
-    change with (fresh_var_t ?)
-      in match (pi1 … (fresh_var_t_Sig u2));
-    change with (max ? ?) in match (if ? then ? else ?);
-    #Hsn #H4111 #Hbound1 #Hdome1
+    #Hsn #Hdome1
     lapply (H1 (n)) cases t1
     [ #v1 normalize
       lapply (Hline2 v1 n)
@@ -2603,10 +2569,8 @@ lemma four_dot_two:
       lapply (Hline1 … (appl r1 r2) n)
       lapply (line_dom (appl r1 r2) n)
       lapply (Hmono1 … (appl r1 r2) n)
-      lapply (Hbound … (appl r1 r2) n)
-      lapply (H411t  … (appl r1 r2) n)
       cases (underline_pifTerm (appl r1 r2) n)
-      * #b #e #m normalize #H4112 #Hbound2 #Hnm #Hdome
+      * #b #e #m normalize #Hnm #Hdome
       change with (fresh_var_t ?)
         in match (pi1 … (fresh_var_t_Sig r1));
       change with (fresh_var_t ?)
@@ -2635,7 +2599,7 @@ lemma four_dot_two:
       #Hline1 #H1 #Hline2 #H2 #H
       >aux_read_back1 @eq_f2
       [ cut (aux_read_back (val_to_term (pvar ν(S m)))
-             (concat (push e [ν(S m)←b]) (push e1 [νm←b1])) =
+             (concat (push e1 [νm←b1]) (push e [ν(S m)←b])) =
              aux_read_back (val_to_term (pvar ν(S m)))
               (push e [ν(S m)←b]))
         [2: #UU >UU >push_lemma
@@ -2644,70 +2608,57 @@ lemma four_dot_two:
             >atomic_subst >H1 //
             @(transitive_le … (le_maxl … H) Hsn)
         | @ultra_concat_lemma
-          [ >dom_push normalize
-            change with (neqb (S m) (m)) in match (match ? in nat with [_⇒?]);
-            >neq_simm >neqb_false >if_f lapply (Hbound1 (S m)) cases domb_e //
-            #abs @False_ind lapply (le_S … (transitive_le … (abs (refl …)) Hnm))
-            @le_Sn_n
-          | * #k >dom_push >fv_push normalize
-            cut (neqb k m = true ∨ neqb k m = false) // * #Hkm
-            [ elim (neqb_iff_eq k m) #Heq #_ lapply (Heq Hkm) -Heq #Heq
-              destruct >neqb_refl normalize #_ lapply (Hbound2 m)
-              lapply (H4112 (νm) (transitive_le … (le_maxl  … H) Hsn))
-              cases domb_e normalize
-              [ #_ #abs @False_ind lapply (abs (refl …)) @le_Sn_n
-              | >if_then_true_else_false
-                change with (fvb_t (νm) (appl r1 r2))
-                  in match (gtb ? 0);
-                cut (fvb_t (νm) (appl r1 r2) = false)
-                [ cut (inb_t (νm) (appl r1 r2) = false)
-                  [ cut (fresh_var_t (appl r1 r2)≤m)
-                    [ normalize 
-                      @(transitive_le … (transitive_le … (le_maxl … H) Hsn) Hnm)
-                    ]
-                    lapply (fresh_var_to_in) * #Ht #_ @Ht ]
-                  @bool_impl_inv2 lapply (fv_to_in_term) * #Ht #_ @Ht ]
-                #HH >HH cases fvb_e normalize
-                [ >if_monotone #abs destruct
-                | cases fvb_b //
-                ]
-              ]
-            | >Hkm normalize #HH lapply (Hdome1 … HH) #Hsk
-              cut (fvb_t (νk) (appl r1 r2) = false)
-              [ cut (inb_t (νk) (appl r1 r2) = false)
-                [ cut (fresh_var_t (appl r1 r2) ≤ k)
-                  [ @(transitive_le … (le_maxl … H) Hsk) ]
-                lapply (fresh_var_to_in) * #Ht #_ @Ht ]
-              @bool_impl_inv2 lapply (fv_to_in_term) * #Ht #_ @Ht ]
-              -HH -Hsk #HH lapply (H4112 (νk) (transitive_le … (le_maxl … H) Hsn))
-              change with (fvb_t (?) (appl ??))
-                in match (gtb ? 0);
-              >HH cases fvb_e
-              [ >if_monotone #abs destruct
-              | >if_then_true_else_false >if_f cases fvb_b normalize //
-                cases domb_e normalize //
-              ]
-            ]
+          <(fresh_var_push)
+          normalize
+          change with (max ? (max (S m) ?)≤ S m) in ⊢ %;
+          @to_max
+          [ @(le_S … (transitive_le … (le_maxr … (Hline2 (le_maxr … H))) Hnm))
+          | @to_max //
+            @(le_S … (transitive_le … (le_maxl … (Hline2 (le_maxr … H))) Hnm))
           ]
         ]
-      | >iper_concat_lemma
-        [ 2: >dom_push normalize >neqb_false >if_f lapply (Hbound2 m)
-          cases domb_e // #abs @False_ind lapply (abs (refl …)) @le_Sn_n ]
-        >push_lemma
-        whd in match (match ?  in Substitution with [_⇒?]);
-        >atomic_subst @H2 @(le_maxr … H)
-      ]
+      | cut (aux_read_back (val_to_term (pvar νm))
+            (concat (push e1 [νm←b1]) (push e [ν(S m)←b])) =
+            aux_read_back (val_to_term (pvar νm))
+            (push e1 [νm←b1]))
+        [ 2: #UU >UU >push_lemma
+             whd in match (match [ν?←b] in Substitution 
+              return λ_:Substitution.pifSubst with[_⇒ ?]);
+             >atomic_subst @H2 @(le_maxr … H)
+        ] @(iper_concat_lemma m n …)
+          [ @(le_maxr … (Hline1 (transitive_le … (le_maxl … H) Hsn)))
+          | @(le_maxl … (Hline1 (transitive_le … (le_maxl … H) Hsn)))
+          | @(le_maxr … (Hline2 (le_maxr … H)))
+          | @(le_maxl … (Hline2 (le_maxr … H)))
+          | @Hdome
+          | @Hnm
+          ]
+       ]
+     ]
+   ]
+  | * #x #s //
+  | #t * #x #HI #s #H cut (fresh_var_t t ≤ s)
+    [ lapply H normalize
+      change with (fresh_var_t t)
+        in match (pi1 nat ? ?);
+      change with (max (S x) (fresh_var_t t)) in match (if ? then ? else ?);
+      #Htop @(le_maxr … Htop)
+    | #H' lapply (HI … H') normalize
+      cases ((underline_pifTerm t s)) * #b #e #n normalize
+      #Hue >Hue //
     ]
-  ]
-| * #x #s //
-| #t * #x #HI #s #H cut (fresh_var_t t ≤ s)
-  [ lapply H normalize
-    change with (fresh_var_t t)
-      in match (pi1 nat ? ?);
-    change with (max (S x) (fresh_var_t t)) in match (if ? then ? else ?);
-    #Htop @(le_maxr … Htop)
-  | #H' lapply (HI … H') normalize
-    cases ((underline_pifTerm t s)) * #b #e #n normalize
-    #Hue >Hue //
-  ]
+  ] qed.
+  
+lemma read_back_distro: ∀e, t1, t2. aux_read_back (appl t1 t2) e = appl (aux_read_back t1 e) (aux_read_back t2 e).
+@Environment_simple_ind2
+[ normalize //
+| #e * #y #b #HI #t1 #t2 >push_lemma_aux
+  change with (pif_subst ? ?) in match 
+   (aux_read_back (aux_read_back (appl t1 t2) e) (Cons Epsilon [y←b]));
+  change with (aux_read_back (appl t1 t2) e)
+    in match (aux_read_back (aux_read_back (appl t1 t2) e) Epsilon);
+  change with (pif_subst ? ?) in match (aux_read_back ? (Cons ? ?));
+  change with (pif_subst ? ?) in match (aux_read_back ? (Cons ? ?));
+  >HI >pif_subst_distro //
 ] qed.
+     

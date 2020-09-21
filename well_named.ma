@@ -108,69 +108,56 @@ lemma dist_dom_lemma:
      (∀x:ℕ.domb_e (νx) e=true→n≤x) → 
       (∀x:ℕ.domb_e (νx) e=true→S x≤m) → 
        dist_dom e=true → dist_dom e1=true → 
-        dist_dom (concat (push e1 [νm←b1]) (push e [ν(S m)←b]))=true .
+        dist_dom (concat (push e [ν(S m)←b]) (push e1 [νm←b1]))=true .
 
-#e1 #e #s #m #n #b #b1 #Hsn #Hnm
-@(Environment_simple_ind2 … e)
-[ #Hl1 #Hu1 #Hl2 #Hu2 #Hde #Hde1 whd in match (push Epsilon ?);
-  whd in match (concat ? ?);
+@Environment_simple_ind2
+[ #e #s #m #n #b #b1 #Hsn #Hnm #Hl1 #Hu1 #Hl2 #Hu2 #Hde #Hde1
+  whd in match (push Epsilon ?);
+  whd in match (concat ? ?); whd in match (dist_dom ?);
   >concat_e_epsilon
-  whd in match (dist_dom ?);
   whd in match (match ?  return λ_:Substitution.Variable with 
                   [subst (y:Variable)   (b0:Byte)⇒y]);
   >dom_push >dist_dom_push
   whd in match (domb_e ? ?);
   whd in match (dist_dom ?);
-  whd in match (dist_dom Epsilon);
   whd in match (match ?  return λ_:Substitution.Variable with 
                   [subst (y:Variable)   (b0:Byte)⇒y]);
   change with (neqb ? ?) in match (veqb ? ?);
-  cut (∀n. neqb (S n) n=false) [ #n elim n //] #Hn >Hn -Hn >if_f
-  cut (∀x:ℕ.n≤x → domb_e (νx) e1=false)
-  [ #x lapply (Hu1 x) cases domb_e // #abs1 #abs2 @False_ind
+  >neqb_false >if_f
+  cut (∀x:ℕ.m≤x → domb_e (νx) e=false)
+  [ #x lapply (Hu2 x) cases domb_e // #abs1 #abs2 @False_ind
     lapply (transitive_le … (abs1 (refl bool true)) abs2) /2/ ]
-  #Hu1' >Hu1' >Hu1' normalize // @le_S assumption
-| #e' * * #y #b #HI  #Hl1 #Hu1 #Hl2 #Hu2 #Hde #Hde1 
+    #Hu1' >Hu1' >Hu1' // normalize @Hde
+| #f * #y #b #HI #e #s #m #n #b #b1 #Hsn #Hnm #Hl1 #Hu1 #Hl2 #Hu2 #Hde #Hde1
   whd in match (push (Cons ? ?) ?);
   whd in match (concat ? ?);
   whd in match (dist_dom ?);
-  whd in match (match ?  return λ_:Substitution.Variable with 
-                  [subst (y:Variable)   (b0:Byte)⇒y]);
-  whd in match (dist_dom (Cons ? ?));
-  whd in match (match ?  return λ_:Substitution.Variable with 
-                  [subst (y:Variable)   (b0:Byte)⇒y]);
-  >HI
-  [ 6: @Hu1 | 7: @Hl1
-  | 4: #x lapply (Hu2 x) whd in match (domb_e ? ?); cases veqb normalize
-    [ #H #_ @H // | #H @H]
-  | 5: #x lapply (Hl2 x) whd in match (domb_e ? ?); cases veqb normalize
-    [ #H #_ @H // | #H @H ]
-  | 2: @Hde1 | 3: lapply Hde normalize cases domb_e normalize [ #abs destruct] // 
-  ]
-  >domb_concat_distr >dom_push >dom_push >if_then_true_else_false
+  whd in match (match ? in Substitution with [_⇒?]);
+  >domb_concat_distr >dom_push >dom_push
+
+   >(HI … s m n)
+  [ 2: @(dist_dom_conservative … Hde1) | 3: @Hde  @Hu1
+  | 4: @Hu2 | 8: @Hnm | 9: @Hsn| 5: @Hl2
+  | 6: #k #Hk @Hu1 normalize >Hk >if_monotone @refl
+  | 7: #k #Hk @Hl1 normalize >Hk >if_monotone @refl ]
+  >if_then_true_else_false
+  whd in match (domb_e ? ?);
   whd in match (domb_e ? (Cons ? ?));
-  whd in match (domb_e ? (Cons ? ?));
-  whd in match (veqb ? ?);
-  whd in match (veqb ? ?);
-  cut (neqb y m=true ∨ neqb y m=false) // * #Hym >Hym normalize
-  [ lapply (neqb_iff_eq y m) * #Heq #_ lapply (Heq  Hym) -Heq #Heq
-    destruct @False_ind lapply (Hu2 m) normalize >Hym >if_t
-    #abs @(le_Sn_n m) @abs //
-  | cut (neqb y (S m)=true ∨ neqb y (S m)=false) // * #HySm >HySm normalize
-    [ lapply (neqb_iff_eq y (S m)) * #Heq #_ lapply (Heq HySm) -Heq #Heq
-      destruct @False_ind lapply (Hu2 (S m)) normalize >neqb_refl >if_t
-      #abs cut (S m ≤ m) lapply (abs (refl …)) /2/
-    ]
-    normalize in Hde;
-    lapply Hde cases domb_e normalize
-    [ #abs destruct ]
-    #_  lapply (Hl2 y) normalize >neqb_refl >if_t
-    cut (n≤y → domb_e (νy) e1=false)
-    [ 2: #H1 #H2 >H1 // @H2 //]
-    lapply (Hu1 y)
-    cases domb_e // #H1 #H2 @False_ind @(le_Sn_n y)
-    @(transitive_le … (H1 (refl …)) H2)
-  ]
+  cut (veqb y (νm)=true ∨ veqb y (νm)=false) // * #Hym
+  [ elim (veqb_true_to_eq y (νm)) #Heq #_ lapply (Heq Hym)
+    -Heq #Heq destruct @False_ind lapply (transitive_le … (Hu1 m ?) Hnm)
+    [ normalize >neqb_refl >if_t @refl ] @le_Sn_n
+  | >Hym >if_f cut (veqb y (ν(S m))=true ∨ veqb y (ν(S m))=false) // * #HySm
+  [ elim (veqb_true_to_eq y (ν(S m))) #Heq #_ lapply (Heq HySm)
+    -Heq #Heq destruct @False_ind lapply (le_S … (transitive_le … (Hu1 (S m) ?) Hnm))
+    [ normalize >neqb_refl >if_t @refl ] @le_Sn_n
+  | >HySm  lapply (Hde1) -Hde1 lapply (Hl1) -Hl1 lapply (Hu1) -Hu1
+    cases y #ny normalize #Hu1 #Hl1 lapply (Hl1 ny) lapply (Hu1 ny)
+    cases domb_e normalize [ #_ #_ #abs destruct ] >neqb_refl >if_t #Hu1 #_ #_
+    lapply (Hl2 ny) cases domb_e // #Hye @False_ind
+    lapply (transitive_le … (Hu1 (refl …)) (Hye (refl …)))
+    @le_Sn_n
+  ] ]
 ] qed.
   
 lemma four_dot_one_dot_four:
@@ -342,10 +329,10 @@ lemma four_dot_one_dot_four:
       cases (well_named_e e1)
       cases (well_named_b b)
       cases (well_named_e e)
-      normalize //
+      normalize // [ 2,3,4: #abs destruct ] 
       #Hdom1 #Hdom2
       >dist_dom_lemma
-      [ //
+      [ lapply H2' >Hdom1 cases well_named_e cases well_named_b normalize #H @H
       | @Hdom1
       | @Hdom2
       | @Hbound1

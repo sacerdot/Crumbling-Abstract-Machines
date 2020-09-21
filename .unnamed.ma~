@@ -1,36 +1,139 @@
-(**************************************************************************)
-(*       ___                                                              *)
-(*      ||M||                                                             *)
-(*      ||A||       A project by Andrea Asperti                           *)
-(*      ||T||                                                             *)
-(*      ||I||       Developers:                                           *)
-(*      ||T||         The HELM team.                                      *)
-(*      ||A||         http://helm.cs.unibo.it                             *)
-(*      \   /                                                             *)
-(*       \ /        This file is distributed under the terms of the       *)
-(*        v         GNU General Public License Version 2                  *)
-(*                                                                        *)
-(**************************************************************************)
+A  B  A → B  ¬A  ¬B   ¬B → ¬A
+0  0    1     1   1      1
+0  1    1     1   0      1
+1  0    0     0   1      0
+1  1    1     0   0      1
 
-include "crumbles.ma".
 
-inductive EnvContext: Type [0] ≝
-| envc : Environment → Variable → EnvContext
-.
+(A → B) ↔ (¬B → ¬A)
+        1
+        1
+        1
+        1
+        
+A  B  A → B  B → A  A ↔ B
+0  0    1      1      1
+0  1    1      0      0
+1  0    0      1      0
+1  1    1      1      1
 
-inductive CrumbleContext: Type[0] ≝
-| hole : CrumbleContext
-| crc: Byte → EnvContext → CrumbleContext
-.
 
-let rec plug_e ec c on ec ≝
- match ec with
- [ envc e x ⇒ match c with [ CCrumble b f ⇒ concat (Cons e [x←b]) f]]
- .
+(A → B) ∧ (B → A)
+        1
+        0
+        0
+        1
+        
+        
+∀a, b. a*b = 0 → a=0 ∨ b=0
 
-let rec plug_c cc c on c ≝
- match cc with
- [ hole ⇒ c
- | crc b ec ⇒ 〈b, plug_e ec c〉
- ]
-.
+A ≝ a*b=0
+B ≝  a=0
+C ≝  b=0
+
+a*b = 0 → a=0 ∨ b=0 è sempre vera ↔
+A → B ∨ C è sempre vera ↔
+¬(B ∨ C) → ¬A è sempre vera ↔
+¬(¬(¬B ∧ ¬C)) → ¬A è sempre vera ↔
+(*  (B ∨ C) ≡ ¬(¬B ∧ ¬C) de Morgan*)
+(¬B ∧ ¬C) → ¬A è sempre vera ↔
+a ≠ 0 ∧ b ≠ 0 → a*b ≠ 0
+ 
+ 
+ 
+ 
+∀a>0. ∃b>0. a > b > 0 tautologia
+∀a>0. ∃b>0. a > b ∧ b > 0
+¬(∀a>0. ∃b>0. a > b ∧ b > 0) contraddizione
+(∃a>0. ¬∃b>0. a > b ∧ b > 0)
+(∃a>0. ∀b>0. ¬ (a > b ∧ b > 0))
+A ≝ a > b
+B ≝ b > 0
+(∃a>0. ∀b>0. ¬ (A ∧ B))
+(∃a>0. ∀b>0. (¬A ∨ ¬B))
+(∃a>0. ∀b>0. (¬(a > b) ∨ ¬(b > 0)))
+(∃a>0. ∀b>0. ((a ≤ b) ∨ (b ≤ 0))) contraddizione
+
+
+∀x∈A. P (x) ≝ ∀x. x ∈ A →  P (x)
+
+
+Ω ⊆ Σ ↔ ∀x∈Ω. x ∈ Σ
+
+∀x∈Ω. x ∈ Σ ≡ ∀x. x ∈ Ω → x ∈ Σ
+
+Ω ⊆ Σ ↔ ∀x. x ∈ Ω → x ∈ Σ
+
+Ω ≝ {3, 7, 5, 10}
+Σ ≝ {3, 4, 6, 5, 7, 9}
+
+x = 3      3 ∈ Ω → 3 ∈ Σ    V
+x = 7      7 ∈ Ω → 7 ∈ Σ    V
+x = 5      5 ∈ Ω → 5 ∈ Σ    V
+x = 10     10 ∈ Ω → 10 ∈ Σ  F
+ 
+∀x. x ∈ Ω → x ∈ Σ è falsa
+Ω ⊆ Σ  è falsa
+
+
+Ω ≝ {3, 7, 5}
+Σ ≝ {3, 4, 6, 5, 7, 9}
+
+x = 3      3 ∈ Ω → 3 ∈ Σ    V
+x = 7      7 ∈ Ω → 7 ∈ Σ    V
+x = 5      5 ∈ Ω → 5 ∈ Σ    V
+
+∀x. x ∈ Ω → x ∈ Σ è vera
+Ω ⊆ Σ  è vera
+
+
+(A ∩ B) ∪ C = (A ∪ C) ∩ (B ∪ C)
+
+per dimostrare l'uguaglianza dimostro la doppia inclusione
+
+1) (A ∩ B) ∪ C ⊆ (A ∪ C) ∩ (B ∪ C)
+
+ Hp) (A ∩ B) ∪ C = { x | x ∈ (A ∩ B) ∨ x ∈ C}
+     x ∈ (A ∩ B) ∨ x ∈ C
+     procedo per casi
+     
+     caso a) x ∈ (A ∩ B) ≡ x ∈ A ∧ x ∈ B
+     H : x ∈ (A ∩ B) ∨ x ∈ C
+     H1 : x ∈ A
+     H2 : x ∈ B
+     
+     osservo che x ∈ A ∪ C per H1
+     osservo che x ∈ B ∪ C per H2
+     
+     H3 : x ∈ A ∪ C
+     H4 : x ∈ B ∪ C
+     
+     osservo che x ∈ (A ∪ C) ∩ (B ∪ C) per H3 e H4
+
+2) (A ∪ C) ∩ (B ∪ C) ⊆ (A ∩ B) ∪ C
+   
+   H : x ∈ (A ∪ C) ∩ (B ∪ C)
+   H1 : x ∈ (A ∪ C)
+   H2 : x ∈ (B ∪ C)
+
+   procedo per casi su H1
+   
+   a) H3 : x ∈ C
+      osservo che x ∈ (A ∩ B) ∪ C per H3 (perché so che x appartiene a C)
+      
+   b) H3 : x ∈ A
+      
+      procedere per casi su H2
+      
+      a) H4 : x ∈ C 
+         osservo che x ∈ (A ∩ B) ∪ C per H4 (perché so che x appartiene a C)
+
+      b) H4 : x ∈ B
+         osservo che x ∈ (A ∩ B) per H3 e H4
+         H5 : x ∈ (A ∩ B)
+         osservo che x ∈ (A ∩ B) ∪ C per H5 (perché so che x appartiene a A ∩ B)
+         
+(A ∪ C) ∩ (B ∪ C) ⊆ (A ∩ B) ∪ C è vera
+(A ∩ B) ∪ C ⊆ (A ∪ C) ∩ (B ∪ C) è vera
+
+dunque (A ∪ C) ∩ (B ∪ C) = (A ∩ B) ∪ C

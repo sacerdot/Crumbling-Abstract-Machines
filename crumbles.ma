@@ -59,6 +59,13 @@ inductive CrumbleContext: Type[0] ≝
 | crc: Byte → EnvContext → CrumbleContext
 .
 
+inductive TermContext : Type[0] ≝ 
+| thole : TermContext
+| term : pifTerm → TermContext
+| c_appl : TermContext → TermContext → TermContext
+| c_abstr : Variable → TermContext → TermContext
+.
+
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
 interpretation "Substitution" 'substitution v b =(subst v b).
 
@@ -124,6 +131,70 @@ let rec plug_c cc c on c ≝
  | crc b ec ⇒ 〈b, plug_e ec c〉
  ]
 .
+ 
+let rec tc_term T on T ≝ 
+ match T with
+ [ thole ⇒  False
+ | term t ⇒ True
+ | c_appl t1 t2 ⇒ tc_term t1 ∧ tc_term t2
+ | c_abstr c TT ⇒ tc_term TT
+ ] .
+ 
+let rec tc_value T on T ≝
+ match T with
+ [ thole ⇒ False
+ | term t ⇒ match t with
+   [ val_to_term v ⇒ True
+   | appl t1 t2 ⇒ False
+   ]
+ | c_appl t1 t2 ⇒ False
+ | c_abstr x T ⇒ tc_term T
+ ]
+ .
+
+let rec rv_context T on T ≝
+ match T with 
+ [ thole ⇒ True
+ | term t ⇒ False
+ | c_appl t1 t2 ⇒ (tc_term (t1) ∧ rv_context (t2)) ∨ (rv_context (t1) ∧ tc_value (t2))
+ | c_abstr x TT ⇒ False
+ ]
+ .
+ 
+definition plug_E ≝ λE.λD.
+ match E with
+  [ envc e x ⇒ match D with
+    [ hole ⇒ E
+    | crc b ec ⇒ match ec with
+      [ envc f z ⇒ envc (concat (Cons e [x ←b]) f) z]
+    ]
+  ]
+.
+ 
+definition plug_C ≝ λC.λD. 
+ match C with
+ [ hole ⇒ D
+ | crc b ec ⇒ crc b (plug_E ec D) 
+ ]
+ .
+ 
+let rec plug_t T t on T ≝
+ match T with
+ [ thole ⇒ t
+ | term t' ⇒ t'
+ | c_appl u1 u2 ⇒ appl (plug_t u1 t) (plug_t u2 t)
+ | c_abstr x TT ⇒ val_to_term (abstr x (plug_t TT t))
+ ]
+ .
+
+let rec plug_T T U on T ≝
+ match T with
+ [ thole ⇒ U
+ | term t' ⇒ term t'
+ | c_appl u1 u2 ⇒ c_appl (plug_T u1 U) (plug_T u2 U)
+ | c_abstr x TT ⇒ c_abstr x (plug_T TT U)
+ ]
+ .
 
 lemma concat_test0: concat (Cons (Cons Epsilon [ν0 ← CValue (var ν 0)]) [ν1 ← CValue (var \nu 3)]) (Cons (Cons Epsilon [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)])=
 (Cons (Cons (Cons (Cons Epsilon [ν0 ← CValue (var \nu 0)]) [ν1 ← CValue (var \nu 3)]) [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)]).//. qed.

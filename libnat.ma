@@ -411,4 +411,10 @@ cut (leb a b = true ∨ leb a b = false) // * #Hab >Hab normalize
 ] qed.
 
 lemma le_Sn_n: ∀n. S n ≤ n → False.
-#n elim n /2/ qed. 
+#n elim n /2/ qed.
+
+lemma le_to_neqb_to_lt: ∀n,m. neqb n m = false → n ≤ m → n < m.
+#n #m #H @not_eq_to_le_to_lt
+lapply H
+lapply (neqb_iff_eq n m) * #_ /2/
+qed.

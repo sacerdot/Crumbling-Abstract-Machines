@@ -5,6 +5,54 @@ include "variables.ma".
 include "utils.ma".
 include "size.ma".
 
+let rec hole_subst (t: pifTerm) y on t : TermContext  ≝ 
+ match t with
+ [ val_to_term v ⇒ match v with 
+     [ pvar x ⇒ match veqb x y with
+       [ true ⇒ thole
+       | false ⇒ term (val_to_term (pvar x))
+       ]
+     | abstr x t' ⇒ match veqb x y with
+       [ true ⇒  term (val_to_term (abstr x t'))
+       | false ⇒ c_abstr x (hole_subst t' y)
+       ] 
+     ]
+ | appl t1 t2 ⇒ c_appl (hole_subst t1 y) (hole_subst t2 y) 
+ ].
+ 
+lemma no_hole_lemma:
+ (∀t.∀x. fvb_t x t = false → tc_term (hole_subst t x)) ∧ 
+ (∀v.∀x. fvb_tv x v= false → tc_term (hole_subst (val_to_term v) x)).
+@pifValueTerm_ind
+[ #v #H #x @H
+| 3: #z #x normalize >veqb_comm cases veqb // normalize #abs destruct
+| 4: #t #z #H #x normalize >veqb_comm cases veqb // >if_f >if_f
+  whd in match (tc_term ?); @H
+| #t1 #t2 #H1 #H2 #x normalize #H
+  cut (free_occ_t x t1=0 ∧ free_occ_t x t2=0)
+  [ lapply H cases free_occ_t
+    normalize
+    [ cases free_occ_t normalize [ #_ % // ]
+      #n #abs destruct
+    | #n #abs destruct
+    ]
+  ] * #Ha #Hb % [ @H1 normalize >Ha // | @H2 normalize >Hb //]
+] qed.
+
+lemma no_hole_plug:
+ (∀t,y,t'. tc_term (hole_subst t y) → plug_t (hole_subst t y) t' = t) ∧
+  (∀v,y,t'. tc_term (hole_subst (val_to_term v) y) →
+   plug_t (hole_subst (val_to_term v) y) t' = (val_to_term v)).
+@pifValueTerm_ind
+[ #p #H @H
+| #t1 #t2 #H1 #H2 #y #t'
+  whd in match (hole_subst ? ?);
+  whd in match (tc_term ?); * #Ha #Hb
+  whd in match (plug_t ? ?); >H1 // >H2 //
+| #x #y #t' normalize cases veqb // >if_t normalize #abs @False_ind @abs
+| #t1 #x #HI #y #t' normalize cases veqb // normalize #HH >HI //
+] qed. 
+
 lemma pif_subst_aux1: (∀t. S (t_size t -1)=t_size t) ∧ (∀v. S (v_size v -1)=v_size v).
 @pifValueTerm_ind
 [ #v #H normalize //
@@ -1195,6 +1243,89 @@ lemma fv_deletion0:
   ]
 ] qed.
 
+lemma pif_subst_plug0: 
+ (∀n,t,y,t',H. nua_t y t = true → (pi1 … (pif_subst_sig n y t' t H)) = plug_t (hole_subst t y) (t')).
+@nat_ind
+[ *
+  [ *
+    [ #x #y #w #H @False_ind lapply H normalize /2/
+    | #x #t #y #w #H @False_ind lapply H normalize /2/
+    ]
+  | #t1 #t2 #y #w #H @False_ind lapply H normalize /2/
+  ]
+]
+#n #HI
+* [ *
+[ #x #y #t' #Hs #H
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy
+  [ elim (veqb_true_to_eq x y) #Heq #_ lapply (Heq Hxy) -Heq #Heq destruct
+    >atomic_subst0 normalize >Hxy >if_t normalize @refl
+  | >no_subst0 [ 2: >veqb_comm // ] normalize >Hxy >if_f normalize @refl
+  ]
+| #x #t1 #y #t' #Hs #H
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy
+  [ elim (veqb_true_to_eq x y) #Heq #_ lapply (Heq Hxy) -Heq #Heq destruct
+    >no_subst20 normalize >veqb_true >if_t normalize //
+  | cut (∀ AAA,BBB,CCC,DDD. (eq pifTerm
+  (pi1 pifTerm ?
+  (match veqb y x return λb. veqb y x = b → t_size (val_to_term (abstr x t1)) ≤ S n → Σu: pifTerm. (t_size u = (t_size (val_to_term (abstr x t1)))+ (free_occ_v y (abstr x t1)) * ((t_size t') - 1) ∧
+        (∀z. free_occ_t z u = match veqb y z with
+          [ true ⇒ (free_occ_v z (abstr x t1)) * (free_occ_t z t')
+          | false ⇒ (free_occ_v y (abstr x t1)) * (free_occ_t z t') + (free_occ_v z (abstr x t1))
+          ]))
+       with
+        [ true ⇒ λH.λp. « (val_to_term (abstr x t1)), AAA H p»
+        | false ⇒ λH. match fvb_t x t' return λb. fvb_t x t'=b → t_size (val_to_term (abstr x t1)) ≤ S n → Σu: pifTerm. (t_size u = (t_size (val_to_term (abstr x t1)))+ (free_occ_v y (abstr x t1)) * ((t_size t') - 1) ∧
+          (∀z. free_occ_t z u = match veqb y z with
+            [ true ⇒ (free_occ_v z (abstr x t1)) * (free_occ_t z t')
+            | false ⇒ (free_occ_v (y) (abstr x t1)) * (free_occ_t z t') + (free_occ_v z (abstr x t1))
+            ]))
+         with
+          [ true ⇒ λHH. match fvb_t y (val_to_term (abstr x t1)) return λHfvb. fvb_t y (val_to_term (abstr x t1)) = Hfvb →  t_size (val_to_term (abstr x t1)) ≤ S n → Σu: pifTerm. ((t_size u = (t_size (val_to_term (abstr x t1)))+ (free_occ_t y (val_to_term (abstr x t1))) * ((t_size t') - 1)) ∧
+            (∀z. free_occ_t z u = match veqb y z with
+               [ true ⇒ (free_occ_t z (val_to_term (abstr x t1))) * (free_occ_t z t')
+               | false ⇒ (free_occ_t y (val_to_term (abstr x t1))) * (free_occ_t z t') + (free_occ_t z (val_to_term (abstr x t1)))
+               ]))
+             with
+            [ true ⇒ λHfv.λp. let z ≝ (max (S match y with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t1) (fresh_var_t t'))))
+                   in match (pif_subst_sig n x (val_to_term (pvar ν(z))) t1 ?) with
+               [ mk_Sig a h ⇒ « (val_to_term (abstr (ν(z)) (pi1 … (pif_subst_sig n y t' a (subst_aux_5 … h p))))), DDD H HH Hfv p a h »]
+            | false ⇒ λHfv. λp. « (val_to_term (abstr x t1)), BBB H HH Hfv p »
+            ] (refl …)
+          | false ⇒ λHH. λp. « (val_to_term (abstr x (pi1 … (pif_subst_sig n y t' t1 ?)))), CCC H HH p »
+          ] (refl …)
+        ]  (refl …) ?)) (plug_t (hole_subst (val_to_term (abstr x t1)) y) t')))
+  [ 5: #UU @UU | 1,2,3: skip ]
+  cut (veqb y x = false) [ >veqb_comm // ] #Hyx
+  >Hyx 
+  cut (fvb_t x t' = true ∨ fvb_t x t' = false) // * #Hfv
+  >Hfv
+  [ 2: #AAA #BBB #CCC #DDD normalize >Hxy normalize @eq_f2 // @eq_f2 // @HI
+    lapply H normalize >Hxy normalize
+    change with (fvb_t ? ?) in match (gtb ? 0);
+    cut (fvb_t y t1 = true ∨ fvb_t y t1 = false) // * #Hyt1
+    [ >Hyt1 normalize #abs destruct ]
+    #_ lapply Hyt1 lapply fvb_to_nua_term * #Ht #_ @Ht
+  ]
+  cut (fvb_t y (val_to_term (abstr x t1))= false)
+  [ lapply H normalize >veqb_comm cases veqb // >if_f >if_f cases free_occ_t
+    // #n normalize #H >H @refl ] #Hfv2
+  >Hfv2 #AAA #BBB #CCC #DDD lapply Hfv2 normalize >veqb_comm >Hxy >if_f >if_f
+  whd in match (plug_t ? ?); #HH @eq_f @eq_f2 // lapply no_hole_lemma * #Ht #_
+  lapply no_hole_plug * #Ht' #_ >Ht' // @Ht @HH ]
+  ]
+| #t1 #t2 #y #t' #Hs
+  whd in match (pif_subst_sig (S n) y t' (appl t1 t2) ?);
+  whd in match (fvb_t y ?);
+  whd in match (free_occ_t y ?);
+  whd in match (hole_subst ? ?);
+  whd in match (plug_t ? ?);
+  whd in match (nua_t ? ?); #H @eq_f2
+  [ @HI lapply H cases nua_t // normalize #H @H
+  | @HI lapply H cases (nua_t ? t2) // normalize >if_monotone #H @H
+  ]
+] qed.
+
 definition pif_subst ≝ λt.λs. pi1 … (pif_subst_sig (t_size t) match s with [psubst y t' ⇒ y] match s with [psubst y t' ⇒ t'] t ?).// qed.
 definition pif_subst_v ≝ λv.λs. pi1 … (pif_subst_sig (t_size (val_to_term v)) match s with [psubst y t' ⇒ y] match s with [psubst y t' ⇒ t'] (val_to_term v) ?).// qed.
 
@@ -1331,6 +1462,12 @@ lemma pif_subst_same_size0:
 #n #t #y #w #H
 
 @sigma_prop_gen #z #z_def * #Hs #_ >Hs normalize // qed.
+
+lemma pif_subst_plug:
+ ∀t, y, t'. nua_t y t = true →
+  (pif_subst t (psubst y t')) = plug_t (hole_subst t y) (t').
+ #t #y #t' @pif_subst_plug0 qed.
+ 
 (*
 lemma subst_union0:
  (∀n,t,y,w,t',H1,H2,H3.

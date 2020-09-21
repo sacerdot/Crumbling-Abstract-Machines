@@ -195,7 +195,22 @@ and fvb_v x v on v ≝
  | lambda y c ⇒ (¬(veqb y x) ∧ fvb x c)
  ]
  .
-
+ 
+definition fvb_ec ≝ λx.λec.
+ match ec with
+ [ envc e y ⇒ match veqb x y with
+   [ true ⇒ false
+   | false ⇒ fvb_e x e
+   ]
+ ]
+. 
+ 
+definition fvb_cc ≝ λx.λC.
+ match C with
+ [ hole ⇒ false
+ | crc b ec ⇒ (fvb_b x b ∧ (¬domb_ec x ec)) ∨ (fvb_ec x ec) 
+ ]
+.
 let rec fvb_s x s on s ≝
  match s with
  [subst y b ⇒ fvb_b x b]
@@ -868,4 +883,191 @@ and oab_occ_e x e d on e ≝
 and oab_occ_s x s on s ≝
  match s with
  [ subst y b ⇒ oab_occ_b x b]
- *). 
+ *).
+ 
+lemma free_occ_push: ∀e, x, s.
+ free_occ_e x (push e s) = 
+  if (domb_e x e)
+  then (free_occ_e x e)
+  else (free_occ_e x e + free_occ_s x s).
+  
+@Environment_simple_ind2
+[ #x * #y #b normalize >if_monotone //
+| #e * #y #b #HI #x #s'
+  whd in match (push ? ?);
+  whd in match (free_occ_e x ?);
+  whd in match (match ? in Substitution with [_⇒?]);
+  >HI
+  normalize cases veqb normalize // cases domb_e // >if_f >if_f /2/
+] qed.
+
+lemma free_occ_concat:
+ ∀f, e, x.
+  free_occ_e x (concat e f) = 
+   if (domb_e x f)
+   then free_occ_e x f
+   else free_occ_e x e + free_occ_e x f.
+
+@Environment_simple_ind2
+[ #e #x whd in match (concat ? ?);
+  whd in match (domb_e ? ?); >if_f
+  whd in match (free_occ_e x Epsilon); //
+| #f * #y #b #H #e #x
+  whd in match (concat ? ?);
+  whd in match (domb_e ? ?);
+  whd in match (free_occ_e ? ?);
+  whd in match (free_occ_e ? (Cons f [y ←b]));
+  whd in match (match ? in Substitution with  [_⇒?]);
+  whd in match (free_occ_s ? ?); >H
+  cases veqb // >if_f >if_f >if_f
+  cases domb_e // >if_f >if_f //
+] qed.
+
+lemma inb_push: ∀e, x, s. inb_e x (push e s) = inb_e x (Cons e s).
+@Environment_simple_ind2
+[ #x #s normalize //
+| #e * #y #b #HI #x #s whd in match (push (Cons e ?) s);
+  whd in match (inb_e ? ?);
+  whd in match (inb_e ? (Cons (Cons ? ?) ?));
+  >HI
+  whd in match (inb_e x (Cons e s));
+  whd in match (inb_e x (Cons e [y←b]));
+  whd in match (inb_s x [y←b]);
+  whd in match (inb_s x [y←b]);
+  cases inb_e // >if_f >if_f
+  cases veqb // >if_f
+  cases inb_s normalize
+  [ >if_monotone //
+  | >if_then_true_else_false //
+  ]
+] qed.
+
+lemma inb_concat: ∀f, e, x. inb_e x (concat e f) = (inb_e x e ∨ inb_e x f).
+@Environment_simple_ind2
+[ #e #s normalize >if_then_true_else_false //
+| #f * #y #b #HI #e #x
+  whd in match (concat ? ?);
+  whd in match (inb_e ? ?);
+  whd in match (inb_s ? ?);  
+  whd in match (inb_e ? (Cons (?) ?));
+  whd in match (inb_s ? ?);
+  >HI
+  cases veqb
+  [ >if_t >if_monotone >if_monotone
+    change with (if ? then ? else ?) in match (orb ? ?); >if_monotone // ]
+  >if_f
+  cases inb_e //
+] qed. 
+
+let rec nua x c on c ≝ 
+ match c with
+ [ CCrumble b e ⇒ nua_e x e ∧ nua_b x b ]
+ 
+and nua_b x b on b ≝
+ match b with
+ [ AppValue v1 v2 ⇒ nua_v x v1 ∧ nua_v x v2
+ | CValue v ⇒ nua_v x v
+ ]
+ 
+and nua_v x v on v ≝
+ match v with
+ [ var x ⇒ true
+ | lambda z c ⇒ match veqb z x with
+   [ true ⇒ true
+   | false ⇒ ¬(fvb x c)
+   ]
+ ]
+ 
+and nua_e x e on e ≝
+ match e with
+ [ Epsilon ⇒ true
+ | Cons e s ⇒ nua_e x e ∧ nua_s x s
+ ]
+ 
+and nua_s x s on s ≝
+ match s with
+ [ subst y b ⇒ nua_b x b ]
+.
+
+let rec nua_t x t on t ≝ 
+ match t with
+ [ val_to_term v ⇒ nua_tv x v
+ | appl u1 u2 ⇒ (nua_t x u1) ∧ (nua_t x u2)
+ ]
+ 
+and nua_tv x v on v ≝
+ match v with
+ [ pvar x ⇒ true
+ | abstr z t ⇒ match veqb z x with
+   [ true ⇒ true
+   | false ⇒ ¬(fvb_t x t)
+   ]
+ ]
+.
+
+lemma fvb_to_nua_term:
+ (∀t, x. fvb_t x t = false → nua_t x t = true) ∧
+  (∀v, x. fvb_tv x v = false → nua_tv x v = true).
+@pifValueTerm_ind
+[ #v #H @H
+| #t1 #t2 #H1 #H2 #x normalize #H
+  cut (fvb_t x t1 = false ∧ fvb_t x t2 = false)
+  [ lapply H normalize cases free_occ_t cases free_occ_t
+    normalize
+    [ #_ % @refl
+    | #n #abs destruct
+    | #m #abs destruct
+    | #n #m #abs destruct
+    ]
+  ] * #Ha #Hb >H1 // >H2 //
+| * #z * #x normalize #_ //
+| #t #z #HI #x normalize >veqb_comm cases veqb normalize //
+  #H >H //
+] qed.
+
+lemma inb_to_nua_crumble:
+ (∀c.∀x. inb x c = false → nua x c = true) ∧
+  (∀b.∀x. inb_b x b = false → nua_b x b = true) ∧
+   (∀e.∀x. inb_e x e = false → nua_e x e = true) ∧
+    (∀v.∀x. inb_v x v = false → nua_v x v = true) ∧
+     (∀s.∀x. inb_s x s = false → nua_s x s = true).
+
+@Crumble_mutual_ind
+[ #b #e #Hb #He #x #H whd in match (nua ? ?);
+  >Hb [ 2: lapply H normalize cases inb_b // normalize #abs @abs ]
+  >if_then_true_else_false >He // lapply H normalize cases inb_e //
+  >if_monotone #H @H
+| #v #HI @HI
+| #v #w #Hv #Hw #x whd in match (inb_b x (AppValue ? ?)); #H
+  lapply (orb_false …H) * #Ha #Hb
+  whd in match (nua_b ? ?); >Hv >Hw //
+| //
+| #z #c #HI #x whd in match (inb_v x ?);
+  whd in match (nua_v ? ?); cases veqb [ >if_t #abs destruct ]
+  >if_f #H cut (fvb x c = false) [ 2: #HH >HH // ] lapply H
+  @(bool_impl_inv2 ? ? ? ?) lapply fv_to_in_crumble * * * * #Hc #_ #_ #_ #_
+  @Hc
+| //
+| #e #s #He #Hs #x normalize #H lapply (orb_false … H) * -H #H1 #H2
+  >He // >Hs //
+| #y #b #HI #x normalize cases veqb [ >if_t #abs destruct ]
+  >if_f @HI
+] qed.
+
+lemma nua_push: ∀e, x, s. nua_e x (push e s) = nua_e x (Cons e s).
+@Environment_simple_ind2
+[ #x #s normalize //
+| #e #s #HI #x #s1
+  whd in match (push ? ?);
+  whd in match (nua_e ? ?);
+  >HI normalize cases nua_e // >if_t >if_t
+  cases nua_s cases nua_s normalize //
+] qed.
+
+lemma nua_concat: ∀f, e, x. nua_e x (concat e f) = ((nua_e x e) ∧ (nua_e x f)).
+@Environment_simple_ind2 [ normalize #e #x >if_then_true_else_false // ]
+#f #s #HI #e #x
+whd in match (concat ? ?);
+whd in match (nua_e ? ?); >HI
+normalize cases nua_e //
+qed.

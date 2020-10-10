@@ -89,6 +89,17 @@ and inb_tv x v on v ≝
  ]
 . 
 
+definition inb_ec ≝ λx, ec.
+ match ec with
+ [ envc e y ⇒ veqb x y ∨ inb_e x e ].
+
+
+definition inb_cc ≝ λx, C.
+ match C with
+ [ hole ⇒ false
+ | crc b ec ⇒ inb_b x b ∨ inb_ec x ec ].
+
+
 let rec domb x c on c ≝
  match c with
  [ CCrumble b e ⇒ domb_e x e ]
@@ -323,6 +334,16 @@ and fresh_var_s s on s ≝
  match s with
  [ subst x b ⇒ match x with [ variable x ⇒ max (S x) (fresh_var_b b)] ]
  .
+
+definition fresh_var_ec ≝ λec.
+ match ec with
+ [ envc e y ⇒ match y with [ variable ny ⇒ max (S ny) (fresh_var_e e) ]].
+ 
+definition fresh_var_cc ≝ λC.
+ match C with
+ [ hole ⇒ O
+ | crc b ec ⇒ max (fresh_var_b b) (fresh_var_ec ec)
+ ].
 
 lemma fvb_t_distr: ∀x,t,u. fvb_t x (appl t u)=(fvb_t x t ∨ fvb_t x u).
 #x #t #u normalize cases free_occ_t cases free_occ_t normalize // qed.
@@ -1070,4 +1091,4 @@ lemma nua_concat: ∀f, e, x. nua_e x (concat e f) = ((nua_e x e) ∧ (nua_e x f
 whd in match (concat ? ?);
 whd in match (nua_e ? ?); >HI
 normalize cases nua_e //
-qed.
+qed.  

@@ -2844,22 +2844,75 @@ lemma unerline_var_hole:
       change with (orb ? ? = false) in H1;
       change with (orb ? ? = false) in H2;
       lapply (orb_false … H1) lapply (orb_false … H2) * #Ha1 #Ha2 * #Ha3 #Ha4
-      >inb_concat >inb_push >inb_push
-      whd in match (inb_e ? ?);
-      whd in match (inb_s ? ?);
-      whd in match (inb_e ? (Cons ? ?));
-      whd in match (inb_s ? ?);
-      whd in match (veqb ? ?); whd in match (veqb ? ?);
-      >Ha1 >Ha2 >Ha3 >Ha4 normalize
-      cut (neqb x m = true ∨ neqb x m = false) // * #Hxm >Hxm
-      [ elim (neqb_iff_eq x m) #Heq #_ lapply (Heq Hxm) -Heq #Heq destruct @False_ind
-        lapply (transitive_le … (transitive_le … Hc Hsn) Hnm) @le_Sn_n
-      | normalize cut (neqb x (S m) = true ∨ neqb x (S m) = false) // * #HxSm >HxSm //
-        elim (neqb_iff_eq x (S m)) #Heq #_ lapply (Heq HxSm) -Heq #Heq destruct @False_ind
-        lapply (le_S … (transitive_le … (transitive_le … Hc Hsn) Hnm)) @le_Sn_n
+      >Ha1 >Ha2 >Ha3 >Ha4  
+
+      >aux_read_back1 @eq_f2
+      [ cut (aux_read_back (val_to_term (pvar ν(S m)))
+             (concat (push e [ν(S m)←b]) (push e1 [νm←b1])) =
+             aux_read_back (val_to_term (pvar ν(S m)))
+              (push e [ν(S m)←b]))
+        [2: #UU >UU >push_lemma
+            whd in match (match [ν?←b] in Substitution 
+              return λ_:Substitution.pifSubst with[_⇒ ?]);
+            >atomic_subst >H1 //
+            @(transitive_le … (le_maxl … H) Hsn)
+        | @ultra_concat_lemma
+          [ >dom_push normalize
+            change with (neqb (S m) (m)) in match (match ? in nat with [_⇒?]);
+            >neq_simm >neqb_false >if_f lapply (Hbound1 (S m)) cases domb_e //
+            #abs @False_ind lapply (le_S … (transitive_le … (abs (refl …)) Hnm))
+            @le_Sn_n
+          | * #k >dom_push >fv_push normalize
+            cut (neqb k m = true ∨ neqb k m = false) // * #Hkm
+            [ elim (neqb_iff_eq k m) #Heq #_ lapply (Heq Hkm) -Heq #Heq
+              destruct >neqb_refl normalize #_ lapply (Hbound2 m)
+              lapply (H4112 (νm) (transitive_le … (le_maxl  … H) Hsn))
+              cases domb_e normalize
+              [ #_ #abs @False_ind lapply (abs (refl …)) @le_Sn_n
+              | >if_then_true_else_false
+                change with (fvb_t (νm) (appl r1 r2))
+                  in match (gtb ? 0);
+                cut (fvb_t (νm) (appl r1 r2) = false)
+                [ cut (inb_t (νm) (appl r1 r2) = false)
+                  [ cut (fresh_var_t (appl r1 r2)≤m)
+                    [ normalize 
+                      @(transitive_le … (transitive_le … (le_maxl … H) Hsn) Hnm)
+                    ]
+                    lapply (fresh_var_to_in) * #Ht #_ @Ht ]
+                  @bool_impl_inv2 lapply (fv_to_in_term) * #Ht #_ @Ht ]
+                #HH >HH cases fvb_e normalize
+                [ >if_monotone #abs destruct
+                | cases fvb_b //
+                ]
+              ]
+            | >Hkm normalize #HH lapply (Hdome1 … HH) #Hsk
+              cut (fvb_t (νk) (appl r1 r2) = false)
+              [ cut (inb_t (νk) (appl r1 r2) = false)
+                [ cut (fresh_var_t (appl r1 r2) ≤ k)
+                  [ @(transitive_le … (le_maxl … H) Hsk) ]
+                lapply (fresh_var_to_in) * #Ht #_ @Ht ]
+              @bool_impl_inv2 lapply (fv_to_in_term) * #Ht #_ @Ht ]
+              -HH -Hsk #HH lapply (H4112 (νk) (transitive_le … (le_maxl … H) Hsn))
+              change with (fvb_t (?) (appl ??))
+                in match (gtb ? 0);
+              >HH cases fvb_e
+              [ >if_monotone #abs destruct
+              | >if_then_true_else_false >if_f cases fvb_b normalize //
+                cases domb_e normalize //
+              ]
+            ]
+          ]
+        ]
+      | >iper_concat_lemma
+        [ 2: >dom_push normalize >neqb_false >if_f lapply (Hbound2 m)
+          cases domb_e // #abs @False_ind lapply (abs (refl …)) @le_Sn_n ]
+        >push_lemma
+        whd in match (match ?  in Substitution with [_⇒?]);
+        >atomic_subst @H2 @(le_maxr … H)
       ]
     ]
   ]
+
 | * #z #s #x normalize cut (neqb x z = true ∨ neqb x z = false) // * #Hxz >Hxz //
   elim (neqb_iff_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct #_ #abs
   #_ @False_ind lapply abs @le_Sn_n
@@ -2873,3 +2926,7 @@ lemma unerline_var_hole:
   elim (neqb_iff_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct
   @False_ind lapply (le_maxl … H2) @le_Sn_n
 ] qed.
+ 
+ 
+ 
+ ASD

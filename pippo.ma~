@@ -2533,14 +2533,242 @@ lemma gamma_len: ∀l, e, H. e_len (pi1 … (gamma_e e l H)) = e_len e.
           l (le_maxr … Hm))
     [ >fresh_var_concat in H'; <fresh_var_push <fresh_var_push #H'
       @to_max [ @(le_maxr … (le_maxr … (le_maxr … (le_maxr … H')))) |
-      @(le_maxl … (le_maxr … (le_maxr … H'))) ] ] 
+      @(le_maxl … (le_maxr … (le_maxr … H'))) ]
       whd in match (plug_c ?);
-      whd in match (plug_e ? ?);
-      >alpha_be_to_gamma @eq_f2 //
-      whd in match (plug_e (envc W y) ?); <HW2 //
-    ]
-  ]
-] qed.
+      whd in match (plug_e ?);
+      >alpha_be_to_gamma @eq_f2
+
+     
+     sd
+       cut ( (inb_t (ν(l+e_len e1))
+  (aux_read_back
+   (read_back_b
+    (pi1 …
+     (gamma_b b (beta_e e (l+e_len (push e1 [νm←b1])))
+      (alpha_push_aux2 e (ν(S m)) b (l+e_len (push e1 [νm←b1]))
+       (alphae_concat_aux2 (push e1 [νm←b1]) (push e [ν(S m)←b]) l
+        (alpha_to_gamma_aux11 (AppValue (var ν(S m)) (var νm))
+         (concat (push e [ν(S m)←b]) (push e1 [νm←b1])) l H'))))))
+   (pi1 …
+    (alpha_e e (l+e_len (push e1 [νm←b1]))
+     (alpha_push_aux1 e (ν(S m)) b (l+e_len (push e1 [νm←b1]))
+      (alphae_concat_aux2 (push e1 [νm←b1]) (push e [ν(S m)←b]) l
+       (alpha_to_gamma_aux11 (AppValue (var ν(S m)) (var νm))
+        (concat (push e [ν(S m)←b]) (push e1 [νm←b1])) l H'))))))
+  =false))
+  [
+         
+       
+       
+        -Htf >if_f #HH lapply (alphae_domain_bound e1 l
+    (alpha_push_aux1 e1 (νm) b1 l
+     (alpha_e_concat_aux2 (push e1 [νm←b1]) (push e [ν(S m)←b]) l
+      (alpha_to_gamma_aux11 (AppValue (var ν(S m)) (var νm))
+       (concat (push e [ν(S m)←b]) (push e1 [νm←b1])) l H'))) k HH) * #_ -HH #HH
+          cut (l+e_len e1 < S (l+e_len e1)+e_len e)
+                [ normalize // ] #HHH lapply (lt_to_not_eq … (le_to_lt_to_lt … HH HHH))
+                 -HH -HHH * #HH normalize >e_len_push <plus_n_Sm 
+                cut (neqb k (S (l+e_len e1)+e_len e)=true ∨ (neqb k (S (l+e_len e1)+e_len e)=false))
+                // * #Htf >Htf normalize // @False_ind @HH
+                elim (neqb_iff_eq  k (S (l+e_len e1)+e_len e)) #Heq #_
+                >Heq // ]
+          >Hdomz whd in match (orb ??); >if_then_true_else_false -Hdomz #Hk
+          lapply (alphae_domain_bound (push e [ν(S m)←b]) (l+e_len (push e1 [νm←b1]))
+     (alphae_concat_aux2 (push e1 [νm←b1]) (push e [ν(S m)←b]) l
+      (alpha_to_gamma_aux11 (AppValue (var ν(S m)) (var νm))
+       (concat (push e [ν(S m)←b]) (push e1 [νm←b1])) l H')))
+        #HH lapply (HH … Hk)
+        s
+                  !!alphae_domain_bound!! -ee -e0
+              destruct
+                generalize in match (l+e_len e1); #k cases e_len //
+                /2/
+              
+              sdfgh
+             (*fare un alpha push pe tirare fuori la sostituzione da alpha (push e [Sm<-b]), 
+              a questo punto spezzare Ha a questo punto si dovrebbe, andando per casi su e,
+              saltarci fuori come su altrimenti si potrebbe applicare l'ipotesi induttiva *)
+            
+
+      >alpha_e_concat in e0; #e0
+      lapply (concat_decomposition1 … e0) *
+      [ * #X * #Ha #Hb (*l è sbagliato, *)
+        lapply (H1' (CCrumble B X) (crc (pi1 … (gamma_b b (beta_e e (l+e_len (push e1 [νm←b1]))) ?))
+     (envc ee y) ) (l+(e_len (push e1 [νm←b1]))) (transitive_le … (le_maxl … Hm) Hsn) ?) 
+        [ cut (l ≤ l+ e_len (push e1 [νm←b1])) [ // ] #Hf
+          lapply (le_maxr … H') >fresh_var_concat <fresh_var_push
+          change with (max ? (max ? ?)) in match (fresh_var_e ?); #HH
+          @to_max
+          [ @(transitive_le … (le_maxr … (le_maxr … (le_maxl … HH))) Hf)
+          | @(transitive_le … (le_maxl … (le_maxl … HH)) Hf)
+          ]
+        | % // * #k #Hk elim (betae_rhs_bound … Hk) -Hk #Hk #_
+          lapply (transitive_le … (le_plus_a_r (e_len (push e1 [νm←b1])) l l (le_n … )) Hk)
+          >fresh_var_concat in H'; <fresh_var_push
+          change with (max ? ?) in match (fresh_var_e (Cons ? ?));
+          change with (max ? ?) in match (fresh_var_s ?); #H'
+          lapply (le_maxr … (le_maxr … (le_maxl … (le_maxr … H')))) #H1 #H2
+          lapply (transitive_le … H1 H2)
+          lapply (fresh_var_to_in_crumble) * * * * #_ #Hb #_ #_ #_ @Hb
+        | generalize in match (conj ? (distinct_rhs (beta_e e (l+e_len (push e1 [νm←b1])))) ? ?);
+        #A
+        whd in match (plug_c (crc ? ?) ?);
+        whd in match (plug_e ? ?);
+        whd in match (match ? in CrumbleContext with [_⇒?]);
+        >alpha_be_to_gamma #HH lapply (HH ?)
+        [ @eq_f2 // <Ha >gamma_e_irrelevance
+          [ 2: >fresh_var_concat in H'; #H' @(le_maxr … (le_maxr … H'))
+          | 3: * #k #Hk >inb_alphae_false1 [ // ]
+            [ lapply Hk >dom_push >inb_push
+              normalize cut (neqb k m = true ∨ neqb k m = false) // * #Hkm >Hkm
+              [ #_ elim (neqb_iff_eq … k m) #Heq #_ lapply (Heq Hkm) -Heq
+                #Heqq destruct >neqb_false >if_f
+                cut (inb_b (νm) b = false)
+                [ lapply (le_maxl … (Hline1 … (transitive_le … (le_maxl … Hm) Hsn)))
+                  lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb ]
+                cut (inb_e (νm) e = false)
+                [ lapply (le_maxr … (Hline1 … (transitive_le … (le_maxl … Hm) Hsn)))
+                  lapply fresh_var_to_in_crumble * * * * #_ #_ #Hb #_ #_ @Hb ]
+                  #Ha >Ha #Hb >Hb //
+              ]
+              >if_f -Hk #Hk
+              cut (inb_b (νk) b = false)
+                [ lapply (Hterm_hole1 k ? ? ?)
+                  [ @Hbound2  @Hk
+                  | @(transitive_le … (le_maxl … Hm) (Hldom2 … Hk))
+                  | @(transitive_le … (le_maxl … Hm) Hsn)
+                  | #HH elim (orb_false … HH) //
+                  ]
+                 ]
+              cut (inb_e (νk) e = false)
+                [ lapply (Hterm_hole1 k ? ? ?)
+                  [ @Hbound2  @Hk
+                  | @(transitive_le … (le_maxl … Hm) (Hldom2 … Hk))
+                  | @(transitive_le … (le_maxl … Hm) Hsn)
+                  | #HH elim (orb_false … HH) //
+                  ]
+                 ]
+                  #Ha >Ha #Hb >Hb
+                  cut (neqb k (S m)= true ∨ neqb k (S m)= false) // * #Hmsk
+                  >Hmsk // elim (neqb_iff_eq k (S m)) #Heqq lapply (Heqq … Hmsk)
+                  -Heqq #Heqq  #_ -HH -A -Heq -H1 -H2 -e0 -Ha -Hb destruct
+                  @False_ind
+                  lapply (le_S … (transitive_le … (Hbound2 … Hk) Hnm)) @le_Sn_n
+            ] 
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      (*****************************************************)
+       >gamma_v_to_var >gamma_v_to_var >aux_read_back1
+      whd in match (read_back_v ?); whd in match (read_back_v ?);
+      >gamma_var_simplification1
+      [ 2: @(le_maxr … H')
+      | 3: >dom_push whd in match (domb_e ? ?); whd in match (veqb ? ?);
+        >neqb_false >if_f cut (domb_e (νm) e = true ∨ domb_e (νm) e = false) // * //
+        #HH @False_ind lapply (Hbound1 … HH) @le_Sn_n
+      | 4: cut (domb_e (νm) e1 = true ∨ domb_e (νm) e1 = false) // * //
+        #HH @False_ind lapply (transitive_le … (Hbound2 … HH) Hnm) @le_Sn_n ]
+      >gamma_var_simplification2
+      [ 2: lapply (le_maxr … H') >fresh_var_concat >fresh_var_concat
+        -H' #H' @to_max
+        [ @(le_maxr … H') | @(le_maxl … H') ] 
+      | 3: >dom_push whd in match (domb_e ? ?); >veqb_simm whd in match (veqb ? ?); 
+        >neqb_false >if_f cut (domb_e (ν (S m)) e1 = true ∨ domb_e (ν (S m)) e1 = false) // * //
+        #HH @False_ind lapply (le_S … (transitive_le … (Hbound2 … HH) Hnm)) @le_Sn_n
+      | 4: cut (domb_e (ν (S m)) e = true ∨ domb_e (ν (S m)) e = false) // * //
+        #HH @False_ind lapply (le_S … (Hbound1 … HH)) @le_Sn_n ]
+      whd in match (hole_subst ? ?);
+      >alpha_e_concat in e0; #e0
+      lapply (concat_decomposition1 … e0) *
+      [ * #X * #Ha #Hb (*l è sbagliato, *)
+        lapply (H1' (CCrumble B X) (crc (pi1 … (gamma_b b (beta_e e (l+e_len (push e1 [νm←b1]))) ?))
+     (envc ee y) ) (l+(e_len (push e1 [νm←b1]))) (transitive_le … (le_maxl … Hm) Hsn) ?) 
+        [ cut (l ≤ l+ e_len (push e1 [νm←b1])) [ // ] #Hf
+          lapply (le_maxr … H') >fresh_var_concat <fresh_var_push
+          change with (max ? (max ? ?)) in match (fresh_var_e ?); #HH
+          @to_max
+          [ @(transitive_le … (le_maxr … (le_maxr … (le_maxl … HH))) Hf)
+          | @(transitive_le … (le_maxl … (le_maxl … HH)) Hf)
+          ]
+        | % // * #k #Hk elim (betae_rhs_bound … Hk) -Hk #Hk #_
+          lapply (transitive_le … (le_plus_a_r (e_len (push e1 [νm←b1])) l l (le_n … )) Hk)
+          >fresh_var_concat in H'; <fresh_var_push
+          change with (max ? ?) in match (fresh_var_e (Cons ? ?));
+          change with (max ? ?) in match (fresh_var_s ?); #H'
+          lapply (le_maxr … (le_maxr … (le_maxl … (le_maxr … H')))) #H1 #H2
+          lapply (transitive_le … H1 H2)
+          lapply (fresh_var_to_in_crumble) * * * * #_ #Hb #_ #_ #_ @Hb
+        |        whd in match (match ? in CrumbleContext with [_⇒?]);
+          generalize in match (conj ? (distinct_rhs (beta_e e (l+e_len (push e1 [νm←b1])))) ? ?);
+        #A
+        whd in match (plug_c (crc ? ?) ?);
+        whd in match (plug_e ? ?);
+        >alpha_be_to_gamma #HH lapply (HH ?)
+        [ @eq_f2 // <Ha >gamma_e_irrelevance
+          [ 2: >fresh_var_concat in H'; #H' @(le_maxr … (le_maxr … H'))
+          | 3: * #k #Hk >inb_alphae_false1 [ // ]
+            [ lapply Hk >dom_push >inb_push
+              normalize cut (neqb k m = true ∨ neqb k m = false) // * #Hkm >Hkm
+              [ #_ elim (neqb_iff_eq … k m) #Heq #_ lapply (Heq Hkm) -Heq
+                #Heqq destruct >neqb_false >if_f
+                cut (inb_b (νm) b = false)
+                [ lapply (le_maxl … (Hline1 … (transitive_le … (le_maxl … Hm) Hsn)))
+                  lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb ]
+                cut (inb_e (νm) e = false)
+                [ lapply (le_maxr … (Hline1 … (transitive_le … (le_maxl … Hm) Hsn)))
+                  lapply fresh_var_to_in_crumble * * * * #_ #_ #Hb #_ #_ @Hb ]
+                  #Ha >Ha #Hb >Hb //
+              ]
+              >if_f -Hk #Hk
+              cut (inb_b (νk) b = false)
+                [ lapply (Hterm_hole1 k ? ? ?)
+                  [ @Hbound2  @Hk
+                  | @(transitive_le … (le_maxl … Hm) (Hldom2 … Hk))
+                  | @(transitive_le … (le_maxl … Hm) Hsn)
+                  | #HH elim (orb_false … HH) //
+                  ]
+                 ]
+              cut (inb_e (νk) e = false)
+                [ lapply (Hterm_hole1 k ? ? ?)
+                  [ @Hbound2  @Hk
+                  | @(transitive_le … (le_maxl … Hm) (Hldom2 … Hk))
+                  | @(transitive_le … (le_maxl … Hm) Hsn)
+                  | #HH elim (orb_false … HH) //
+                  ]
+                 ]
+                  #Ha >Ha #Hb >Hb
+                  cut (neqb k (S m)= true ∨ neqb k (S m)= false) // * #Hmsk
+                  >Hmsk // elim (neqb_iff_eq k (S m)) #Heqq lapply (Heqq … Hmsk)
+                  -Heqq #Heqq  #_ -HH -A -Heq -H1 -H2 -e0 -Ha -Hb destruct
+                  @False_ind
+                  lapply (le_S … (transitive_le … (Hbound2 … Hk) Hnm)) @le_Sn_n
+            ]  normalize >e_len_push <plus_n_Sm lapply Hk >dom_push normalize
+            cut (neqb k m = true ∨ neqb k m = false) // * #Hkm >Hkm
+            [ #_ elim (neqb_iff_eq … k m) #Heq #_ lapply (Heq Hkm) -Heq
+              #Heqq destruct cut (S m ≤ l + e_len e1)
+                [ lapply (le_maxr … (le_maxl … H')) #HH @le_plus_a_r @HH ]
+               #HH @(le_S … HH) ]
+            >if_f #Hdomb lapply (transitive_le … (le_S … (transitive_le … (Hbound2 … Hdomb) Hnm)) (le_maxr … (le_maxl … H')))
+            #HH lapply (le_plus_a_r  (e_len e1)l  l (le_n …)) #HHH
+            @(le_S … (transitive_le … HH HHH)) ]
+          generalize in match (alpha_to_gamma_aux11 ? ? ? ?);
+          generalize in match (alphae_concat_aux2 ? ? ? ?);
+           cases alpha_e #aa #hh @hh %
+            [ <fresh_var_push change with (max ? (max ? ?)≤k) 
+        
+         check alpha_e_concat >(alpha_e_concat … (push e [ν(S m)←b]) (push e1 [νm←b1]) l )  <Ha <(concat_epsilon_e … (push e1 [νm←b1])) in 
+          [ >(gamma_b_to_v ? ((var ν(S m))))
+            >gamma_v_to_var
+          | <Ha >gamma_concat_irrelevance
+        [ 2: check alpha_to_gamma_aux2 whd in match (match ? in CrumbleContext with [_⇒?]);
       
 lemma dom_var_occ: 
  (∀t, s, x.

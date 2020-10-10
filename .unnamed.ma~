@@ -1,139 +1,198 @@
-A  B  A → B  ¬A  ¬B   ¬B → ¬A
-0  0    1     1   1      1
-0  1    1     1   0      1
-1  0    0     0   1      0
-1  1    1     0   0      1
+(**************************************************************************)
+(*       ___                                                              *)
+(*      ||M||                                                             *)
+(*      ||A||       A project by Andrea Asperti                           *)
+(*      ||T||                                                             *)
+(*      ||I||       Developers:                                           *)
+(*      ||T||         The HELM team.                                      *)
+(*      ||A||         http://helm.cs.unibo.it                             *)
+(*      \   /                                                             *)
+(*       \ /        This file is distributed under the terms of the       *)
+(*        v         GNU General Public License Version 2                  *)
+(*                                                                        *)
+(**************************************************************************)
 
+include "alpha.ma".
 
-(A → B) ↔ (¬B → ¬A)
-        1
-        1
-        1
-        1
-        
-A  B  A → B  B → A  A ↔ B
-0  0    1      1      1
-0  1    1      0      0
-1  0    0      1      0
-1  1    1      1      1
+lemma dom_sse: ∀e, y, y', H. ∀x. domb_e x (sse e y y' H) = ((domb_e x e ∧ ¬veqb x y) ∨ (¬domb_e x e ∧ domb_e y e ∧ veqb x y')).
+@Environment_simple_ind2 // #e * #z #b #HI #y #y' #H #x whd in match (sse ? ? ? ?);
+whd in match (domb_e ? (Cons ? ?)); whd in match (domb_e ? (Cons ? ?));
+cut (veqb y z = true ∨ veqb y z = false) // * #Hyz >Hyz 
+[ >if_t whd in match (domb_e ? ?); >HI normalize >if_then_true_else_false
+  elim (veqb_true_to_eq y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+  cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz
+  [ >if_t >if_t >if_f >if_f elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct
+    >if_monotone >if_f lapply H normalize >veqb_simm cases veqb // >if_t
+    >if_monotone #abs destruct
+  | >if_f >if_f >if_then_true_else_false cases veqb normalize cases domb_e //
+  ]
+| >if_f >if_f whd in ⊢ (? ? % ?); cut (veqb x z = true ∨ veqb x z = false) // * #Hxz
+  [ elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct >Hxz
+    >if_t >if_t >veqb_simm >Hyz normalize %
+  | >Hxz >if_f >if_f >HI //
+  ]
+] qed.
 
+lemma fvb_at: ∀e, b, e', x. fvb x (at 〈b, e'〉 e) = ((fvb x 〈b, e'〉 ∧ ¬ domb_e x e) ∨ fvb_e x e).
+@Environment_simple_ind2
+[ #b #e #x normalize cases fvb_b cases fvb_e // cases domb_e //
+| #e * #y #b' #HI #b #e' #x
+  lapply (HI b e' x) normalize >domb_concat_distr >fv_concat normalize
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
+  [ >if_monotone >if_monotone >if_monotone >if_f >if_f >if_f >if_monotone >if_f //
+  | >if_then_true_else_false >if_then_true_else_false
+    cases fvb_b normalize
+    [ 2: #_ cases fvb_e // cases domb_e //
+    | cases fvb_e cases domb_e // normalize
+      [ #_ cases domb_e cases fvb_b //
+      | cases domb_e //
+      ]
+    ]
+  ]
+] qed.
 
-(A → B) ∧ (B → A)
-        1
-        0
-        0
-        1
-        
-        
-∀a, b. a*b = 0 → a=0 ∨ b=0
-
-A ≝ a*b=0
-B ≝  a=0
-C ≝  b=0
-
-a*b = 0 → a=0 ∨ b=0 è sempre vera ↔
-A → B ∨ C è sempre vera ↔
-¬(B ∨ C) → ¬A è sempre vera ↔
-¬(¬(¬B ∧ ¬C)) → ¬A è sempre vera ↔
-(*  (B ∨ C) ≡ ¬(¬B ∧ ¬C) de Morgan*)
-(¬B ∧ ¬C) → ¬A è sempre vera ↔
-a ≠ 0 ∧ b ≠ 0 → a*b ≠ 0
- 
- 
- 
- 
-∀a>0. ∃b>0. a > b > 0 tautologia
-∀a>0. ∃b>0. a > b ∧ b > 0
-¬(∀a>0. ∃b>0. a > b ∧ b > 0) contraddizione
-(∃a>0. ¬∃b>0. a > b ∧ b > 0)
-(∃a>0. ∀b>0. ¬ (a > b ∧ b > 0))
-A ≝ a > b
-B ≝ b > 0
-(∃a>0. ∀b>0. ¬ (A ∧ B))
-(∃a>0. ∀b>0. (¬A ∨ ¬B))
-(∃a>0. ∀b>0. (¬(a > b) ∨ ¬(b > 0)))
-(∃a>0. ∀b>0. ((a ≤ b) ∨ (b ≤ 0))) contraddizione
-
-
-∀x∈A. P (x) ≝ ∀x. x ∈ A →  P (x)
-
-
-Ω ⊆ Σ ↔ ∀x∈Ω. x ∈ Σ
-
-∀x∈Ω. x ∈ Σ ≡ ∀x. x ∈ Ω → x ∈ Σ
-
-Ω ⊆ Σ ↔ ∀x. x ∈ Ω → x ∈ Σ
-
-Ω ≝ {3, 7, 5, 10}
-Σ ≝ {3, 4, 6, 5, 7, 9}
-
-x = 3      3 ∈ Ω → 3 ∈ Σ    V
-x = 7      7 ∈ Ω → 7 ∈ Σ    V
-x = 5      5 ∈ Ω → 5 ∈ Σ    V
-x = 10     10 ∈ Ω → 10 ∈ Σ  F
- 
-∀x. x ∈ Ω → x ∈ Σ è falsa
-Ω ⊆ Σ  è falsa
-
-
-Ω ≝ {3, 7, 5}
-Σ ≝ {3, 4, 6, 5, 7, 9}
-
-x = 3      3 ∈ Ω → 3 ∈ Σ    V
-x = 7      7 ∈ Ω → 7 ∈ Σ    V
-x = 5      5 ∈ Ω → 5 ∈ Σ    V
-
-∀x. x ∈ Ω → x ∈ Σ è vera
-Ω ⊆ Σ  è vera
-
-
-(A ∩ B) ∪ C = (A ∪ C) ∩ (B ∪ C)
-
-per dimostrare l'uguaglianza dimostro la doppia inclusione
-
-1) (A ∩ B) ∪ C ⊆ (A ∪ C) ∩ (B ∪ C)
-
- Hp) (A ∩ B) ∪ C = { x | x ∈ (A ∩ B) ∨ x ∈ C}
-     x ∈ (A ∩ B) ∨ x ∈ C
-     procedo per casi
-     
-     caso a) x ∈ (A ∩ B) ≡ x ∈ A ∧ x ∈ B
-     H : x ∈ (A ∩ B) ∨ x ∈ C
-     H1 : x ∈ A
-     H2 : x ∈ B
-     
-     osservo che x ∈ A ∪ C per H1
-     osservo che x ∈ B ∪ C per H2
-     
-     H3 : x ∈ A ∪ C
-     H4 : x ∈ B ∪ C
-     
-     osservo che x ∈ (A ∪ C) ∩ (B ∪ C) per H3 e H4
-
-2) (A ∪ C) ∩ (B ∪ C) ⊆ (A ∩ B) ∪ C
-   
-   H : x ∈ (A ∪ C) ∩ (B ∪ C)
-   H1 : x ∈ (A ∪ C)
-   H2 : x ∈ (B ∪ C)
-
-   procedo per casi su H1
-   
-   a) H3 : x ∈ C
-      osservo che x ∈ (A ∩ B) ∪ C per H3 (perché so che x appartiene a C)
-      
-   b) H3 : x ∈ A
-      
-      procedere per casi su H2
-      
-      a) H4 : x ∈ C 
-         osservo che x ∈ (A ∩ B) ∪ C per H4 (perché so che x appartiene a C)
-
-      b) H4 : x ∈ B
-         osservo che x ∈ (A ∩ B) per H3 e H4
-         H5 : x ∈ (A ∩ B)
-         osservo che x ∈ (A ∩ B) ∪ C per H5 (perché so che x appartiene a A ∩ B)
-         
-(A ∪ C) ∩ (B ∪ C) ⊆ (A ∩ B) ∪ C è vera
-(A ∩ B) ∪ C ⊆ (A ∪ C) ∩ (B ∪ C) è vera
-
-dunque (A ∪ C) ∩ (B ∪ C) = (A ∩ B) ∪ C
+lemma fvb_ssc1:
+ (∀c, y, y', x. ∀(H). veqb x y' = false → fvb x (ssc c y y' H) = (fvb x c ∧ (¬veqb x y))) ∧
+  (∀b, y, y', x. ∀(H). veqb x y' = false → fvb_b x (ssb b y y' H) = (fvb_b x b ∧ (¬veqb x y))) ∧
+   (∀e, y, y', x. ∀(H). veqb x y' = false → fvb_e x (sse e y y' H) = (fvb_e x e ∧ (¬veqb x y))) ∧
+    (∀v, y, y', x. ∀(H). veqb x y' = false → fvb_v x (ssv v y y' H) = (fvb_v x v ∧ (¬veqb x y))) ∧
+     (∀s, y, y', x. ∀(H). veqb x y' = false → fvb_s x (sss s y y' H) = (fvb_s x s ∧ (¬veqb x y))).
+@Crumble_mutual_ind
+[ #b #e #Hb #He #y #y' #x #H1 #H2 whd in match (ssc ? ? ? ?);
+  whd in match (fvb ? ?); >Hb // >He //
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy
+  [ whd in match (andb ? false); >if_monotone
+    whd in match (andb ? false); >if_monotone 
+    whd in match (andb ? false); >if_monotone %
+  | whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false >dom_sse >H2 >Hxy
+    normalize cases fvb_b // cases domb_e // >if_monotone //
+  ]
+| #v #HI #y #y' #x #H #H1 @HI @H1
+| #v #w #Hv #Hw #y #y' #x #H #H1 whd in match (ssb ? ? ? ?);
+  whd in match (fvb_b ? ?); >Hv // >Hw // whd in match (fvb_b ? ?); cases fvb_v
+  cases fvb_v // cases veqb //
+| #z #y #y' #x #H #H1 normalize cut (veqb z y = true ∨ veqb z y = false) // * #Hyz >Hyz
+  normalize
+  [ >H1 elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+    cases veqb //
+  | cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz //
+    elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct >Hyz
+    //
+  ]
+| #z #c #HI #y #y' #x #H #H1 whd in match (ssv ? ? ? ?);
+  cut (veqb z y = true ∨ veqb z y = false) // * #Hzy >Hzy
+  [ >if_t normalize elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hzy) -Heq #Heq
+    destruct >veqb_simm cases veqb // cases fvb //
+  | >if_f whd in match (((λp:inb_v y' (𝛌z.c)=false.𝛌z.ssc c y y' (alpha_lemma6 y' z c p)) H));
+    whd in match (fvb_v ? ?); whd in match (fvb_v ? ?);
+    cut (veqb z x = true ∨ veqb z x = false) // * #Hzx >Hzx // >if_t >if_t
+    >HI //
+  ]
+| //
+| #e * #z #b' #He #Hs #y #y' #x #H #H1 whd in match (sse ? ? ? ?);
+  cut (veqb y z = true ∨ veqb y z = false) // * #Hyz >Hyz
+  [ >if_t whd in match (((λp:inb_e y' (Cons e [z←b'])=false
+    .Cons (sse e y y' (alpha_lemma8 y' e z b' p))
+     [y'←ssb b' y y' (alpha_lemma7 y' e z b' p)]) H));
+  whd in match (fvb_e ? ?); >He //
+  lapply (Hs y y' x ? H1)
+  [ lapply H change with (orb ? ?) in match (inb_e ? ?);
+    cases inb_s // whd in match (orb ? true); >if_monotone //
+  | whd in match (sss ? ? ? ?);
+    whd in match (fvb_s ? ?);
+    cut (∀Z, Z'. fvb_b x (ssb b' y y' Z) = fvb_b x (ssb b' y y' Z')) [ // ]
+    #Htmp >(Htmp ? (alpha_lemma7 … H)) #HH >HH normalize -Htmp -HH
+    elim (veqb_true_to_eq … y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+    cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz normalize
+    [ >if_monotone >if_monotone >if_f //
+    | >if_then_true_else_false >if_then_true_else_false >if_then_true_else_false
+      >H1 >if_f cases fvb_e //
+    ]
+  ]
+  | >if_f whd in match 
+  ((λp:inb_e y' (Cons e [z←b'])=false
+    .Cons (sse e y y' (alpha_lemma8 y' e z b' p))
+     [z←ssb b' y y' (alpha_lemma7 y' e z b' p)]) H);
+    whd in match (fvb_e ? ?); whd in match (fvb_e ? (Cons ? ?)); >He //
+    lapply (Hs y y' x ? H1)
+  [ lapply H change with (orb ? ?) in match (inb_e ? ?);
+    cases inb_s // whd in match (orb ? true); >if_monotone //
+  | whd in match (sss ? ? ? ?);
+    whd in match (fvb_s ? ?);
+    cut (∀Z, Z'. fvb_b x (ssb b' y y' Z) = fvb_b x (ssb b' y y' Z')) [ // ]
+    #Htmp >(Htmp ? (alpha_lemma7 … H)) #HH >HH -Htmp -HH
+    whd in match (fvb_s ? ?);
+    cases veqb
+    [ whd in match (andb ? false); >if_monotone
+      whd in match (andb ? false); >if_monotone
+      whd in match (andb ? false); >if_monotone //
+    | cases veqb
+      [ whd in match (andb ? false); >if_monotone
+        whd in match (andb ? false); >if_monotone //
+      | whd in match (andb ? true); >if_then_true_else_false
+        whd in match (andb ? true); >if_then_true_else_false
+        whd in match (andb ? true); >if_then_true_else_false
+        whd in match (andb ? true); >if_then_true_else_false //
+      ]
+    ]
+  ]
+  ]
+| #z #b #HI #y #y' #x #H #H1 normalize >HI //
+] qed. 
+  
+lemma alpha_fv_cons: ∀e, b, n, H. ∀x. fvb x (pi1 … (alpha b e n H)) = fvb x 〈b, e〉.
+@Environment_simple_ind2
+[ #b #n change with (max ? ?) in match (fresh_var ?); #H #x whd in match (alpha ? ? ? ?); //
+| #e * * #y #b' #HI #b #n change with (max ? (max ? (max ? ?))) in match (fresh_var ?);
+  #H #x whd in match (alpha ? ? ? ?); lapply (HI b (S n) (alpha_aux1 b e [νy←b'] n H) x)
+  cases alpha * #ab #ae #hh whd in match (match ? in Sig with [_⇒?]);
+  change with (at (CCrumble b e) (Cons Epsilon [νy←b'])) in match (CCrumble b (Cons e [νy←b']));
+  #HH <HH >fvb_at >fvb_at whd in match (fvb_e ? ?); whd in match (domb_e ? ?);
+  whd in match (domb_e ? ?); >if_then_true_else_false
+  whd in match (domb_e ? ?); whd in match (domb_e ? ?); >if_then_true_else_false
+  cases fvb_b
+  [ whd in match (orb ? true); >if_monotone
+    whd in match (orb ? true); >if_monotone % ]
+  whd in match (orb ? false); >if_then_true_else_false
+  whd in match (orb ? false); >if_then_true_else_false <HH
+  cut (veqb x (νn) = true ∨ veqb x (νn) = false) // * #Hxn
+  [ elim (veqb_true_to_eq … x νn) #Heq lapply (Heq Hxn) -Heq #Heq destruct #_
+    >Hxn whd in match (notb true); whd in match (andb ? false); >if_monotone
+    >HH
+    cut (inb (νn)  〈b,e〉 = false)
+    [ lapply fresh_var_to_in_crumble * * * * #Hc #_ #_ #_ #_ @Hc 
+      @to_max [ @(le_maxl … H) | @(le_maxl … (le_maxr … H)) ] ] #Hin
+    cut (fvb (νn)  〈b,e〉 = false)
+    [ lapply Hin @bool_impl_inv2 lapply fv_to_in_crumble * * * * #Hc #_ #_ #_ #_
+      @Hc ] -Hin #Hfv >Hfv whd in match (andb false ?); % ]
+  lapply fvb_ssc1 * * * * #_ #Hb #He #_ #_
+  whd in match (fvb ? ?); >Hb // >He //  >dom_sse cases veqb
+  [ whd in match (andb ? false); >if_monotone
+    whd in match (andb ? false); >if_monotone
+    whd in match (andb ? false); >if_monotone
+    whd in match (andb false ?); //
+  | whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    cases veqb
+    [ whd in match (andb ? false); >if_monotone
+  
+  whd in match (ssc ? ? ? ?); whd in match (at ? ?); whd in match (concat ? ?);
+  >concat_e_epsilon whd in match (fvb ? ?); whd in match (fvb ? ?);
+  whd in match (fvb ? ?); whd in match (domb_e ? (Cons ? ?));
+  whd in match (fvb_e ? (Cons ? ?));
+  cut (veqb x (νn) = true ∨ veqb x (νn) = false) // * #Hxn
+  [ elim (veqb_true_to_eq … x νn) #Heq lapply (Heq Hxn) -Heq #Heq destruct #_
+    >Hxn >if_t whd in match (notb true); whd in match (andb ? false);
+    >if_monotone >if_f whd in match (andb ? false); >if_monotone >if_f #_
+    cut (inb (νn)  〈b,Cons e [νy←b']〉 = false)
+    [ lapply fresh_var_to_in_crumble * * * * #Hc #_ #_ #_ #_ @Hc @H ] #Hin
+    cut (fvb (νn)  〈b,Cons e [νy←b']〉 = false)
+    [ lapply Hin @bool_impl_inv2 lapply fv_to_in_crumble * * * * #Hc #_ #_ #_ #_
+      @Hc ] -Hin #Hfv >Hfv lapply Hfv normalize cases (fvb_b ? b') //
+    >if_monotone >if_monotone * %
+  | >Hxn >if_f whd in match (¬false); whd in match (andb ? true);
+    >if_then_true_else_false

@@ -2305,22 +2305,49 @@ lapply (HI (S n) ? ? ?)
   whd in match (at ? ?); @eq_f2
   [ whd in match (gamma_b ? (cons ? ? ?) ?); //
   | whd in match (concat ? ?); >concat_e_epsilon whd in match (alpha_e ? ? ?);
-    generalize in match (alpha_to_gamma_aux11 ? ? ? ?); #P1
-        generalize in match (le_S ? ? ?); #P2
-    
+        generalize in match (le_S ? ? ?);
     whd in match (alpha_e (Cons ? ?) ? ?);
-        generalize in match (alpha_lemma1 ? ? ? ?);
-        generalize in match (alpha_e_aux3 ? ? ? ? ?); #P3
- 
-    cut (alpha_e e (S n) P2 = alpha_e e (S n) P3) [ // ] #Heq >Heq
-    cases (alpha_e ? ? ?) #AA #HH #P2
+    generalize in match (alpha_lemma1 ? ? ? ?);
+
+    generalize in match (alpha_to_gamma_aux11 ? ? ? ?); #P1
+    generalize in match 
+    cut (alpha_e e (S n) P1 = alpha_e e (S n) P2) [ // ] #Heq >Heq
+    cases (alpha_e ? ? ?) #AA #HH #P3 #P4
     whd in match (match  ? in Sig with [_⇒?]); @eq_f2 //
+    generalize in match (alpha_e_aux2 ? ? ? ? ? ? ?);
+    generalize in match P4; @sse_proof_irrelevance
   ]
 ] qed.
 
 lemma alpha_be_to_gamma: ∀b, e, n, H. pi1 … (alpha b e n H) =
  〈pi1 … (gamma_b b (beta_e e n) (alpha_to_gamma_aux2 b e n H)), pi1 … (alpha_e e n (alpha_to_gamma_aux11 b e n H))〉.
-#b #e #n #H @alpha_be_to_gamma_pre qed.
+
+#b @Environment_simple_ind2 //
+#e * * #y #b' #HI #n #H
+whd in match (alpha b (Cons ? ?) ? ?);
+lapply (HI (S n) ?)
+[ change with (max ? ? ≤ ?)
+   change with (max ?  (max ? ?) ≤ n) in H; @to_max
+  [ @(le_S … (le_maxl … H))
+  |  @(le_S … (le_maxl … (le_maxr … H)))
+  ]
+|  cases alpha #C #E whd in match (match ? in Sig with [_⇒?]);  #HH destruct
+  whd in match (ssc ? ? ? ?);
+  whd in match (at ? ?); @eq_f2
+  [ whd in match (gamma_b ? (cons ? ? ?) ?); //
+  | whd in match (concat ? ?); >concat_e_epsilon whd in match (alpha_e ? ? ?);
+    whd in match (alpha_e (Cons ? ?) ? ?);
+    generalize in match (alpha_to_gamma_aux11 ? ? ? ?); #P1
+    generalize in match (alpha_e_aux3 ? ? ? ? ? ); #P2
+    generalize in match (alpha_lemma1 ? ? ? ?);
+    generalize in match (alpha_to_gamma_aux11 ? ? ? ?); 
+    cut (alpha_e e (S n) P1 = alpha_e e (S n) P2) [ // ] #Heq >Heq
+    cases (alpha_e ? ? ?) #AA #HH #P3 #P4
+    whd in match (match  ? in Sig with [_⇒?]); @eq_f2 //
+    generalize in match (alpha_e_aux2 ? ? ? ? ? ? ?);
+    generalize in match P4; @sse_proof_irrelevance
+  ]
+] qed.
 
 lemma alphae_domain_bound: ∀ e, n, H, x.
  domb_e (νx) (pi1 … (alpha_e e n H)) = true →

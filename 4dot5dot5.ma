@@ -2541,7 +2541,8 @@ lemma gamma_len: ∀l, e, H. e_len (pi1 … (gamma_e e l H)) = e_len e.
     ]
   ]
 ] qed.
-      
+
+(*
 lemma dom_var_occ: 
  (∀t, s, x.
   fresh_var_t t ≤ s →
@@ -2993,6 +2994,7 @@ lemma dom_var_occ:
   ]
 ] qed.
 *)
+(*
 lemma dom_var_occ: 
  (∀t, s, x.
   fresh_var_t t ≤ s →
@@ -3390,19 +3392,7 @@ lemma dom_var_occ:
     ]
   ]
 ] qed.
-*)
-lemma contextual_decoding: (∀t, C, c, s.
- fresh_var_t t ≤ s →
-  fst … (underline_pifTerm t s) = plug_c C c →
-   lvao_cc C).
 
-#t * [ normalize // ] #b * #e #y * #d #f #s #H1
-(* lapply dom_var_occ * #Hdv #_ lapply (Hdv t s y) -Hdv *)
-cases underline_pifTerm * #b' #e' #n normalize
-#H destruct
-
- 
-(*
 let rec aux_read_back rbb e on e ≝
  match e with
  [ Epsilon ⇒ rbb

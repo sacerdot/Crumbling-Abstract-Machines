@@ -15,8 +15,8 @@ and v_size v on v ≝
  ]
 .
 
-lemma pif_size_not_zero: (∀t. t_size t ≥ O) ∧ (∀v. v_size v ≥ O).
-@pifValueTerm_ind
+lemma p_size_not_zero: (∀t. t_size t ≥ O) ∧ (∀v. v_size v ≥ O).
+@pValueTerm_ind
 [ #v #H normalize /2/
 | #t1 #t2 #H1 #H2 /2/
 | #x normalize //
@@ -41,7 +41,7 @@ and
 sc_size_e e on e ≝
  match e with
  [ Epsilon ⇒ O
- | Cons e s ⇒ (sc_size_e e) + sc_size_s s
+ | Snoc e s ⇒ (sc_size_e e) + sc_size_s s
  ]
 
 and
@@ -58,7 +58,7 @@ sc_size_s s on s ≝
  match s with
  [ subst x b ⇒ S (sc_size_b b)]
  .
- 
+
 let rec c_size c on c ≝
  match c with
  [ CCrumble b e ⇒ (c_size_b b + c_size_e e) ]
@@ -76,7 +76,7 @@ and
 c_size_e e on e ≝
  match e with
  [ Epsilon ⇒ O
- | Cons e s ⇒(c_size_e e) + c_size_s s
+ | Snoc e s ⇒(c_size_e e) + c_size_s s
  ]
 
 and
@@ -94,13 +94,13 @@ c_size_s s on s ≝
  [ subst x b ⇒ S (c_size_b b)]
  .
 
-lemma size_env_push: ∀e, s. c_size_e (Cons e s) = c_size_e (push e s).
+lemma size_env_push: ∀e, s. c_size_e (Snoc e s) = c_size_e (push e s).
 #e #s
 @(Environment_simple_ind2 … e)
 [normalize //
 | #e' #s' #H whd in match (push ? ?);
-  change with (c_size_e (Cons e' s')+ c_size_s s) in match (c_size_e (Cons (Cons e' s') s));
-  change with (c_size_e (push e' s)+ c_size_s s') in match (c_size_e (Cons (push e' s) s'));
+  change with (c_size_e (Snoc e' s')+ c_size_s s) in match (c_size_e (Snoc (Snoc e' s') s));
+  change with (c_size_e (push e' s)+ c_size_s s') in match (c_size_e (Snoc (push e' s) s'));
   <H normalize //
 ] qed.
 
@@ -108,14 +108,14 @@ lemma size_env_concat: ∀e', e. c_size_e (concat e e') = c_size_e e + c_size_e 
 @(Environment_simple_ind2)
 [ normalize //
 | #e1 #s #H #e  cases e [ normalize >(concat_epsilon_e e1) //] #e'' #s' normalize
-  >(H (Cons e'' s')) normalize //
+  >(H (Snoc e'' s')) normalize //
 ] qed.
 
 
 lemma t_size_gt_O: (∀t. t_size t > 0) ∧
                      (∀v. v_size v > O).
 
-@pifValueTerm_ind
+@pValueTerm_ind
 [ #v #H1 normalize in H1; normalize @H1
 | #t1 #t2 normalize #H1 #H2  /2/
 | #x normalize //

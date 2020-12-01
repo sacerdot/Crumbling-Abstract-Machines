@@ -42,7 +42,10 @@ lemma alpha_lemma8: ∀z, e, w, b. inb_e z (Snoc e [w←b])=false → (inb_e z e
 
 let rec ssc c y z on c: inb z c = false → Crumble ≝
  match c return λc. inb z c = false → Crumble with 
-  [ CCrumble b e ⇒ λp. 〈ssb b y z ?, sse e y z ?〉
+  [ CCrumble b e ⇒ λp. match domb_e y e with 
+    [ true ⇒ 〈b, sse e y z ?〉
+    | false ⇒ 〈ssb b y z ?, sse e y z ?〉
+    ]
   ]
 
 and ssb b y z on b: inb_b z b = false → Bite ≝
@@ -62,20 +65,20 @@ and sse e y z on e: inb_e z e = false → Environment ≝
  [ Epsilon ⇒ λp. Epsilon
  | Snoc e s ⇒ match s return λs. inb_e z (Snoc e s) = false → Environment with
     [ subst w b ⇒ match veqb y w with
-      [ true ⇒ λp. Snoc (sse e y z ?) [z←ssb b y z ?]
+      [ true ⇒ λp. Snoc e [w←ssb b y z ?]
       |  false ⇒ λp. Snoc (sse e y z ?) [w←ssb b y z ?]
       ]
     ]
  ]
 .
 
-[ @(alpha_lemma2 … e … p)
+[ @(alpha_lemma1 … e … p)
+| @(alpha_lemma2 … b … p)
 | @(alpha_lemma1 … b … p)
 | @(alpha_lemma3 … p)
 | @(alpha_lemma4 … w … p)
 | @(alpha_lemma5 … v … p)
 | @(alpha_lemma6 … x … p)
-| @(alpha_lemma8 … w b … p)
 | @(alpha_lemma7 … e w … p)
 | @(alpha_lemma8 … w b … p)
 | @(alpha_lemma7 … e w … p)
@@ -124,8 +127,6 @@ let rec sss s (y:Variable) (z:Variable) on s ≝
  .
 *)
 
-lemma ssc_step: ∀b, e, y, z,H. ssc 〈b, e〉 y z H= 〈ssb b y z ?,sse e y z ?〉 .
-[ #b #e #y #z #H // ] qed.
 
 lemma ssb_step: ∀b, e, y, z,H. ssb (AppValue b e) y z H= AppValue (ssv b y z ?) (ssv e y z ?).
 [ #b #e #y #z #H // ] qed.
@@ -144,18 +145,17 @@ lemma sse_step1: ∀e,w,b,y,z,H. veqb y w = false →
 | #e * #d #f #HI #w #b #y #z #H #H1 normalize
   >H1 //
 ] qed.
-
+(*
 lemma sse_step2: ∀e,b,y,z,H. 
- sse (Snoc e [y ← b]) y z H = Snoc (sse e y z ?) [z ← ssb b y z ?].
+ sse (Snoc e [y ← b]) y z H = Snoc e [z ← ssb b y z ?].
 [ 2: @(alpha_lemma7 … e y b H)
 | 3: @(alpha_lemma8 … e y b H)
 ]
 @Environment_simple_ind2
-[ #b #y #z #H >sse_epsilon
- normalize >veqb_true >if_t normalize @eq_f2 //
-| #e * #d #f #HI #b #y #z #H normalize >veqb_true normalize //
-] qed.
- 
+[ #b #y #z #H whd in match (sse ? ? ? ?); >sse_epsilon >veqb_true >if_t //
+| #e * #d #f #HI #b #y #z #H
+  whd in match (sse ? ? ? ?); >veqb_true >if_t //
+] qed.*)
 
 lemma ssc_size:
  (∀c, x, y. ∀(H: inb y c = false). c_size (ssc c x y H) = c_size c) ∧
@@ -166,7 +166,11 @@ lemma ssc_size:
 
 @Crumble_mutual_ind
 [ #b #e #Hb #He #x #y #H 
-  whd in match (ssc 〈b, e〉 ? ? ?); normalize >Hb >He @refl
+  whd in match (ssc 〈b, e〉 ? ? ?);
+  cases domb_e
+  [ >if_t normalize >He //
+  | >if_f normalize >Hb >He @refl
+  ]
 | #v #H #x #y #HH normalize >H //
 | #v #w #Hv #Hw #x #y #HH normalize >Hv >Hw //
 | #z #x #y normalize cases (veqb z x) normalize //
@@ -210,6 +214,83 @@ lemma ssc_id:
 | #z #b #H #x #HH normalize >H @refl
 ] qed.
 
+lemma ssc_fv:
+ (∀c, x, y. ∀(H: inb y c = false). fvb x c= false →  (ssc c x y H) = c) ∧
+  (∀b.∀x, y. ∀(H: inb_b y b = false). fvb_b x b = false → (ssb b x y H) = b) ∧
+   (∀e.∀x, y. ∀(H: inb_e y e = false). fvb_e x e = false → (sse e x y H) = e) ∧
+    (∀v.∀x, y. ∀(H: inb_v y v = false). fvb_v x v = false → (ssv v x y H) = v) ∧
+     (∀s.∀x, y. ∀(H: inb_s y s = false). fvb_s x s = false → (sss s x y H) = s).
+
+@Crumble_mutual_ind
+[ #b #e #Hb #He #x #y #HH
+  change with (orb ? ?) in match (inb ? ?);
+  #H lapply (orb_false … H) * #Hb' #He'
+  whd in match (ssc ? ? ? ?);
+  >(He x y … He') lapply Hb'
+  cases domb_e
+  [ >if_t #_ @refl
+  | normalize >if_then_true_else_false #hb' >(Hb x y) // ]
+| #v #H #x #y normalize #HH #H' >(H x y HH H') @refl
+| #v #w #Hv #Hw #x #y
+  change with (orb ? ?) in match (inb_b ? ?);
+  change with (orb ? ?) in match (inb_b ? ?);
+  #HH #H lapply (orb_false … H) * #Hv' #Hw'
+  lapply (orb_false … HH) * #Hv'' #Hw'' 
+  normalize >(Hv … Hv'' Hv') >(Hw … Hw'' Hw') @refl
+| #z #x #y normalize #H #HH >veqb_comm >HH normalize @refl
+| #z #c #H #x #y
+  change with (orb ? ?) in match (inb_v ? ?);
+  change with (orb ? ?) in match (inb_v ? ?);
+  #HH #H normalize in H; lapply H
+  cut (veqb z x = true ∨ veqb z x = false) // * #Htf
+  normalize >Htf // >if_f >if_t >if_f #HY
+  whd in ⊢ (? ? % ?); @eq_f2 // -H @H //
+| #x #y normalize #_ #_ @refl
+| #e * #y #b #He #Hs #x #z
+  change with (orb ? ?) in match (inb_e ? ?); #HH
+  whd in match (fvb_e ? ?);
+  whd in match (sse ? ? ? ?);
+  cases veqb 
+  [ >if_t whd in match (andb ? ?); >if_monotone >if_f #H
+    whd in ⊢(? ? % ?); >H lapply (Hs x z ? ?)
+    [ lapply H normalize //
+    | elim (orb_false … HH) //
+    | whd in match (sss ? ? ? ?); #HH destruct
+      @eq_f2 // @eq_f2 //>e0 //
+    ]
+  | >if_f whd in match (andb ? ?); >if_then_true_else_false
+    cut (fvb_e x e = true ∨ fvb_e x e = false) // * #Hxe >Hxe
+     [ >if_t #abs destruct ] >if_f #H
+    whd in ⊢(? ? % ?); >H lapply (Hs x z ? ?)
+    [ lapply H normalize //
+    | elim (orb_false … HH) //
+    | whd in match (sss ? ? ? ?); #HH destruct
+      @eq_f2 >He //
+      [ @eq_f2 //>e0 // ]
+      [ 2: @z
+      | -HH elim (orb_false … HH) //
+      ]
+    ] 
+  ]
+| #z #b #HI #x #y 
+  change with (orb ? ?) in match (inb_s ? ?); #HH
+  change with (orb ? ?) in match (inb_s ? ?); #H
+  whd in match (sss ? ? ? ?); @eq_f2 //
+   >(HI … ) // lapply H normalize //
+] qed.
+
+lemma domb_sse_inv: ∀e, x, y, z. ∀H. domb_e x (sse e y z H)  = domb_e x e.
+@Environment_simple_ind2
+[ normalize //
+| #e * #w #b #HI #x #y #z
+  #H
+  whd in match (sse ? ? ? ?);
+  cut (veqb y w = true ∨ veqb y w = false) // * #Hyw >Hyw normalize
+  cut (veqb x w = true ∨ veqb x w = false) // * #Hxw >Hxw normalize //
+] qed.
+
+
+
 lemma ssc_in:
  (∀c, x, y. ∀(H: inb y c = false). inb x c= false →  (ssc c x y H) = c) ∧
   (∀b.∀x, y. ∀(H: inb_b y b = false). inb_b x b = false → (ssb b x y H) = b) ∧
@@ -220,8 +301,9 @@ lemma ssc_in:
 @Crumble_mutual_ind
 [ #b #e #Hb #He #x #y #HH
   change with (orb ? ?) in match (inb ? ?);
-  #H lapply (orb_false … H) * #Hb' #He' 
-  normalize >(Hb x y … Hb')
+  #H lapply (orb_false … H) * #Hb' #He'
+  whd in match (ssc ? ? ? ?);
+  cases domb_e >(Hb x y … Hb')
   >(He x y … He') @refl
 | #v #H #x #y normalize #HH #H' >(H x y HH H') @refl
 | #v #w #Hv #Hw #x #y
@@ -281,7 +363,11 @@ lemma alpha_fin1:
 
 @Crumble_mutual_ind
 [ #b #e #Hb #He #x #y #z #H #H1 #H2
-  normalize
+  whd in match (ssc ? ? ? ?); cases domb_e
+  [ >if_t whd in match (inb  ? ?);
+    >(He x y z) // [ 2: lapply H1 normalize cases inb_e // >if_monotone #H @H ]
+    >if_then_true_else_false lapply H1 normalize cases inb_b // >if_t #H @H ]
+  >if_f whd in match (inb  ? ?);
   >(Hb x y z) // [ 2: lapply H1 normalize cases inb_b // >if_t #H @H ]
   >(He x y z) // lapply H1 normalize cases inb_e // >if_monotone #H @H
 | #v #HI normalize @HI
@@ -308,14 +394,18 @@ lemma alpha_fin1:
   whd in match (inb_e z ?) in H1;
   change with (orb ? ?=false) in H1;
   lapply (orb_false … H1) * #H1' #H1''
-  normalize
-  cut (veqb y w = true ∨ veqb y w = false) // * #Hyw >Hyw normalize
-  [ >He // >if_f normalize in Hs; >veqb_simm >H2 >if_f
+  whd in match (sse ? ? ? ?);
+  cut (veqb y w = true ∨ veqb y w = false) // * #Hyw >Hyw
+  [ >if_t whd in match (inb_e ? ?); >H1' >if_f 
     lapply (Hs x y z H'' H1'' H2)
-    cut (veqb z w = false)
-    [ lapply H1'' normalize cases veqb normalize //]
-    #Hzw >Hzw >if_f #Hs'' >Hs'' @refl
-  | >He // normalize normalize in Hs; >Hs // [ @H1'' | @H'']
+    whd in match (sss ? ? ? ?);  
+    generalize in match (?:inb_b x b=false);
+    generalize in match (alpha_lemma7 ? ? ? ? ?); #aa #bb
+    whd in match (inb_s ? ?); whd in match (inb_s ? ?);
+    <(veqb_simm x z) //
+  | >if_f change with (Snoc ? ?) in match ((λp.Snoc ? ?) H);
+    whd in match (inb_e ? ?); >He [ 2: @H2 | 3: @H1'] >if_f
+    >Hs //
   ]
 | #w #b #Hb #x #y #z #H #H1 #H2 normalize >Hb //
   [ lapply H1 normalize cases veqb normalize //
@@ -454,6 +544,37 @@ lemma alpha_aux4:
   lapply h -h
   cases a #r #t #h #K'
   whd in match (ssc (CCrumble r t) y (νn) K');
+  cases domb_e
+  [ >if_t
+      whd in match (at ? ?);
+  whd in match (concat ? ?);
+  >concat_e_epsilon
+  whd in match (inb ? ?);
+  cut (inb (νm) 〈r,t〉=false)
+  [ lapply (h m) -h #h @h % [ 2: elim H #H1 #H2 /2/]
+    elim H #H1 #_
+    lapply fresh_var_distr_crumble * * * * #Hdc #_ #Hde #_ #Hds
+  lapply (Hdc … H1) * #Hb #He
+  lapply (Hde … He) * -He #He #Hs
+  change with (max ? ?≤?) @to_max //
+  ] -h #h
+  cut (neqb m n=false)
+  [ elim H #_ cut (neqb n m =true ∨ neqb n m =false) // * //
+    elim (neqb_iff_eq n m) #Heq #_ #Hnm lapply (Heq Hnm) -Heq #Heq destruct
+    normalize #abs @False_ind lapply abs @le_Sn_n
+  ]
+  #Hf
+  lapply alpha_fin1 * * * * #_ #Hbb #Hee #_ #_
+  lapply h whd in match (inb ? ?); cases inb_b // >if_f >if_f #HJ 
+  whd in match (inb_e ? ?); >Hee // >if_f normalize >Hf >if_f
+  lapply fresh_var_distr_crumble * * * * #Hdc #_ #Hde #_ #Hds
+  elim H -H #H #_
+  lapply (Hdc … H) * #_ #He
+  lapply (Hde … He) * #_ #Hs
+  lapply (Hds … Hs) * #_ lapply (fresh_var_to_in_crumble)
+  * * * * #_ #Hfvb #_ #_ #_ @Hfvb
+  | >if_f
+
   whd in match (at ? ?);
   whd in match (concat ? ?);
   >concat_e_epsilon
@@ -563,7 +684,7 @@ lemma k_domain_sse_interval_dom: ∀e,x,n,y.
       
    >HI' [ normalize >if_monotone //]
    lapply (Ha y) lapply Hb normalize normalize normalize in Hb;
-*)
+
 lemma did_aux1:
  ∀e,x,y,z,H. domb_e (νx) e= false → 
   neqb x y = false →
@@ -572,18 +693,20 @@ lemma did_aux1:
 
 @Environment_simple_ind2
 [ #x #y #z normalize //
-| #e * * #y #b #HI #x #w #z #H
+| #e * * #y #b #HI #x #w #z #H #H1 #H2 #H3
 (*  lapply (HI x w z)*)
-  whd in match (sse (Snoc ? ?) ? ?);
+  whd in match (sse (Snoc ? ?) ? ? ?);
+  cases veqb
+  [ >if_t 
+  change with (Snoc ? ?) in match ((λp. (Snoc ? ?)) H);
   whd in match (domb_e ? (Snoc ? ?));
-  whd in match (domb_e ? (Snoc ? ?));
-  >veqb_comm whd in match (veqb ? ?);
-  cut (neqb y x = true ∨ neqb y x = false) // * #Hyx >Hyx normalize
-[ #abs destruct
-| #H1 #H2 #H3 >(HI … H1 H2 H3) [ 2: lapply H normalize cases inb_e // >if_t // ]
-  cases (neqb w y) normalize >H3 normalize >HI //
-  >if_then_true_else_false >neq_simm >Hyx @refl
-]
+  whd in match (veqb ? ?); >H3 >if_f lapply H1 normalize
+  cases domb_e // >if_monotone //
+  | >if_f
+    change with (Snoc ? ?) in match ((λp. (Snoc ? ?)) H);
+    whd in match (domb_e ? (Snoc ? ?)); >HI
+    [ lapply H1 normalize cases neqb // | @H3 | @H2 ]
+    lapply H1 normalize cases domb_e // >if_monotone //
 ] qed.
 
 lemma did_aux:
@@ -613,6 +736,10 @@ lemma did_aux3:
   domb_e y e = false →
    domb_e y (sse e y x H)=false.
 /2/ qed.
+*)
+
+lemma dom_sse: ∀e, x, y, y', H. domb_e x (sse e y y' H) = domb_e x e.
+@Environment_simple_ind2 // qed.
 
 lemma dist_dom_switch: ∀e,s,t.
  dist_dom (Snoc (Snoc e s) t) = true  →  
@@ -653,7 +780,7 @@ lemma dist_dom_switch: ∀e,s,t.
   ]
 ] qed.
 
-  
+(*  
 lemma dom_al_aux1:∀e,y,n,z,b,H.
   (dist_dom (Snoc e [z←b])=true) →
    veqb y z=false →
@@ -676,11 +803,12 @@ lemma dom_al_aux1:∀e,y,n,z,b,H.
   [ lapply Hddom >Hdomb normalize //]
   #Hddom' normalize
   cases (neqb y w) normalize
-  [ #Hyz #Hnz >neq_simm >Hnz >if_f >(HI …) //
+  [ #Hyz #Hnz >neq_simm >Hnz >if_f lapply Hdomb normalize
+    cases domb_e // >if_monotone //
   | #Hyz #Hnz  >HI // lapply Hdomb normalize cases neqb //
   ]
 ] qed.
-
+*)
 lemma dom_al_aux2:∀e,z,n,H.
   (interval_dom e (S n)) →
    (domb_e z e = false) →
@@ -701,38 +829,14 @@ lemma dom_al_aux2:∀e,z,n,H.
   ]
 ] qed.
 
-lemma dist_interval_dom: ∀e,n,y,H.  dist_dom e=true → (interval_dom e (S n)) → dist_dom (sse e y (νn) H)=true.
-
+lemma dist_interval_dom: ∀e,n,y,H.  dist_dom (sse e y (νn) H)=dist_dom e.
 @Environment_simple_ind2
 [ //
-| #e * * #z #l #HI #n * #y #H #Ha #Hb
-  whd in match (sse ? ? ? ?);
-  whd in match (veqb ? ?);
-  cut (inb_e (νn) e = false)
-  [ lapply H normalize cases inb_e // normalize #H @H ]
-  #HH
-  cut (neqb y z = true ∨ neqb y z = false) // * #Hyz >Hyz
-  [ >if_t normalize >HI
-    [ >if_then_true_else_false
-      elim (neqb_iff_eq y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct 
-      cut (neqb n z = false)
-      [ lapply H normalize cases neqb // normalize >if_monotone #H @H ]
-      #Hnz >dom_al_aux2 //
-      [ lapply Ha normalize cases domb_e normalize //
-      | @(interval_lemma … [νz ←l] Hb)
-      ]
-    | 2: @(interval_lemma … [νz ← l]) @Hb
-    | 3: @(dist_dom_conservative … [νz ← l] Ha)
-    ]
-  | normalize >HI
-    [ >if_then_true_else_false
-      >dom_al_aux1 // lapply H normalize cases neqb // >if_t >if_monotone #H @H
-    | 2: @(interval_lemma … [νz ← l]) @Hb
-    | 3: @(dist_dom_conservative … [νz ← l] Ha)
-    ]
-  ]
-] qed.
-
+| #e * #y #b #H #l #x #z whd in match (sse ? ? ? ?); cases veqb
+  [ normalize //] >if_f whd in ⊢ (? ? (? %) ?);
+  whd in match (dist_dom ?);
+  whd in match (match ?  in Substitution with [_⇒?] ); >H
+  >dom_sse // qed.
 
 
 lemma size_alpha: ∀b,e.∀n.∀(H:fresh_var 〈b, e〉≤n). c_size (pi1 … (alpha b e n H)) = c_size 〈b, e〉.
@@ -771,7 +875,31 @@ lemma w_well_named_alpha:
    [mk_Sig a h⇒
     «at (ssc a (νy) (νn) (alpha_aux3 b e a n (νy) b' h H)) (Snoc Epsilon [νn←b']),
     alpha_aux4 b e a n (νy) b' (alpha_aux3 …) h H»]);
-  >ssc_step
+  whd in match (ssc ? ? ? ?); cases (domb_e (νy) e')
+  [ >if_t    whd in match (match ? in Crumble with [_ ⇒ ?]);
+  whd in match (match ? in Crumble with [_ ⇒ ?]);
+  * #Ha #Hb
+  whd in match (w_well_named …);
+  change with (dist_dom ?) in match ((λc:Crumble .(match c in Crumble return λ_:Crumble.bool with [_⇒?])) (CCrumble ? ?));
+  whd in match (concat ? ?);
+  whd in match (sse …);
+  >concat_e_epsilon
+  whd in match (dist_dom ?);
+  >dist_interval_dom
+  %
+  [ whd in match (match ?  in Substitution with [_⇒?]); >dom_sse
+    lapply Ha whd in match (w_well_named ?); #HH >HH -H >if_then_true_else_false
+    -HH lapply (Hb n) cases domb_e // #abs @False_ind lapply (abs … (refl …)) @le_Sn_n 
+  | #z cut (neqb z n = true ∨ neqb z n = false) // * #Hzn >Hzn
+    [ #_ elim (neqb_iff_eq z n) #Heq #_ lapply (Heq Hzn) -Heq #Heq destruct //
+    | whd in match (domb_e ? ?); >dom_sse  whd in match (veqb ? ?); >Hzn >if_f #HJ
+      lapply (Hb z HJ) -HJ @lt_to_le 
+    ]
+  ]
+  |
+
+
+
   whd in match (match ? in Crumble with [_ ⇒ ?]);
   whd in match (match ? in Crumble with [_ ⇒ ?]);
   * #Ha #Hb
@@ -781,36 +909,15 @@ lemma w_well_named_alpha:
   whd in match (sse …);
   >concat_e_epsilon
   whd in match (dist_dom ?);
-  >dist_interval_dom [ 2: @Hb | 3: @Ha]
-  >if_then_true_else_false
+  >dist_interval_dom
   %
-  [ >(did_aux2 … ) //
-    [ lapply (Hb n) cases domb_e // #H @False_ind @(le_Sn_n n) @H @refl
-    | lapply fresh_var_distr_crumble * * * * #Hdc #_ #Hde #_ #Hds
-      lapply (Hdc … H) * #Hfvb #Hfve
-      lapply (Hde … Hfve) * -Hfve #Hfve #Hfvs
-      lapply (Hds … Hfvs) * -Hfvs #Hy #Hfvb'
-      cut (domb_e (νy) e'=true ∨domb_e (νy) e'=false) // * //
-      #Habs @False_ind lapply (Hb … Habs) #Hy'
-      lapply (le_S … Hy') -Hy' #Hy'
-      lapply (transitive_le … Hy' Hy)
-      @le_Sn_n
-    ]
-  | #z cut (neqb z n = true ∨ neqb z n = false) // * #Hzn >Hzn normalize
+  [ whd in match (match ?  in Substitution with [_⇒?]); >dom_sse
+    lapply Ha whd in match (w_well_named ?); #HH >HH -H >if_then_true_else_false
+    -HH lapply (Hb n) cases domb_e // #abs @False_ind lapply (abs … (refl …)) @le_Sn_n 
+  | #z cut (neqb z n = true ∨ neqb z n = false) // * #Hzn >Hzn
     [ #_ elim (neqb_iff_eq z n) #Heq #_ lapply (Heq Hzn) -Heq #Heq destruct //
-    | >did_aux
-      [ 2: lapply (Hb n) cases domb_e // #H @False_ind @(le_Sn_n n) @H @refl
-      | 3: lapply fresh_var_distr_crumble * * * * #Hdc #_ #Hde #_ #Hds
-           lapply (Hdc … H) * #Hfvb #Hfve
-           lapply (Hde … Hfve) * -Hfve #Hfve #Hfvs
-           lapply (Hds … Hfvs) * -Hfvs #Hy #Hfvb'
-           cut (domb_e (νy) e'=true ∨domb_e (νy) e'=false) // * //
-           #Habs @False_ind lapply (Hb … Habs) #Hy'
-           lapply (le_S … Hy') -Hy' #Hy'
-           lapply (transitive_le … Hy' Hy)
-           @le_Sn_n
-      | >Hzn >if_f #H lapply (Hb … H) -H #H  lapply (le_S … H) /2/
-      ]
+    | whd in match (domb_e ? ?); >dom_sse  whd in match (veqb ? ?); >Hzn >if_f #HJ
+      lapply (Hb z HJ) -HJ @lt_to_le 
     ]
   ]
 ] qed.
@@ -852,31 +959,48 @@ lemma well_named_alpha:
   cut (fresh_var 〈b,concat e f〉≤S n)
   [ @le_S change with (max ? ?) in match (fresh_var ?); @to_max // ]
   -H -Hdc -Hde -Hds #H lapply (HI' H H) * #Ha #Hb
-  >ssc_step whd in match (w_well_named ?);
-  >did_aux2
-  [ 2: lapply (Hb n) whd in match (match ? in Substitution with [_⇒ ?]);
-   cases domb_e // #H @False_ind @(le_Sn_n n) @H @refl
-  | 3: lapply (Hb y) cases domb_e // #H @False_ind @(le_Sn_n n)
-       lapply (le_S … (H (refl …))) -H #H @(transitive_le … H Hy)
-  ]
-  whd in match (¬false);
-  >if_t
-  >dist_interval_dom
-  [ 2: @Hb
-  | 3: @Ha
-  ] % //
-  #z cut (neqb z n = true ∨ neqb z n = false) // * #Hzn >Hzn
+  whd in match (ssc ? ? ? ?);
+  cases (domb_e ? ?)
+  [ >if_t  whd in match (w_well_named ?);
+  whd in match (match ? in Substitution with [_⇒ ?]);
+  >concat_e_epsilon 
   whd in match (match ?  in Crumble return λ_:Crumble.Environment with [_⇒?]);
-  [ #_ elim (neqb_iff_eq z n) #Heq #_ lapply (Heq Hzn) -Heq #Heq destruct //
-  | whd in match (concat ? ?); whd in match (domb_e ? (Snoc ? ?) ); >did_aux
-    [ 2: lapply (Hb n) cases domb_e // #H @False_ind @(le_Sn_n n) @H @refl
-    | 3: lapply (Hb y) cases domb_e // #H @False_ind @(le_Sn_n n)
-         lapply (le_S … (H (refl …))) -H #H @(transitive_le … H Hy)
-    | whd in match (veqb ? ?); >Hzn >if_f #H lapply (Hb … H) -H #H  lapply (le_S … H) /2/
-    ]
+  >concat_e_epsilon 
+  >dist_interval_dom >dom_sse %
+  [ lapply Ha normalize #Haa >Haa >if_then_true_else_false
+    lapply (Hb n) cases domb_e // >if_t #abs @False_ind
+    lapply (abs ?) // @le_Sn_n 
+  | whd in match (concat ? ?); whd in match (domb_e ? (Snoc ? ?) );
+    whd in match (interval_dom ? ?); #k
+    whd in match (domb_e ? ?); >dom_sse lapply (Hb k)
+    whd in match (veqb ? ?);
+    cut (neqb k n = true ∨ neqb k n = false) // * #Htf
+    [ elim (neqb_iff_eq k n) #Heq lapply (Heq Htf) -Heq #Heq destruct #_ 
+      >neqb_refl >if_t #_ #_ @le_n
+    | >Htf >if_f #HH #HJ lapply (HH HJ) @lt_to_le ] 
+  ]
+  ]
+   whd in match (w_well_named ?);
+  whd in match (match ? in Substitution with [_⇒ ?]);
+  >concat_e_epsilon 
+  whd in match (match ?  in Crumble return λ_:Crumble.Environment with [_⇒?]);
+  >concat_e_epsilon 
+  >dist_interval_dom >dom_sse %
+  [ lapply Ha normalize #Haa >Haa >if_then_true_else_false
+    lapply (Hb n) cases domb_e // >if_t #abs @False_ind
+    lapply (abs ?) // @le_Sn_n 
+  | whd in match (concat ? ?); whd in match (domb_e ? (Snoc ? ?) );
+    whd in match (interval_dom ? ?); #k
+    whd in match (domb_e ? ?); >dom_sse lapply (Hb k)
+    whd in match (veqb ? ?);
+    cut (neqb k n = true ∨ neqb k n = false) // * #Htf
+    [ elim (neqb_iff_eq k n) #Heq lapply (Heq Htf) -Heq #Heq destruct #_ 
+      >neqb_refl >if_t #_ #_ @le_n
+    | >Htf >if_f #HH #HJ lapply (HH HJ) @lt_to_le ] 
   ]
 ] qed.
 
+(*
 lemma domb_sse: ∀e, x, y, y', H. domb_e x (sse e y y' H) = true  →
  domb_e x e = true ∨ (domb_e y e = true ∧ veqb x y' = true).
 @Environment_simple_ind2
@@ -888,8 +1012,9 @@ lemma domb_sse: ∀e, x, y, y', H. domb_e x (sse e y y' H) = true  →
     lapply (Heq Htf) -Heq #Heq destruct
     cut (veqb x y' = true ∨ veqb x y' = false) // * #Hxy' >Hxy'
      // >if_f #HH
-    lapply (HI … HH) *
-    [ * >if_monotone @or_introl @refl ] * * * >Hxy' @or_intror % //
+    lapply (HI x (y') (y') ?) [ 2: lapply ssc_id * * * * #_ #_ #He #_ #_
+      >He [2: lapply H normalize cases inb_e // >if_t // ] #HII lapply (HII HH)
+      -HII #HII % >HH // ] skip
   | >Htf >if_f whd in ⊢ ((? ? % ?) → ?);
     whd in match (domb_e ? (Snoc ? ?)); cases veqb normalize
     [ #_ @or_introl //
@@ -898,7 +1023,7 @@ lemma domb_sse: ∀e, x, y, y', H. domb_e x (sse e y y' H) = true  →
     ]
   ]
 ] qed.
-
+*)
 let rec beta c n on c: list (Variable×Variable) ≝ 
  match c with
   [ CCrumble b e ⇒ beta_e e n ]
@@ -1505,7 +1630,7 @@ lemma sse_concat_aux1: ∀x, e, f. inb_e x (concat e f) = false → inb_e x e = 
 lemma sse_concat_aux2: ∀x, e, f. inb_e x (concat e f) = false → inb_e x f = false.
 #x #e #f >inb_concat #H lapply (orb_false … H) * // qed.  
 
-
+(*
 lemma sse_concat: ∀f, e, y, y', H. sse (concat e f) y y' H = 
 concat (sse e y y' (sse_concat_aux1 … H)) (sse f y y' (sse_concat_aux2 … H)).
 @Environment_simple_ind2
@@ -1519,7 +1644,7 @@ concat (sse e y y' (sse_concat_aux1 … H)) (sse f y y' (sse_concat_aux2 … H))
    whd in ⊢ (? ? (%) ?);
    whd in match (concat ? (Snoc ? ?));
    @eq_f2
-   [ >HI //
+   [ lapply ssc_in * * * * #_ #_ #He #_ #_ >He //
    | @eq_f2 //
    ]
  | >if_f >if_f
@@ -1532,7 +1657,1354 @@ concat (sse e y y' (sse_concat_aux1 … H)) (sse f y y' (sse_concat_aux2 … H))
    ]
  ]
 ] qed.
+*)
 
+lemma gamma_epsilon: ∀l, H. pi1 … (gamma_e Epsilon l H) = Epsilon.
+@list_ind
+[ //
+| * #y #y' #tl #HI #J whd in match (gamma_e ? ? ?);
+  cut (∀H1, H2. sse (pi1 … (gamma_e Epsilon tl H1)) y y' H2 = Epsilon)
+  [ 2: #UU @UU ]
+   >HI [ // ] % // elim J #_ normalize * //
+] qed.
+
+lemma gamma_btovl: ∀v, w, l.∀ (H : ((∀x:Variable.rhs l x→inb_b x (AppValue v w)=false)∧distinct_rhs l)).
+ ((∀x:Variable.rhs l x→inb_v x v=false)∧distinct_rhs l).
+#v #w #l #H %
+[ #k #Ha elim H #Hb #_ lapply (Hb k) normalize elim (inb_v k v) normalize // #Hc
+  @Hc @Ha
+| elim H #_ #HH @HH
+] qed.
+
+lemma gamma_btovr: ∀v, w, l.∀ (H : ((∀x:Variable.rhs l x→inb_b x (AppValue v w)=false)∧distinct_rhs l)).
+ ((∀x:Variable.rhs l x→inb_v x w=false)∧distinct_rhs l).
+#v #w #l #H %
+[ #k #Ha elim H #Hb #_ lapply (Hb k) normalize elim (inb_v k w) // >if_monotone #Hc
+  @Hc @Ha
+| elim H #_ #HH @HH
+] qed.
+(*
+lemma concat_gamma_semplification1: ∀f, e, x, b, l, H. 
+ pi1 … (gamma_var (νx) (beta_e (concat e (push f [νx←b])) l) H) = (ν(l+ e_len f)).
+@Environment_simple_ind2
+[ #e #x #b #l
+   whd in match (push ? ?);  whd in match (concat ? ?);
+   >concat_e_epsilon whd in match (e_len ?); whd in match (beta_e ? ?);
+   #H whd in match (gamma_var ? ? ?);
+*)
+
+lemma alpha_c_to_alpha: ∀e, b, l, H. alpha_c 〈b, e〉 l H = alpha b e l H. // qed.
+
+lemma gamma_v_aux1: ∀v.∀(H : ((∀x:Variable.rhs [] x→inb_v x v=false)∧distinct_rhs [])).
+ (∀x:Variable.inb_v x v=false→¬rhs [] x→inb_v x v=false).
+#c #H #k #HH #_ @HH qed.
+
+lemma gamma_v_aux2: ∀v, hd, tl.∀(H : ((∀x:Variable.rhs (hd::tl) x→inb_v x v=false)∧distinct_rhs (hd::tl))).
+((∀x:Variable.rhs tl x→inb_v x v=false)∧distinct_rhs tl).
+#b #hd #t #H %
+  [ #k #HH elim H #HHH #_ @HHH cases hd normalize #y #y' @or_intror @HH
+  | elim H #_ cases hd normalize #y #y' * #_ //
+  ]
+qed.
+
+lemma gamma_v_aux3:  
+∀(gamma_v :
+  (∀l:list (Variable×Variable)
+   .∀v:Value
+    .(∀x:Variable.rhs l x→inb_v x v=false)∧distinct_rhs l
+     →Σd:Value.(∀x:Variable.inb_v x v=false→¬rhs l x→inb_v x d=false))).
+ ∀(v : Value).
+ ∀(t : (list (Variable×Variable))).
+ ∀(y : Variable).
+ ∀(y' : Variable).
+ ∀(H : ((∀x:Variable.rhs (〈y,y'〉::t) x→inb_v x v=false)∧distinct_rhs (〈y,y'〉::t))).
+ (inb_v y'
+  (pi1 Value ?
+   (gamma_v t v (gamma_v_aux2 v 〈y, y'〉 t H)))
+  =false).
+#gamma #c #t #y #y' #H cases (gamma ? ? ?) #gg #hh @hh
+[ elim H #H' #_ @H' normalize >veqb_true @or_introl @refl
+| elim H #_ normalize #H' elim H' //
+] qed.
+
+lemma gamma_v_aux4: ∀
+ (gamma_v :
+  (∀v:Value
+   .∀l:list (Variable×Variable)
+    .(∀x:Variable.rhs l x→inb_v x v=false)∧distinct_rhs l
+     →Σd:Value.(∀x:Variable.inb_v x v=false→¬rhs l x→inb_v x d=false))).
+ ∀(v : Value).
+ ∀(tl : (list (Variable×Variable))).
+ ∀(y : Variable).
+ ∀(y' : Variable).
+ ∀(H : ((∀x:Variable.rhs (〈y,y'〉::tl) x→inb_v x v=false)∧distinct_rhs (〈y,y'〉::tl))).
+ (∀x:Variable
+  .inb_v x v=false
+   →¬rhs (〈y,y'〉::tl) x
+    →inb_v x
+     (ssv
+      (pi1 Value
+       (λd:Value.∀x0:Variable.inb_v x0 v=false→¬rhs tl x0→inb_v x0 d=false)
+       (gamma_v v tl (gamma_v_aux2 v 〈y,y'〉 tl H))) y y'
+      (gamma_v_aux3 (λl0:list (Variable×Variable).λv0:Value.gamma_v v0 l0) v tl
+       y y' H))
+     =false).
+
+#gamma_b #b #tl #y #y' #H #x #Hinb #Hr
+cut (∀J.   (inb_v x
+  (ssv
+   (pi1 Value ?
+    (gamma_b b tl (gamma_v_aux2 b 〈y,y'〉 tl H))) y y' J)
+  =false)) [ 2: #J @J ]
+#J cases gamma_b in J ⊢%; #bb #h #J
+lapply alpha_fin1 * * * * #_ #_ #_ #Hv #_ @Hv
+[ @h [ @Hinb | % #abs elim Hr #Hr' @Hr' normalize @or_intror @abs ]
+| elim Hr normalize >veqb_simm cases veqb // #abs @False_ind @abs @or_introl @refl ]
+qed.
+
+let rec gamma_v (v:Value) l on l : ((∀x. rhs l x → inb_v x v = false) ∧ distinct_rhs l) →
+ (Σd. ∀x. inb_v x v = false → ¬rhs l x → inb_v x d = false) ≝ 
+ match l return λl. ((∀x. rhs l x → inb_v x v = false) ∧ distinct_rhs l) →
+ (Σd. ∀x. inb_v x v = false → ¬rhs l x → inb_v x d = false) with
+ [ nil ⇒ λH. «v, gamma_v_aux1 … v H »
+ | cons hd tl ⇒ match hd return λhd. (((∀x. rhs (hd::tl) x → inb_v x v = false) ∧ distinct_rhs (hd::tl)) →
+  (Σd. ∀x. inb_v x v = false → ¬rhs (hd::tl) x → inb_v x d = false)) with 
+  [ mk_Prod y y' ⇒ λH. «ssv (pi1 Value ? (gamma_v v tl (gamma_v_aux2 … H))) y y' (gamma_v_aux3 ? v tl y y' H), gamma_v_aux4 … H »  ]
+ ] .
+
+lemma gamma_vtovaraux: ∀l,x.∀(H : ((∀x0:Variable.rhs l x0→inb_v x0 (var x)=false)∧distinct_rhs l)).
+ ((∀x0:Variable.rhs l x0→veqb x0 x=false)∧distinct_rhs l).
+@list_ind // qed. 
+ 
+lemma gamma_v_to_var: ∀l, x, H.
+ pi1 … (gamma_v (var x) l H) = var (pi1 … (gamma_var x l (gamma_vtovaraux … H))).
+@list_ind // * #y #y' #l #HI #x #H
+whd in match (gamma_v ? ? ?);
+whd in match (gamma_var ? ? ?);
+generalize in match (gamma_v_aux2 ? ? ? ?);
+generalize in match (gamma_v_aux2 ? ? ? ?);
+generalize in match (gamma_v_aux3 ? ? ? ? ? ?); >HI
+#P1
+whd in match (ssv ? ? ? ?);
+#P2 #P3 
+cases (veqb ? y) // qed.
+
+lemma gamma_e_step_aux1: ∀l,e,y,b. ∀(H : ((∀x:Variable.rhs l x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs l)).
+ ((∀x:Variable.rhs l x→veqb x y=false)∧distinct_rhs l).
+ @list_ind [ #e #y #b #H % // #k normalize #abs @False_ind @abs ]
+* #z #z' #tl #HI #e #y #b #H %
+[ #k #Hk elim H #H' #_ lapply (H' … Hk) normalize cases veqb // normalize
+  >if_monotone #H @H
+| elim H #_ #HH @HH
+] qed.
+
+lemma gamma_e_step_aux2: ∀l,e,y,b. ∀(H : ((∀x:Variable.rhs l x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs l)).
+ ((∀x:Variable.rhs l x→inb_b x b=false)∧distinct_rhs l).
+@list_ind [ #e #y #b #H % // #k normalize #abs @False_ind @abs ]
+* #z #z' #tl #HI #e #y #b #H %
+[ #k #Hk elim H #H' #_ lapply (H' … Hk) normalize cases inb_b //
+  >if_monotone >if_monotone #H @H
+| elim H #_ #HH @HH
+] qed.
+
+lemma gamma_e_step_aux3: ∀l,e,y,b. ∀(H : ((∀x:Variable.rhs l x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs l)).
+ ((∀x:Variable.rhs l x→inb_e x e=false)∧distinct_rhs l).
+@list_ind [ #e #y #b #H % // #k normalize #abs @False_ind @abs ]
+* #z #z' #tl #HI #e #y #b #H %
+[ #k #Hk elim H #H' #_ lapply (H' … Hk) normalize cases inb_e // >if_t #H @H
+| elim H #_ #HH @HH
+] qed.
+
+lemma gamma_e_step_aux4: ∀hd,tl,e,y,b. ∀(H :((∀x:Variable.rhs (hd::tl) x→inb_e x (Snoc e [y←b])=false))
+   ∧distinct_rhs (hd::tl)).  
+ ((∀x:Variable.rhs tl x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs tl).
+ #hd #tl #e #y #b #H %
+[ #k #Hk elim H #H' #_ @H' cases hd #z #z' normalize @or_intror @Hk
+| elim H #_ cases hd #z #z' normalize * #_ #H @H
+] qed.
+(*
+lemma gamma_e_step: ∀l, e, y, b, H.
+ pi1 … (gamma_e (Snoc e [y←b]) l H) =
+  Snoc (pi1 … (gamma_e e l (gamma_e_step_aux3 … H))) [(pi1 … (gamma_var y l (gamma_e_step_aux1 … H))) ← pi1 … (gamma_b b l (gamma_e_step_aux2 … H))]. 
+@list_ind [ #e #y #b #H normalize @refl ]
+* #z #z' #tl #HI #e #y #b #H
+whd in match (gamma_e ? ? ?);
+whd in match (gamma_e ? (?::?) ?);
+whd in match (gamma_var ? ? ?);
+whd in match (gamma_b ? ? ?);
+generalize in match (gamma_e_aux3 ? ? ? ? ? ?);
+generalize in match (gamma_e_aux2 ? ? ? ?);
+>(HI … (gamma_e_step_aux4 … H)) #gea2 #gea3
+whd in match (sse ? ? ? ?); >veqb_simm cases veqb //
+>if_t >if_t whd in ⊢ (? ? % ?); @eq_f2 //
+qed.
+*)
+lemma gamma_v_ns: ∀e,v,l,H. 
+ (∀x. (domb_e x e=true) → inb_v x v = false) →
+  pi1 … (gamma_v v (beta_e e l) H) = v.
+@Environment_simple_ind2 // #e * * #y #b #HI #v #l #H #H1
+whd in match (beta_e ? ?);
+whd in match (gamma_v ? ? ?);
+generalize in match (gamma_v_aux2 ? ? ? ?);
+generalize in match (gamma_v_aux3 ? ? ? ? ? ?); >HI
+[ lapply ssc_in * * * * #_ #_ #_ #Hv #_ #HH #HHH @Hv @(H1 (νy) ?)
+  normalize >neqb_refl >if_t @refl
+| #k #Hk @H1 normalize >Hk >if_monotone @refl
+] qed.
+
+lemma gamma_var_ns: ∀e,x,l,H. 
+  (domb_e x e = false) → 
+  pi1 … (gamma_var x (beta_e e l) H) = x.
+@Environment_simple_ind2 // #e * * #y #b #HI #x #l #H #H1
+whd in match (beta_e ? ?);
+whd in match (gamma_var ? ? ?);
+generalize in match (gamma_var_aux2 ? ? ? ? ?);
+>HI
+[ #H2 lapply H1 normalize cases veqb // normalize #abs destruct
+| lapply H1 normalize cases domb_e // >if_monotone #H @H
+| % // #k #Hk elim H #HH #_ @HH normalize @or_intror //
+] qed.
+
+lemma alpha_to_gamma_aux1: ∀b, e, n. ∀(H : (fresh_var 〈b,e〉≤n)).
+ ((∀x:Variable.rhs (beta_e e n) x→inb_e x e=false)∧distinct_rhs (beta_e e n)).
+#b #e #n #H % // #k #Hk lapply (beta_rhs_bound 〈b,e〉 n)
+whd in match (beta ? ?); #Hbrb lapply Hk cases k #nk -Hk #Hk
+lapply (Hbrb … Hk) * #Ha #Hb
+change with (max ? ?≤n) in H;
+lapply (transitive_le … (le_maxr … H) Ha)
+lapply (fresh_var_to_in_crumble) * * * * #_ #_ #He #_ #_ @He
+qed.
+
+lemma alpha_to_gamma_aux2: ∀b, e, n. ∀(H : (fresh_var 〈b,e〉≤n)).
+ ((∀x:Variable.rhs (beta_e e n) x→inb_b x b=false)∧distinct_rhs (beta_e e n)).
+#b #e #n #H % // #k #Hk lapply (beta_rhs_bound 〈b,e〉 n)
+whd in match (beta ? ?); #Hbrb lapply Hk cases k #nk -Hk #Hk
+lapply (Hbrb … Hk) * #Ha #Hb
+change with (max ? ?≤n) in H;
+lapply (transitive_le … (le_maxl … H) Ha)
+lapply (fresh_var_to_in_crumble) * * * * #_ #Hb #_ #_ #_ @Hb
+qed.
+
+lemma alpha_e_aux1:  ∀n.(∀m:ℕ.fresh_var_e Epsilon≤m∧m<n→inb_e (νm) Epsilon=false).
+#n #m #_ // qed.
+
+lemma alpha_e_aux2: ∀n, e', y, b', a.
+ ∀(p : (fresh_var_e (Snoc e' [y←b'])≤n)).
+ ∀(h : (∀m:ℕ.fresh_var_e e'≤m∧m<S n→inb_e (νm) a=false)).
+ (inb_e (νn) a=false).
+#n #e #y #b' #a #p #H @H % // change with (max ? ? ≤ n) in p; @(le_maxl … p) qed.
+
+lemma alpha_e_aux3:  ∀n, e', y, b'. ∀(p : (fresh_var_e (Snoc e' [y←b'])≤n)).
+ (fresh_var_e e'≤S n).
+ #n #e' #y #b' #p change with (max ? ?≤n) in p; @(le_S … (le_maxl … p)) qed.
+ 
+lemma alpha_e_aux4:
+ ∀(alpha_e :
+  (∀e:Environment
+   .∀n:ℕ
+    .fresh_var_e e≤n→Σd:Environment.(∀m:ℕ.fresh_var_e e≤m∧m<n→inb_e (νm) d=false))).
+  ∀n, e', y, b', a.
+ ∀(p : (fresh_var_e (Snoc e' [y←b'])≤n)).
+ ∀(h : (∀m:ℕ.fresh_var_e e'≤m∧m<S n→inb_e (νm) a=false)).
+  (∀m:ℕ
+  .fresh_var_e (Snoc e' [y←b'])≤m∧m<n
+   →inb_e (νm) (Snoc (sse a y (νn) (alpha_e_aux2 n e' y b' a p h)) [νn←b'])=false).
+#alpha_e #n #e' #y #b' #a #p #h #m #H
+lapply alpha_fin1 * * * * #_ #_ #He #_ #_ whd in match (inb_e ? ?);
+cut (neqb m n = false)
+[ cut (neqb m n = true ∨ neqb m n = false) // * #Hnm //
+  elim (neqb_iff_eq m n) #Heq #_ lapply (Heq Hnm) -Heq #Heq destruct @False_ind
+  elim H #_ @le_Sn_n ] #Hmn >He
+[ normalize >Hmn normalize elim H cases y #ny
+  #Ha #_ change with (max ? (max ? ?) ≤?) in Ha; lapply(le_maxr … (le_maxr … Ha))
+  lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb
+| normalize >neq_simm @Hmn 
+| @h elim H #Ha #Hb % [ change with (max ? ? ≤?) in Ha; @(le_maxl … Ha) | @(le_S … Hb) ]
+] qed.
+
+let rec alpha_e  (e: Environment) (n: nat) on e:
+ fresh_var_e e ≤ n → 
+  Σd. ∀m. fresh_var_e e ≤ m ∧ m < n → inb_e (νm) d = false ≝ 
+ match e return λe. fresh_var_e e ≤ n → Σd. ∀m. fresh_var_e e ≤ m ∧ m < n → inb_e (νm) d = false  with
+ [ Epsilon ⇒ λp. mk_Sig … Epsilon ?
+ | Snoc e' s ⇒ match s return λs. fresh_var_e (Snoc e' s) ≤ n → Σd. ∀m. fresh_var_e (Snoc e' s) ≤ m ∧ m < n → inb_e (νm) d = false with 
+   [subst y b' ⇒ λp. match alpha_e e' (S n) (alpha_e_aux3 … p) with
+     [ mk_Sig a h ⇒ mk_Sig … (Snoc (sse (a) y (νn) (alpha_e_aux2 … p h)) (subst (νn) b')) (alpha_e_aux4 alpha_e … p h) ]
+   ]
+ ].
+ @(alpha_e_aux1 … n) qed.
+
+lemma alpha_to_gamma_aux11: ∀b, e, n. ∀(H : (fresh_var 〈b,e〉≤n)). 
+fresh_var_e e ≤n.
+#b #e #n #H change with (max ? ?≤n) in H; @(le_maxr … H) qed.
+
+lemma sse_proof_irrelevance: ∀e, z, z', H, H'. sse e z z' H = sse e z z' H'.
+@Environment_simple_ind2 // #e * * #y #b #HI #z #z' #H #H' whd in match (sse ? ? ? ?);
+cases veqb  qed.
+
+lemma ssc_gnam_gnam:
+ (∀c, y, x. ∀(H). veqb x y = false → fvb x (ssc c x y H) = false) ∧
+  (∀b, y, x. ∀(H). veqb x y = false → fvb_b x (ssb b x y H) = false) ∧
+   (∀e, y, x. ∀(H). veqb x y = false → fvb_e x (sse e x y H) = false) ∧
+    (∀v, y, x. ∀(H). veqb x y = false → fvb_v x (ssv v x y H) = false) ∧
+     (∀s, y, x. ∀(H). veqb x y = false → fvb_s x (sss s x y H) = false).
+@Crumble_mutual_ind
+[ #b #e #Hb #He #y #x #H1 #H2 whd in match (ssc ? ? ? ?);
+  whd in match (fvb ? ?); cut (domb_e x e = true ∨ domb_e x e = false) [//] *
+  #Hd >Hd
+  [  >if_t whd in match (fvb ? ?);  >He // >if_then_true_else_false
+    >dom_sse >Hd normalize >if_monotone @refl ] >if_f
+    whd in match (fvb ? ?);  
+   >Hb // >He //
+| #v #HI #y #x #H #H1 @HI @H1
+| #v #w #Hv #Hw #y #x #H #H1 whd in match (ssb ? ? ? ?);
+  whd in match (fvb_b ? ?); >Hv // >Hw //
+| #z #y #x #H #H1 normalize cut (veqb z y = true ∨ veqb z y = false) // * #Hyz >Hyz
+  normalize
+  [ >H1 elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+    cases veqb normalize //
+  | cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >veqb_comm >Hxz
+    normalize //  ]
+| #z #c #HI #y #x #H #H1 whd in match (ssv ? ? ? ?);
+  cut (veqb z y = true ∨ veqb z y = false) // * #Hzy >Hzy
+  [ normalize elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hzy) -Heq #Heq
+    destruct @False_ind lapply H normalize >veqb_true >if_t #abs destruct
+  | cut (veqb z x = true ∨ veqb z x = false) // * #Hzx >Hzx
+    [ >if_t normalize >Hzx //
+    | >if_f normalize >HI >Hzx //
+    ]
+  ]
+| //
+| #e * #z #b' #He #Hs #y #x #H #H1 whd in match (sse ? ? ? ?);
+  cut (veqb y z = true ∨ veqb y z = false) // * #Hyz >Hyz
+  [ elim (veqb_true_to_eq y z) #Heq lapply (Heq Hyz) -Heq #Heq #_ destruct
+    >H1 >if_f whd in ⊢(? ? % ?); >He // whd in match (andb ? ?); >if_f
+    lapply (Hs z x ? ?) // [ lapply H  change with (orb ? ?) in match (inb_e ? ?);
+     cases inb_s // normalize >if_monotone // ]
+    whd in match (sss ? ? ? ?); whd in match (fvb_s ? ?); #H >H //   
+  | cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz
+    [ elim (veqb_true_to_eq x z) #Heq lapply (Heq Hxz) -Heq #Heq #_ destruct
+    >H1 >if_t whd in ⊢(? ? % ?); >veqb_true whd in match (andb ? ?); >if_monotone
+     >if_f lapply (Hs y z ? ?) // [ lapply H  change with (orb ? ?) in match (inb_e ? ?);
+     cases inb_s // normalize >if_monotone // ]
+    whd in match (sss ? ? ? ?); whd in match (fvb_s ? ?); #H >H // ]
+    >if_f whd in ⊢(? ? % ?); >He // whd in match (andb ? ?); >if_f
+    lapply (Hs y x ? ?) // [ lapply H  change with (orb ? ?) in match (inb_e ? ?);
+     cases inb_s // normalize >if_monotone // ] whd in match (sss ? ? ? ?);
+     whd in match (fvb_s ? ?); #H >H //
+   ]
+| #z #b #HI #y #x #H #H1 normalize >HI //
+] qed.
+
+lemma fvb_ssc1:
+ (∀c, y, y', x. ∀(H). veqb x y' = false → fvb x (ssc c y y' H) = (fvb x c ∧ (¬veqb x y))) ∧
+  (∀b, y, y', x. ∀(H). veqb x y' = false → fvb_b x (ssb b y y' H) = (fvb_b x b ∧ (¬veqb x y))) ∧
+   (∀e, y, y', x. ∀(H). veqb x y' = false → fvb_e x (sse e y y' H) = (fvb_e x e ∧ (¬veqb x y))) ∧
+    (∀v, y, y', x. ∀(H). veqb x y' = false → fvb_v x (ssv v y y' H) = (fvb_v x v ∧ (¬veqb x y))) ∧
+     (∀s, y, y', x. ∀(H). veqb x y' = false → fvb_s x (sss s y y' H) = (fvb_s x s ∧ (¬veqb x y))).
+@Crumble_mutual_ind
+[ #b #e #Hb #He #y #y' #x #H1 #H2 whd in match (ssc ? ? ? ?);
+  whd in match (fvb ? ?); cut (domb_e y e = true ∨ domb_e y e = false) [//] *
+  #Hd >Hd
+  [  >if_t whd in match (fvb ? ?);  >He // >dom_sse
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy
+  [ elim (veqb_true_to_eq x y) #Heq lapply (Heq Hxy) -Heq #Heq #_ destruct
+    >Hd whd in match (andb ? false); >if_monotone >if_f
+    whd in match (andb ? false); >if_monotone 
+    whd in match (andb ? false); >if_monotone @refl
+  | whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    normalize cases fvb_e [ >if_monotone // ] >if_then_true_else_false //
+  ] ]
+  >if_f  whd in match (fvb ? ?);  >He // >dom_sse >Hb
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy
+  [ whd in match (andb ? false); >if_monotone 
+    whd in match (andb ? false); >if_monotone
+    normalize >if_monotone //
+  | whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (fvb ? ?); @refl  ]
+| #v #HI #y #y' #x #H #H1 @HI @H1
+| #v #w #Hv #Hw #y #y' #x #H #H1 whd in match (ssb ? ? ? ?);
+  whd in match (fvb_b ? ?); >Hv // >Hw // whd in match (fvb_b ? ?); cases fvb_v
+  cases fvb_v // cases veqb //
+| #z #y #y' #x #H #H1 normalize cut (veqb z y = true ∨ veqb z y = false) // * #Hyz >Hyz
+  normalize
+  [ >H1 elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+    cases veqb //
+  | cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz //
+    elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct >Hyz
+    //
+  ]
+| #z #c #HI #y #y' #x #H #H1 whd in match (ssv ? ? ? ?);
+  cut (veqb z y = true ∨ veqb z y = false) // * #Hzy >Hzy
+  [ >if_t normalize elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hzy) -Heq #Heq
+    destruct >veqb_simm cases veqb // cases fvb //
+  | >if_f whd in match (((λp:inb_v y' (𝛌z.c)=false.𝛌z.ssc c y y' (alpha_lemma6 y' z c p)) H));
+    whd in match (fvb_v ? ?); whd in match (fvb_v ? ?);
+    cut (veqb z x = true ∨ veqb z x = false) // * #Hzx >Hzx // >if_t >if_t
+    >HI //
+  ]
+| //
+| #e * #z #b' #He #Hs #y #y' #x #H #H1 whd in match (sse ? ? ? ?);
+  cut (veqb y z = true ∨ veqb y z = false) // * #Hyz >Hyz
+  [ >if_t whd in match (((λp:inb_e y' (Snoc e [z←b'])=false
+    .Snoc (sse e y y' (alpha_lemma8 y' e z b' p))
+     [y'←ssb b' y y' (alpha_lemma7 y' e z b' p)]) H));
+  whd in match (fvb_e ? ?);
+  whd in match (fvb_e ? (Snoc ? ?));
+  cut ((((fvb_e x e)∧(¬veqb x z)) = true) ∨ (((fvb_e x e)∧(¬veqb x z)) = false))
+  // * #HHH >HHH [>if_t >if_t
+  elim (veqb_true_to_eq … y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+  lapply HHH cases veqb // normalize >if_monotone #abs <abs //] >if_f >if_f
+  lapply (Hs y y' x ? H1)
+  [ lapply H change with (orb ? ?) in match (inb_e ? ?);
+    cases inb_s // whd in match (orb ? true); >if_monotone //
+  | whd in match (sss ? ? ? ?);
+    whd in match (fvb_s ? ?);
+    cut (∀Z, Z'. fvb_b x (ssb b' y y' Z) = fvb_b x (ssb b' y y' Z')) [ // ]
+    #Htmp >(Htmp ? (alpha_lemma7 … H)) #HH >HH normalize -Htmp -HH
+    elim (veqb_true_to_eq … y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
+    cut (veqb x z = true ∨ veqb x z = false) //
+  ]
+  | >if_f whd in match 
+  ((λp:inb_e y' (Snoc e [z←b'])=false
+    .Snoc (sse e y y' (alpha_lemma8 y' e z b' p))
+     [z←ssb b' y y' (alpha_lemma7 y' e z b' p)]) H);
+    whd in match (fvb_e ? ?); whd in match (fvb_e ? (Snoc ? ?)); >He //
+    lapply (Hs y y' x ? H1)
+  [ lapply H change with (orb ? ?) in match (inb_e ? ?);
+    cases inb_s // whd in match (orb ? true); >if_monotone //
+  | whd in match (sss ? ? ? ?);
+    whd in match (fvb_s ? ?);
+    cut (∀Z, Z'. fvb_b x (ssb b' y y' Z) = fvb_b x (ssb b' y y' Z')) [ // ]
+    #Htmp >(Htmp ? (alpha_lemma7 … H)) #HH >HH -Htmp -HH
+    whd in match (fvb_s ? ?);
+    cases veqb
+    [ whd in match (andb ? false); >if_monotone
+      whd in match (andb ? false); >if_monotone
+      whd in match (andb ? false); >if_monotone //
+    | cases veqb
+      [ whd in match (andb ? false); >if_monotone
+        whd in match (andb ? false); >if_monotone //
+      | whd in match (andb ? true); >if_then_true_else_false
+        whd in match (andb ? true); >if_then_true_else_false
+        whd in match (andb ? true); >if_then_true_else_false
+        whd in match (andb ? true); >if_then_true_else_false //
+      ]
+    ]
+  ]
+  ]
+| #z #b #HI #y #y' #x #H #H1 normalize >HI //
+] qed. 
+
+
+lemma gamma_fv_covering: ∀e, b, n, y, H. fresh_var_e e ≤ n → domb_e (νy) e = true →
+ fvb_b (νy) (pi1 … (gamma_b b (beta_e e n) H)) = false.
+@Environment_simple_ind2
+[ #b #b #y #H #K normalize #abs destruct ]
+#e * * #z #d #HI #b #n #y #H #H1 #H2 whd in match (beta_e ? ?);
+whd in match (gamma_b ? ? ?);
+cut (neqb y z = true ∨ neqb y z = false) // * #Hyz
+[ elim (neqb_iff_eq y z) #Heq lapply (Heq Hyz) -Heq #Heq destruct #_
+ lapply ssc_gnam_gnam * * * * #_ #Hb #_ #_ #_  >Hb //
+ lapply H1 whd in match (veqb ? ?); 
+ cut (neqb z n = true ∨ neqb z n = false) // * #Hzn
+ [ elim (neqb_iff_eq z n) #Heq lapply (Heq Hzn) -Heq #Heq destruct #_
+   #HJ @False_ind lapply (le_maxl … (le_maxr … HJ)) @le_Sn_n ]
+ >Hzn //]
+ lapply fvb_ssc1 * * * * #_ #Hb #_ #_ #_ >Hb
+ whd in match (veqb ? ?); >Hyz
+ [ >HI // [ lapply H2 normalize >Hyz normalize //]
+   @(le_S … (le_maxl … H1)) ]
+ lapply (dom_to_in … H2) normalize
+ >Hyz normalize 
+ cut (neqb y n = true ∨ neqb y n = false) // * // #Hyn
+ elim (neqb_iff_eq y n) #Heq lapply (Heq Hyn) -Heq #Heq destruct #_
+ cut (inb_b (νn) d = true ∨ inb_b (νn) d = false) // *
+ cut (inb_e (νn) e = true ∨ inb_e (νn) e = false) // *
+ [ 4: #Ha #Hb >Ha >Hb normalize #abs destruct
+ | 1,2: #_ #Ha lapply (fresh_var_to_in_crumble) * * * * #_ #Hb #_ #_ #_ 
+   lapply (Hb … (le_maxr … (le_maxr … H1))) >Ha #abs destruct
+ | 3: #Ha #_ lapply (fresh_var_to_in_crumble) * * * * #_ #_ #He #_ #_ 
+   lapply (He … (le_maxl …H1)) >Ha #abs destruct
+ ] qed.
+
+(*
+lemma beta_domain_removal: ∀e, b, y, n, H1. domb_e y e =true → 
+ inb_b y (pi1 … (gamma_b b (beta_e e n) H1)) = false.
+ @Environment_simple_ind2
+[ #b #y #n #H1 normalize #abs destruct
+| #e * #w #d #HI #b #y #n #H1 #K
+  whd in match (beta_e ? ?);
+  whd in match (gamma_b ? ? ?); 
+*)
+lemma beta_domain_absorbance: ∀e, b, n, y, b', H1, H2. domb_e y e =true → 
+ fresh_var_e e ≤ n →
+ pi1 … (gamma_b b (beta_e (Snoc e [y←b']) n) H1) = pi1 … (gamma_b b (beta_e e (S n)) H2).
+@Environment_simple_ind2
+[ #b #n #y #b' #H1 #H2 normalize #abs destruct
+| #e * #w #d #HI #b #n * #y #b' #H1 #H2 #K #KK lapply H1 
+  whd in match (beta_e ? ?); #H1
+  whd in match (gamma_b ? ? ?);
+  lapply ssc_fv * * * * #_ #Hb #_ #_ #_ >Hb // @gamma_fv_covering // @(le_S … KK) 
+] qed.
+
+lemma alphae_domain_bound: ∀ e, n, H, x.
+ domb_e (νx) (pi1 … (alpha_e e n H)) = true →
+  n ≤ x ∧ x ≤ n +e_len e.
+@Environment_simple_ind2
+[ #n normalize #_ #x #abs destruct
+| #e * * #y #b' #HI #n #H #x
+  whd in match (alpha_e ? ? ?);
+  lapply (HI (S n) (alpha_e_aux3 … H))
+  cases alpha_e #ae #h
+  whd in match (match ? in Sig with [_⇒?]);
+  -HI #HI
+  whd in match (domb_e ? ?);
+  whd in match (veqb ? ?);
+  cut (neqb x n = true ∨ neqb x n = false) // * #Hxn >Hxn
+  [ normalize elim (neqb_iff_eq x n) #Heq #_ lapply (Heq Hxn) -Heq #Heq
+    destruct #_ % // ]
+  >if_f >dom_sse  #Ha lapply (HI … Ha) * #Haa #Hb normalize % // @lt_to_le @Haa
+] qed.
+
+lemma alpha_be_to_gamma_pre: ∀b, e, n, H, H1, H2. pi1 … (alpha b e n H) =
+ 〈pi1 … (gamma_b b (beta_e e n) H1), pi1 … (alpha_e e n H2)〉.
+#b @Environment_simple_ind2 //
+#e * * #y #b' #HI #n #H
+whd in match (alpha b (Snoc ? ?) ? ?); #H1 #H2
+lapply (HI (S n) ? ? ?)
+[ @(le_S … (le_maxl … (le_maxr … H)))
+| % // * #k #Hk lapply (betae_rhs_bound … Hk) * #Ha #_
+  cut (fresh_var_b b ≤ k)
+  [ @(transitive_le … (le_S … (le_maxl … H)) Ha)
+  | lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb
+  ] 
+| 3: change with (max ? ? ≤ ?)
+   change with (max ?  (max ? ?) ≤ n) in H; @to_max
+  [ @(le_S … (le_maxl … H))
+  |  @(le_S … (le_maxl … (le_maxr … H)))
+  ]
+|  cases alpha #C #E whd in match (match ? in Sig with [_⇒?]);  #HH destruct
+  whd in match (ssc ? ? ? ?); 
+  cut (domb_e (νy)
+        (pi1 … 
+         (alpha_e e (S n) ?)) = false)
+  [ @(le_S … (le_maxl … (le_maxr … H)  ))
+  | lapply (alphae_domain_bound e (S n) ? y) [ @(le_S … (le_maxl … (le_maxr … H)  )) ]
+    cases domb_e // #dg elim (dg (refl …)) #abs #_ @False_ind
+    lapply  (transitive_le … (le_S … abs) ( (le_maxl … (le_maxr … H2)  ))) @le_Sn_n
+  ] #Hf>Hf >if_f whd in match (at ? ?);
+    whd in match (concat ? ?); >concat_e_epsilon @eq_f2 //
+    whd in match (alpha_e (Snoc ? ?) ? ?);
+    generalize in match (alpha_to_gamma_aux11 ? ? ? ?); #P1
+        generalize in match (le_S ? ? ?); #P2
+    
+    whd in match (alpha_e (Snoc ? ?) ? ?);
+        generalize in match (alpha_lemma1 ? ? ? ?);
+        generalize in match (alpha_e_aux3 ? ? ? ? ?); #P3
+ 
+    cut (alpha_e e (S n) P2 = alpha_e e (S n) P3) [ // ] #Heq >Heq
+    cases (alpha_e ? ? ?) #AA #HH #P2
+    whd in match (match  ? in Sig with [_⇒?]); @eq_f2 //
+  ]
+qed.
+
+lemma alpha_be_to_gamma: ∀b, e, n, H. pi1 … (alpha b e n H) =
+ 〈pi1 … (gamma_b b (beta_e e n) (alpha_to_gamma_aux2 b e n H)), pi1 … (alpha_e e n (alpha_to_gamma_aux11 b e n H))〉.
+#b #e #n #H @alpha_be_to_gamma_pre qed.
+
+lemma alpha_domain_bound: ∀e, b, n, H, x.
+ domb (νx) (pi1 … (alpha b e n H)) = true →
+  n ≤ x ∧ x ≤ n +e_len e.
+#e #b #n #H #x >alpha_be_to_gamma whd in match (domb ? ?);
+@alphae_domain_bound qed. 
+
+lemma fvb_at: ∀e, b, e', x. fvb x (at 〈b, e'〉 e) = ((fvb x 〈b, e'〉 ∧ ¬ domb_e x e) ∨ fvb_e x e).
+@Environment_simple_ind2
+[ #b #e #x normalize cases fvb_b cases fvb_e // cases domb_e //
+| #e * #y #b' #HI #b #e' #x
+  lapply (HI b e' x) normalize >domb_concat_distr >fv_concat normalize
+  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
+  [ >if_monotone >if_monotone >if_monotone >if_f >if_f >if_f >if_monotone >if_f //
+  | >if_then_true_else_false >if_then_true_else_false
+    cases fvb_b normalize
+    [ 2: #_ cases fvb_e // cases domb_e //
+    | cases fvb_e cases domb_e // normalize
+      [ #_ cases domb_e cases fvb_b //
+      | cases domb_e //
+      ]
+    ]
+  ]
+] qed.
+
+  
+lemma alpha_fv_cons: ∀e, b, n, H. ∀x. fvb x (pi1 … (alpha b e n H)) = fvb x 〈b, e〉.
+@Environment_simple_ind2
+[ #b #n change with (max ? ?) in match (fresh_var ?); #H #x whd in match (alpha ? ? ? ?); //
+| #e * * #y #b' #HI #b #n change with (max ? (max ? (max ? ?))) in match (fresh_var ?);
+  #H #x whd in match (alpha ? ? ? ?); lapply (HI b (S n) (alpha_aux1 b e [νy←b'] n H) x)
+  cases alpha * #ab #ae #hh whd in match (match ? in Sig with [_⇒?]);
+  change with (at (CCrumble b e) (Snoc Epsilon [νy←b'])) in match (CCrumble b (Snoc e [νy←b']));
+  #HH <HH >fvb_at whd in match (ssc ? ? ? ?);
+  cut (domb_e (νy) ae = true ∨ domb_e (νy) ae = false) // * #Hd >Hd
+  [ >if_t whd in match (fvb ? ?); whd in match (concat ? ?); >concat_e_epsilon
+  whd in match (domb_e ? ?); >dom_sse
+  whd in match (domb_e ? (Snoc ? ?)); whd in match (domb_e ? Epsilon);
+  >if_then_true_else_false whd in match (fvb_e ? ?);
+  whd in match (fvb_e ? (Snoc ? ?));
+  cases (fvb_b x b')
+  [ whd in match (orb ? true); >if_monotone
+    whd in match (orb ? true); >if_monotone
+    whd in match (orb ? true); >if_monotone % ]
+  whd in match (orb ? false); >if_then_true_else_false
+  whd in match (orb ? false); >if_then_true_else_false
+  cut (veqb x (νn) = true ∨ veqb x (νn) = false) // * #Hxn
+  [ elim (veqb_true_to_eq … x νn) #Heq lapply (Heq Hxn) -Heq #Heq destruct #_
+    >Hxn whd in match (notb true); whd in match (andb ? false); >if_monotone
+    >HH
+    cut (inb (νn)  〈b,e〉 = false)
+    [ lapply fresh_var_to_in_crumble * * * * #Hc #_ #_ #_ #_ @Hc 
+      @to_max [ @(le_maxl … H) | @(le_maxl … (le_maxr … H)) ] ] #Hin
+    cut (fvb (νn)  〈b,e〉 = false)
+    [ lapply Hin @bool_impl_inv2 lapply fv_to_in_crumble * * * * #Hc #_ #_ #_ #_
+      @Hc ] -Hin #Hfv >Hfv whd in match (andb false ?); >if_f
+      whd in match (andb ? false); >if_monotone % ]
+  lapply fvb_ssc1 * * * * #_ #Hb #He #_ #_
+  whd in match (fvb ? ?); >He //
+  >Hxn >if_f whd in match (notb false); whd in match (andb ? true);
+  >if_then_true_else_false cut (veqb x (νy) = true ∨ veqb x (νy) = false) // *
+  #Hxy
+  [ elim (veqb_true_to_eq x (νy)) #Heq lapply (Heq Hxy) -Heq #Hxy #_
+    destruct >veqb_true
+    whd in match (andb ? false); >if_monotone
+    whd in match (andb ? false); >if_monotone
+    whd in match (notb true); >if_then_true_else_false >Hd 
+    whd in match (andb ? false); >if_monotone //
+  | >Hxy whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false @HH
+  ]] >if_f whd in match (at ? ?); whd in match (concat ? ?);
+  >concat_e_epsilon whd in match (fvb ? ?);
+  whd in match (fvb_e ? ?); whd in match (domb_e ? ?); >dom_sse
+  whd in match (domb_e ? (Snoc ? ?)); whd in match (domb_e ? Epsilon);
+  >if_then_true_else_false whd in match (fvb_e ? (Snoc Epsilon ?));
+  cases (fvb_b ? b')
+  [ whd in match (orb ? true); >if_monotone
+    whd in match (orb ? true); >if_monotone
+    whd in match (orb ? true); >if_monotone % ]
+  whd in match (orb ? false); >if_then_true_else_false
+  whd in match (orb ? false); >if_then_true_else_false
+  cut (veqb x (νn) = true ∨ veqb x (νn) = false) // * #Hxn
+  [ elim (veqb_true_to_eq … x νn) #Heq lapply (Heq Hxn) -Heq #Heq destruct #_
+    >Hxn whd in match (notb true); whd in match (andb ? false); >if_monotone
+    >if_f whd in match (andb ? false); >if_monotone
+    cut (inb (νn)  〈b,e〉 = false)
+    [ lapply fresh_var_to_in_crumble * * * * #Hc #_ #_ #_ #_ @Hc 
+      @to_max [ @(le_maxl … H) | @(le_maxl … (le_maxr … H)) ] ] #Hin
+    cut (fvb (νn)  〈b,e〉 = false)
+    [ lapply Hin @bool_impl_inv2 lapply fv_to_in_crumble * * * * #Hc #_ #_ #_ #_
+      @Hc ] -Hin #Hfv >Hfv whd in match (andb false ?); % ]
+  lapply fvb_ssc1 * * * * #_ #Hb #He #_ #_
+  whd in match (fvb ? ?); >Hb // >He // cases veqb
+  [ whd in match (andb ? false); >if_monotone
+    whd in match (andb ? false); >if_monotone
+    whd in match (andb ? false); >if_monotone
+    whd in match (andb false ?); //
+  | whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >if_then_true_else_false
+    whd in match (andb ? true); >Hxn
+    whd in match (andb ? true); >if_then_true_else_false
+    >if_f @HH  
+] qed.
+
+lemma ss_fresh_var:
+(∀c, n, x, H. fresh_var (ssc c x (νn) H) ≤ max (fresh_var c) (S n)) ∧
+(∀c, n, x, H. fresh_var_b (ssb c x (νn) H) ≤ max (fresh_var_b c) (S n)) ∧
+(∀c, n, x, H. fresh_var_e (sse c x (νn) H) ≤ max (fresh_var_e c) (S n)) ∧
+(∀c, n, x, H. fresh_var_v (ssv c x (νn) H) ≤ max (fresh_var_v c) (S n)) ∧
+(∀c, n, x, H. fresh_var_s (sss c x (νn) H) ≤ max (fresh_var_s c) (S n)).
+@Crumble_mutual_ind
+[ #b #e #Hb #He #n #x #H whd in match (ssc ? ? ? ?);
+  cases domb_e
+  [ >if_t   change with (max ? ?) in match (fresh_var ?);
+  @to_max
+  [ change with (max ? ?) in match (fresh_var ?); >max_swap2 @max_add @max_add //
+  | change with (max ? ?) in match (fresh_var ?); 
+     >max_comm in match (max (fresh_var_b ?) ?); >max_swap2 @max_add @He
+  ] ]
+  change with (max ? ?) in match (fresh_var ?);
+  @to_max
+  [ change with (max ? ?) in match (fresh_var ?); >max_swap2 @max_add @Hb
+  | change with (max ? ?) in match (fresh_var ?); 
+     >max_comm in match (max (fresh_var_b ?) ?); >max_swap2 @max_add @He
+  ]
+| #v #HI #n #x #H whd in match (ssb ? ? ? ?);
+  whd in match (fresh_var_b ?);
+  @HI
+| #v #w #Hv #Hw #n #x #H whd in match (ssb ? ? ? ?); 
+  change with (max ? ?) in match (fresh_var_b ?);
+  change with (max ? ?) in match (fresh_var_b ?); @to_max
+  [ change with (max ? ?) in match (fresh_var ?); >max_swap2 @max_add @Hv
+  | change with (max ? ?) in match (fresh_var ?); 
+     >max_comm in match (max (fresh_var_v ?) ?); >max_swap2 @max_add @Hw
+  ]
+| * #z #n * #x #H whd in match (ssv ? ? ? ?);
+  whd in match (fresh_var_v (var ?));
+  whd in match (veqb ? ?);
+  cut (neqb z x = true ∨ neqb z x = false) // * #Htf >Htf
+  [ elim (neqb_iff_eq z x) #Heq #_ lapply (Heq Htf) -Heq #Heq destruct
+    >if_t whd in match (fresh_var_v ?); //
+  | >if_f whd in match (fresh_var_v ?); //
+  ]
+| * #z #c #HI #n * #x #H whd in match (ssv ? ? ? ?);
+  whd in match (veqb ? ?);
+  cut (neqb z x = true ∨ neqb z x = false) // * #Htf >Htf
+  [ >if_t //
+  | >if_f
+    change with (fresh_var_v (𝛌νz.ssc c (νx) (νn) (alpha_lemma6 (νn) (νz) c H)))
+     in match (fresh_var_v ?);
+    change with (max ? ?) in match (fresh_var_v ?);
+    change with (max ? ?) in match (fresh_var_v ?); @to_max // >max_comm in match (max (S z) ?);
+    <max_swap2 @max_add @HI
+  ]
+| //
+| #e * * #y #b #He #Hs #n #x #H whd in match (sse ? ? ? ?); cases veqb
+  [ >if_t change with (max ? ?) in match (fresh_var_e ?);
+    change with (max ? ?) in match (fresh_var_e (Snoc e [νy←b])); @to_max
+    [ >max_swap2 @max_add @max_add @le_n
+    | >max_comm in match (max (fresh_var_e ?) ?); >max_swap2 @max_add @to_max
+      [ change with (max ? ?) in match (fresh_var_s ?); @max_add @max_add @le_n
+      | lapply ((Hs n x ?)) [ @(And_ind … (orb_false … H)) #_ #h @h]
+        whd in match (sss ? ? ? ?);
+        change with (max ? ?) in match (fresh_var_s ?);  #HH
+        lapply (le_maxr … HH) 
+        cut (∀b, x, n, H, K. ssb b x n H =ssb b x n K) // #HH
+        >(HH ? ? ? ? (alpha_lemma7 (νn) e (νy) b H)) //
+      ]
+    ]
+  | >if_f change with (max ? ?) in match (fresh_var_e ?);
+    change with (max ? ?) in match (fresh_var_e (Snoc e [νy←b])); @to_max
+    [ >max_swap2 @max_add @He
+    | >max_comm in match (max (fresh_var_e ?) ?); >max_swap2 @max_add @Hs
+      elim (orb_false … H) //
+    ]
+  ]
+| * #x #b #HI #n #y #H whd in match (sss ? ? ? ?);
+  change with (max ? ?) in match (fresh_var_s ?);
+  change with (max ? ?) in match (fresh_var_s ?); @to_max //
+  >max_comm in match (max (S x) ?); >max_swap2 @max_add @HI
+] qed.
+
+lemma alpha_fresh_var: ∀e, b, n, H. fresh_var (pi1 … (alpha b e n H)) ≤ n+e_len e.
+@Environment_simple_ind2
+[ #b #n #H normalize cases leb // normalize @(le_plus_a_r O … (le_maxl … H))
+| #e * * #y #b' #HI #b #n #H
+  whd in match (alpha ? ? ? ?);
+  lapply (HI b (S n) (alpha_aux1 b e [νy←b'] n H))
+  lapply (alpha_domain_bound e b (S n) (alpha_aux1 b e [νy←b'] n H) y)
+  generalize in match (alpha b e (S n) (alpha_aux1 b e [νy←b'] n H)); *
+  #a #h whd in match (match ? in Sig with [_⇒?]);
+  whd in match (at ? ?);
+  lapply h cases a #ab #ae -h #h #Hd #H2
+  whd in match (ssc ? ? ? ?);
+  cut (domb_e (νy) ae = false)
+  [ lapply Hd normalize cases domb_e // #abs
+    elim (abs (refl …)) #Ha @False_ind
+    lapply (transitive_le … (le_S … (le_maxl …(le_maxr … (le_maxr … H)))) Ha) @le_Sn_n ]
+  #Hd >Hd >if_f
+  whd in match (match ? in Crumble with [_⇒?]);
+  whd in match (concat ? ?); >concat_e_epsilon
+  whd in match (e_len ?);
+  lapply ss_fresh_var * * * * #_ #Hb #He #_ #_
+  change with (max ? ?) in match (fresh_var ?); @to_max
+  [ lapply (Hb ab n (νy) (alpha_lemma2 (νn) ab ae (alpha_aux3 b e (CCrumble ab ae) n (νy) b' h H)))
+   #Hb' <plus_n_Sm change with (S n + e_len e) in match (S ?);
+   cut (max (fresh_var_b ab) (S n) ≤ S n+e_len e)
+   [ @to_max // @(le_maxl … H2)] #Hb'' @(transitive_le … Hb' Hb'')
+  | @to_max
+    [ lapply (He ae n (νy) (alpha_lemma1 (νn) ab ae (alpha_aux3 b e 〈ab,ae〉 n (νy) b' h H)))
+      #He' <plus_n_Sm change with (S n + e_len e) in match (S ?);
+      cut (max (fresh_var_e ae) (S n) ≤ S n+e_len e)
+   [ @to_max // @(le_maxr … H2)] #He'' @(transitive_le … He' He'') ]
+   <plus_n_Sm change with (S n + e_len e) in match (S ?); @to_max
+   // @le_plus_a_r @le_S @(le_maxr …(le_maxr … (le_maxr … H)))
+  ]
+] qed.
+
+lemma alphae_fresh_var: ∀e, n, H. fresh_var_e (pi1 … (alpha_e e n H)) ≤ n+e_len e.
+@Environment_simple_ind2
+[ #n #H normalize cases leb // normalize @(le_plus_a_r O … (le_maxl … H))
+| #e * * #y #b' #HI #n #H
+  whd in match (alpha_e ? ? ?);
+  lapply (HI (S n) (alpha_e_aux3 n e (νy) b' H))
+  generalize in match (alpha_e e (S n) (alpha_e_aux3 n e (νy) b' H)); *
+  #a #h whd in match (match ? in Sig with [_⇒?]);
+  whd in match (at ? ?); #H2
+  whd in match (e_len ?);
+  lapply ss_fresh_var * * * * #_ #_ #He #_ #Hs
+  change with (max ? ?) in match (fresh_var ?); @to_max
+  [ lapply (He a n (νy) (alpha_e_aux2 n e (νy) b' a H h))
+   #Hb' <plus_n_Sm change with (S n + e_len e) in match (S ?);
+   cut (max (fresh_var_e a) (S n) ≤ S n+e_len e)
+   [ @to_max // @(le_maxl … H2)] #Hb'' @(transitive_le … Hb' Hb'')
+  | @to_max
+    [ <plus_n_Sm @le_S_S @le_plus_a_r @le_n
+    | <plus_n_Sm change with (S n + e_len e) in match (S ?); @le_S
+      @le_plus_a_r @(le_maxr … (le_maxr … H))
+  ]
+] qed.
+
+
+lemma lt_to_le1:  ∀n:ℕ.∀m:ℕ.n<m→n≤m.
+@lt_to_le qed.
+
+lemma ssss_aux1: ∀z, e, w, b. (inb_e z (Snoc e [w←b])=false) → (inb_s z [w←b]=false).
+#z #e #w #b change with (orb ? ?) in match (inb_e ? ?); cases inb_s //
+normalize >if_monotone // qed.
+
+lemma ss_over_ss:
+(∀c, x, y, z, H1, H2, H3. ssc (ssc c x y H1) y z H2 = ssc c x z H3) ∧
+(∀b, x, y, z, H1, H2, H3. ssb (ssb b x y H1) y z H2 = ssb b x z H3) ∧
+(∀e, x, y, z, H1, H2, H3. sse (sse e x y H1) y z H2 = sse e x z H3) ∧
+(∀v, x, y, z, H1, H2, H3. ssv (ssv v x y H1) y z H2 = ssv v x z H3) ∧
+(∀s, x, y, z, H1, H2, H3. sss (sss s x y H1) y z H2 = sss s x z H3).
+@Crumble_mutual_ind
+[ #b #e #Hb #He #x #y #z #H1 #H2 #H3 lapply H2 
+  whd in match (ssc (CCrumble ? ?) ? ? ?);
+  whd in match (ssc (CCrumble ? e) x z ?);
+  cases (domb_e x e)
+  [ >if_t >if_t #H2  whd in match (ssc ? ? ? ?); >dom_sse
+    cut (domb_e y e = false)
+    [ elim (orb_false … H1) #_ @bool_impl_inv2 @dom_to_in #Hf ] #Hf >Hf >if_f
+      lapply ssc_in * * * * #_ #Hb #_ #_ #_ >Hb [2: elim (orb_false … H1) // ]
+      @eq_f2 //
+  | >if_f >if_f #H2 whd in match (ssc ? ? ? ?); >dom_sse cut (domb_e y e = false)
+    [ elim (orb_false … H1) #_ @bool_impl_inv2 @dom_to_in #Hf ]
+    #Hd >Hd >if_f @eq_f2 //
+  ]
+| #v #HI #x #y #z #H1 #H2 #H3 
+  whd in match (ssb ? ? ? ?);
+  whd in match (ssb ? ? ? ?); @eq_f >HI //
+| #v #w #Hv #Hw #x #y #z #H1 #H2 #H3
+  whd in match (ssb ? ? ? ?);
+  whd in match (ssb ? ? ? ?); //
+| #w #x #y #z  normalize cases (veqb w x) #H1 #H2 #H3
+  normalize [>veqb_true >if_t // 
+  | >veqb_simm >H1 //
+  ]
+| #w #c #HI #x #y #z #H1
+  whd in match (ssv (lambda ? ?) ? ? ?);
+  cut (veqb w x = true ∨ veqb w x = false) // * #Htf 
+  [ >Htf >if_t elim (veqb_true_to_eq w x) #Heq lapply (Heq Htf) -Heq #Heq
+    destruct #_ #H2 #H3  normalize >veqb_true normalize
+    cut (veqb x y = false) [ lapply H1 normalize cases inb
+      [ >if_monotone #abs destruct
+      | >if_then_true_else_false // ]
+      | #Htt >Htt >if_f normalize @eq_f2 //
+        lapply ssc_in * * * * #Hc #_ #_ #_ #_ @Hc lapply H1 
+        normalize cases inb // >if_monotone //
+      ]
+  | >Htf >if_f #H2 #H3 whd in match (ssv ? ? ? ?);
+    whd in match (ssv ? ? ? ?); >Htf >if_f
+    cut (veqb w y = false) [ lapply H1 normalize >veqb_comm cases veqb // >if_t //
+    | #HH >HH >if_f normalize >HI //
+    ]
+  ]
+| //
+| #e * #w #b #He #Hs #x #y #z #H1
+  whd in match (sse (Snoc ? ?) ? ? ?); #H2 #H3
+    whd in match (sse (Snoc ? ?) ? ? ?);
+
+  cut (veqb x w = true ∨ veqb x w = false) // * #Htf 
+  [ >Htf in H2 ⊢ %;  >if_t elim (veqb_true_to_eq x w) #Heq lapply (Heq Htf) -Heq #Heq
+    destruct #_ #H2 >if_t
+    whd in match (sse ? ? ? ?);
+  cut (veqb y w = false) [ lapply H1 normalize cases veqb // >if_t >if_monotone // ] 
+  #Hff >Hff >if_f
+  whd in ⊢(? ? % %); lapply ssc_in * * * * #_ #_ #He #_ #_ @eq_f2 [ 2: @eq_f2 //
+  lapply (Hs w y z ? ? ?)
+  [ lapply H3 normalize cases inb_b [>if_monotone >if_monotone // ]
+  cases veqb // >if_t >if_monotone // ] [ 2: @(ssss_aux1 … H1) ]
+  [ lapply H2 whd in match (inb_e ? ?);
+    whd in match (sss ? ? ? ?);
+    cases inb_e [ >if_t #abs destruct ] >if_f #HK >HK //
+  | whd in match (sss ? ? ? ?); whd in match (sss ? ? ? ?);
+  generalize in match (?:inb_b z b=false);
+  generalize in match (?:inb_b z b=false); #e0 #e1 #HHH destruct
+  cut (∀ H, K. ssb b w z H = ssb b w z K) // #HJ <HJ [ 2: @e1] <e2 //
+  ]
+ ] >He // lapply H1 normalize cases inb_e // >if_t //
+ | generalize in match H2; #H22 -H2 >Htf in H22 ⊢%; >if_f >if_f #JK
+  whd in ⊢(? ? % %);
+  cut (veqb y w = false) [ lapply H1 normalize cases veqb // >if_t >if_monotone // ] 
+  #Hff >Hff >if_f whd in ⊢(? ? % %); @eq_f2 // @eq_f2 //
+  lapply ssc_in * * * * #_ #_ #He #_ #_
+  lapply (Hs x y z ? ? ?)
+  [ lapply H3 normalize cases inb_b [>if_monotone >if_monotone // ]
+  cases veqb // >if_t >if_monotone // ] [ 2: @(ssss_aux1 … H1) ]
+  [ lapply JK whd in match (inb_e ? ?);
+    whd in match (sss ? ? ? ?);
+    cases inb_e [ >if_t #abs destruct ] >if_f #HK >HK // 
+  | whd in match (sss ? ? ? ?); whd in match (sss ? ? ? ?);
+  
+  generalize in match (?:inb_b z b=false);
+  generalize in match (?:inb_b z b=false); #e0 #e1 #HHH destruct
+  cut (∀ H, K. ssb b w z H = ssb b w z K) // #HJ <HJ [ 2: @e1] <e2 //
+  ]
+ ]
+| #w #b #Hb #x #y #z #H1 #H2 #H3 normalize @eq_f2 // @Hb
+] qed.
+
+lemma aetg_aux1: ∀e, y, b, n. (fresh_var_e (Snoc e [y←b])≤n)→ ((∀x:Variable.rhs (beta_e (Snoc e [y←b]) n) x→inb_e x (Snoc e [y←b])=false)
+   ∧distinct_rhs (beta_e (Snoc e [y←b]) n)) →
+ ((∀x:Variable.rhs (beta_e e (S n)) x→inb_e x e=false)
+  ∧distinct_rhs (beta_e e (S n))).
+#e * #y #b #n #J #H % // * #x whd in match (beta_e ? ?); #Hk lapply (betae_rhs_bound e (S n) x)
+#KK lapply (KK Hk) * #HJ #_
+cut (fresh_var_e e ≤x)
+[@(transitive_le … (le_S …(le_maxl … J)) HJ)
+| lapply fresh_var_to_in_crumble * * * * #_ #_ #He #_ #_ @He
+]qed.
+
+
+lemma gamma_distro: ∀l, v, w, H. pi1 … (gamma_b (AppValue v w) l H) =
+ AppValue (pi1 … (gamma_v v l (gamma_btovl … H))) (pi1 … (gamma_v w l (gamma_btovr … H))).  
+@list_ind // * #y #y' #tl #HI #v #w #H
+whd in match (gamma_b ? ? ?);
+whd in match (gamma_v ? ? ?);
+whd in match (gamma_v w ? ?);
+generalize in match (gamma_v_aux3 ? ? ? ? ? ?);
+generalize in match (gamma_v_aux3 ? ? ? ? ? ?);
+generalize in match (gamma_v_aux2 ? ? ? ?);
+generalize in match (gamma_v_aux2 ? ? ? ?);
+generalize in match (gamma_b_aux2 ? ? ? ?);
+generalize in match (gamma_b_aux3 ? ? ? ? ? ?);
+>HI
+#P1 #P2 #P3 #P4 #P5 #P6
+whd in match (ssb ? ? ? ?); // qed.
+
+lemma gamma_var_simplification1: ∀f, e, x, b, l, H.
+ domb_e x f = false → domb_e x e = false → 
+  fresh_var_e (concat e (push f [x←b])) ≤ l → 
+ pi1 … (gamma_var x (beta_e (concat e (push f [x←b])) l) H) = ν(l+e_len f).
+@Environment_simple_ind2
+[ #e #x #b #l whd in match (push ? ?); whd in match (concat ? ?);
+  >concat_e_epsilon #H #_ #H1 whd in match (beta_e ? ?);
+  whd in match (gamma_var ? ? ?);
+  >gamma_var_ns // >veqb_true whd in match (e_len ?);
+  cut (l+0=l) // #HH >HH //
+| #f * #z #b' #HI #e #x #b #l whd in match (push ? ?);
+  whd in match (concat ? ?); #H
+  whd in match (beta_e ? ?);
+  whd in match (gamma_var ? ? ?); #H1 #H2 #H3 >HI
+  [ 2: >fresh_var_concat lapply H3
+    change with (max ? ?) in match (fresh_var_e ?);
+    >fresh_var_concat -H3 #H3 @to_max
+    [ @le_S @(le_maxl … (le_maxl … H3))
+    | @le_S @(le_maxr … (le_maxl … H3))
+    ]
+  | 3: @H2
+  | 4: lapply H1 normalize cases domb_e // >if_monotone #H @H
+  ]
+  cut (veqb (ν(S l+e_len f)) z = true ∨ veqb (ν(S l+e_len f)) z = false) // *
+  #Hveq >Hveq whd in match (e_len (Snoc ? ?)); <plus_n_Sm //
+  elim (veqb_true_to_eq (ν(S l+e_len f)) z) #Heq #_ lapply (Heq Hveq) -Heq #Heq
+  destruct @False_ind lapply H3
+  change with (max ? (max ? ?)) in match (fresh_var_e ?); -H3 #H3
+  lapply (le_maxl … (le_maxr … H3)) cut (l ≤ (S l+ e_len f)) [//] /2/
+] qed.
+
+lemma gamma_var_simplification2: ∀e, f, x, b, l, H.
+ domb_e x f = false → domb_e x e = false → 
+  fresh_var_e (concat e (push f [x←b])) ≤ l → 
+ pi1 … (gamma_var x (beta_e (concat (push f [x←b]) e) l) H) = ν(l+e_len e+e_len f).
+@Environment_simple_ind2
+[ #f #x #b #l #H #H1 #_ #H2
+  cut (concat (push f [x←b]) Epsilon = concat Epsilon (push f [x←b])) //
+  #Heq generalize in match H; >Heq #A
+  lapply (gamma_var_simplification1 (f) Epsilon x b l A H1 (refl …) H2)
+  whd in match (e_len Epsilon); #HH >HH /2/
+| #f * #z #b' #HI #e #x #b #l whd in match (push ? ?);
+  whd in match (concat ? ?); #H
+  whd in match (beta_e ? ?);
+  whd in match (gamma_var ? ? ?); #H1 #H2 #H3 >HI
+  [ 2: lapply H3 >fresh_var_concat >fresh_var_concat
+    change with (max ? ?) in match (fresh_var_e ?); -H3 #H3
+    @to_max [ @(le_S … (le_maxl … (le_maxl … H3))) | @(le_S … (le_maxr … H3)) ]
+  | 3: lapply H2 normalize cases domb_e // >if_monotone #H @H
+  | 4: @H1
+  ]
+  cut (veqb (ν(S l+e_len f+e_len e)) z = true ∨ veqb (ν(S l+e_len f+e_len e)) z = false) // *
+  [ 2: #Heq >Heq >if_f normalize <plus_n_Sm /2/
+  | #Hveqb elim (veqb_true_to_eq (ν(S l+e_len f+e_len e)) z) #Heq #_ lapply (Heq Hveqb) -Heq
+    #Heqw destruct @False_ind lapply H3 >fresh_var_concat
+    change with (max ? (max ? ?)) in match (fresh_var_e ?); -H3 #H3
+    lapply (le_maxl … (le_maxr … (le_maxl … H3))) /2/
+  ]
+] qed.
+
+lemma rhs_beta_concat_distro1: ∀f, e, x, l. rhs (beta_e (concat e f) l) x → (rhs (beta_e e (l+e_len f)) x ∨ rhs  (beta_e f (l)) x).
+@Environment_simple_ind2
+[ #e #x #l normalize #H @or_introl // 
+| #f *#y #b #HI #e #x #l normalize *
+  [ #HH elim (veqb_true_to_eq … x νl) #Heq #_ lapply (Heq HH) *
+    @or_intror @or_introl @veqb_true
+  | #H elim (HI e x (S l) H)
+    [ #HI  @or_introl <plus_n_Sm @HI
+    | #HI @or_intror @or_intror @HI
+    ]
+  ]
+] qed.
+
+lemma rhs_beta_concat_distro2: ∀f, e, x, l. (rhs (beta_e e (l+e_len f)) x ∨ rhs  (beta_e f (l)) x) →  rhs (beta_e (concat e f) l) x.
+@Environment_simple_ind2
+[ #e #x #l normalize * // #H @False_ind @H 
+| #f * #y #b #HI #e #x #l normalize *
+  [ #HH @or_intror @HI @or_introl //
+  | * #HH 
+    [ @or_introl @HH
+    | @or_intror @HI @or_intror @HH
+    ]
+  ]
+] qed.
+
+lemma in_gamma_e: ∀l, e, x, H. 
+ (inb_e x e) = false →
+  (¬rhs l x ) →   
+   inb_e x (pi1 … (gamma_e e l H)) = false.
+@list_ind
+[ #e #x #H normalize #H1 #_ @H1
+| * #y #y' #tl #HI #e #x #H #H1 #H2
+  whd in match (gamma_e ? ? ?);
+  lapply alpha_fin1 * * * * #_ #_ #He #_ #_ >He [ @refl]
+  [ 2: @HI // % #Hk elim (H2) #H2 @H2 normalize @or_intror @Hk
+  | elim H2 normalize >veqb_comm cases veqb // #HH @False_ind @HH @or_introl //
+  ]
+] qed. 
+
+lemma gammae_concat_irrelevance: ∀f, e, l, t, H.
+ (∀x. domb_e x f = true → inb_e x e = false ∧ inb_e x t = false) →
+  fresh_var_e (concat e f) ≤ l →
+  pi1 … (gamma_e t (beta_e (concat e f) l) H) = pi1 … (gamma_e t (beta_e e (l+e_len f)) ?). 
+[ 2: % // #k #Hk elim H #H' #_ @H' @rhs_beta_concat_distro2 @or_introl @Hk ]
+@Environment_simple_ind2
+[ #e #l #t whd in match (concat ? ?); whd in match (e_len ?); #H
+  generalize in match ( conj ? ? ? ?);
+  generalize in match H; cut (l+0=l) // #HH >HH //
+| #f * * #y #b #HI #e #l #t
+  whd in match (concat ? ?);
+  whd in match (beta_e ? ?); #H
+  whd in match (gamma_e ? ? ?); #HH #H2
+  generalize in match (gamma_e_aux3 ? ? ? ? ? ?);
+  generalize in match (gamma_e_aux2 ? ? ? ?);
+  generalize in match (conj ? 
+   (distinct_rhs (beta_e e (l+e_len (Snoc f [νy←b])))) ? ?); 
+  generalize in match H;
+   whd in match (e_len (Snoc ? ?)); <plus_n_Sm
+  #P1 #P2 #P3 >HI
+  [ 2: @(le_S … (le_maxl … H2)) 
+  | 3: #k #Hk @HH normalize >Hk >if_monotone @refl] #P4
+   lapply ssc_in * * * * #_ #_ #He #_ #_ >He [ // ]
+   >in_gamma_e
+   [ @refl
+   | 3: elim (HH (νy) ?) // normalize >neqb_refl //
+   | % #Hy elim (betae_rhs_bound … Hy) #Ha #_ @False_ind
+     lapply (transitive_le … (le_S … Ha) (le_maxl … (le_maxr … H2))) /2/
+   ]
+] qed.
+
+
+lemma gamma_e_irrelevance: ∀f, l, t, H.
+ (∀x. domb_e x f = true →  inb_e x t = false) →
+  fresh_var_e f ≤ l →
+  pi1 … (gamma_e t (beta_e f l) H) = t .
+@Environment_simple_ind2
+[ #l whd in match (beta_e ? ?); #t whd in match (gamma_e ? ? ?); // % // #k
+  normalize #abs @False_ind @abs
+| #e * * #y #b #HI #l #t #H1 #H2 #H3
+  whd in match (beta_e ? ?);
+  whd in match (gamma_e ? ? ?);
+  generalize in match (gamma_e_aux3 ? ? ? ? ? ?); >HI
+  [ 2: @(le_S … (le_maxl … H3))
+  | 3: * #k #Hk @H2 normalize >Hk >if_monotone @refl
+  ]
+  #aa lapply ssc_in * * * * #_ #_ #He #_ #_ @He @H2 normalize >neqb_refl @refl
+] qed.  
+
+
+lemma in_gamma_b: ∀l, e, x, H. 
+ (inb_b x e) = false →
+  (¬rhs l x ) →   
+   inb_b x (pi1 … (gamma_b e l H)) = false.
+@list_ind
+[ #e #x #H normalize #H1 #_ @H1
+| * #y #y' #tl #HI #e #x #H #H1 #H2
+  whd in match (gamma_e ? ? ?);
+  lapply alpha_fin1 * * * * #_ #He #_ #_ #_ >He [ @refl]
+  [ 2: @HI // % #Hk elim (H2) #H2 @H2 normalize @or_intror @Hk
+  | elim H2 normalize >veqb_comm cases veqb // #HH @False_ind @HH @or_introl //
+  ]
+] qed. 
+
+
+lemma gammab_concat_irrelevance: ∀f, e, l, t, H.
+ (∀x. domb_e x f = true → inb_e x e = false ∧ inb_b x t = false) →
+  fresh_var_e (concat e f) ≤ l →
+  pi1 … (gamma_b t (beta_e (concat e f) l) H) = pi1 … (gamma_b t (beta_e e (l+e_len f)) ?). 
+[ 2: % // #k #Hk elim H #H' #_ @H' @rhs_beta_concat_distro2 @or_introl @Hk ]
+@Environment_simple_ind2
+[ #e #l #t whd in match (concat ? ?); whd in match (e_len ?); #H
+  generalize in match ( conj ? ? ? ?);
+  generalize in match H; cut (l+0=l) // #HH >HH //
+| #f * * #y #b #HI #e #l #t
+  whd in match (concat ? ?);
+  whd in match (beta_e ? ?); #H
+  whd in match (gamma_b ? ? ?); #HH #H2
+  generalize in match (gamma_b_aux3 ? ? ? ? ? ?);
+  generalize in match (gamma_b_aux2 ? ? ? ?);
+  generalize in match (conj ? 
+   (distinct_rhs (beta_e e (l+e_len (Snoc f [νy←b])))) ? ?); 
+  generalize in match H;
+   whd in match (e_len (Snoc ? ?)); <plus_n_Sm
+  #P1 #P2 #P3 >HI
+  [ 2: @(le_S … (le_maxl … H2)) 
+  | 3: #k #Hk @HH normalize >Hk >if_monotone @refl] #P4
+   lapply ssc_in * * * * #_ #Hb #_ #_ #_ >Hb [ // ]
+   >in_gamma_b
+   [ @refl
+   | 3: elim (HH (νy) ?) // normalize >neqb_refl //
+   | % #Hy elim (betae_rhs_bound … Hy) #Ha #_ @False_ind
+     lapply (transitive_le … (le_S … Ha) (le_maxl … (le_maxr … H2))) /2/
+   ]
+] qed.
+
+lemma in_gamma_v: ∀l, e, x, H. 
+ (inb_v x e) = false →
+  (¬rhs l x ) →   
+   inb_v x (pi1 … (gamma_v e l H)) = false.
+@list_ind
+[ #e #x #H normalize #H1 #_ @H1
+| * #y #y' #tl #HI #e #x #H #H1 #H2
+  whd in match (gamma_e ? ? ?);
+  lapply alpha_fin1 * * * * #_ #_ #_ #He #_ >He [ @refl]
+  [ 2: @HI // % #Hk elim (H2) #H2 @H2 normalize @or_intror @Hk
+  | elim H2 normalize >veqb_comm cases veqb // #HH @False_ind @HH @or_introl //
+  ]
+] qed. 
+
+lemma gammav_concat_irrelevance: ∀f, e, l, t, H.
+ (∀x. domb_e x f = true → inb_e x e = false ∧ inb_v x t = false) →
+  fresh_var_e (concat e f) ≤ l →
+  pi1 … (gamma_v t (beta_e (concat e f) l) H) = pi1 … (gamma_v t (beta_e e (l+e_len f)) ?). 
+[ 2: % // #k #Hk elim H #H' #_ @H' @rhs_beta_concat_distro2 @or_introl @Hk ]
+@Environment_simple_ind2
+[ #e #l #t whd in match (concat ? ?); whd in match (e_len ?); #H
+  generalize in match ( conj ? ? ? ?);
+  generalize in match H; cut (l+0=l) // #HH >HH //
+| #f * * #y #b #HI #e #l #t
+  whd in match (concat ? ?);
+  whd in match (beta_e ? ?); #H
+  whd in match (gamma_v ? ? ?); #HH #H2
+  generalize in match (gamma_v_aux3 ? ? ? ? ? ?);
+  generalize in match (gamma_v_aux2 ? ? ? ?);
+  generalize in match (conj ? 
+   (distinct_rhs (beta_e e (l+e_len (Snoc f [νy←b])))) ? ?); 
+  generalize in match H;
+   whd in match (e_len (Snoc ? ?)); <plus_n_Sm
+  #P1 #P2 #P3 >HI
+  [ 2: @(le_S … (le_maxl … H2)) 
+  | 3: #k #Hk @HH normalize >Hk >if_monotone @refl] #P4
+   lapply ssc_in * * * * #_ #_ #_ #Hb #_ >Hb [ // ]
+   >in_gamma_v
+   [ @refl
+   | 3: elim (HH (νy) ?) // normalize >neqb_refl //
+   | % #Hy elim (betae_rhs_bound … Hy) #Ha #_ @False_ind
+     lapply (transitive_le … (le_S … Ha) (le_maxl … (le_maxr … H2))) /2/
+   ]
+] qed.
+
+lemma gamma_b_to_v: ∀l, v, H. pi1 … (gamma_b (CValue v) l H) = CValue (pi1 … (gamma_v v l H)).
+@list_ind
+[ normalize //
+| * #y #y' #tl #HI #v #H
+  whd in match (gamma_b ? ? ?);
+  whd in match (gamma_v ? ? ?);
+  generalize in match (gamma_b_aux3 … H); 
+  generalize in match (gamma_v_aux3 … H); >HI #P1 #P2
+  whd in match (ssb ? ? ? ?); @eq_f //
+] qed.
+
+lemma inb_alphae_false1: 
+∀e, k, l, H. l > k → inb_e (νk) e = false → inb_e (νk) (pi1 … (alpha_e e l H)) = false.
+@Environment_simple_ind2
+[ #k #l #H #H1 #_ normalize @refl
+| #e * * #y #b #HI #k #l #H1 #H2 #H3 whd in match (alpha_e ? ? ?);
+  lapply (HI k (S l) (alpha_e_aux3 l e (νy) b H1) (le_S … H2) ?)
+  [ lapply (orb_false … H3) * // ]
+  cases (alpha_e) #aa #hh whd in match (match ? in Sig with [_⇒?]);
+  whd in match (inb_e ? (Snoc ? ?));
+  whd in match (inb_s ? ?); elim ((orb_false … H3)) #_ #H3
+  elim ((orb_false … H3)) #_ #H3 >H3 -H3
+  whd in match (veqb ? ?);
+  cut (neqb k l = true ∨ neqb k l = false) // *
+  [ #Hkl elim (neqb_iff_eq … k l) #Heq #_ lapply (Heq Hkl) -Heq #Heq
+    -H3 destruct @False_ind lapply H2 @le_Sn_n ]
+  #Hkl >Hkl >if_f >if_then_true_else_false
+  lapply alpha_fin1 * * * * #_ #_ #He #_ #_ #HH @He //
+] qed.
+
+lemma alpha_push_aux1: ∀e,y,b,n. ∀(H : (fresh_var_e (push e [y←b])≤n)).
+ (fresh_var_e e≤n).
+#e #y #b #n <fresh_var_push #H @(le_maxl … H) qed.
+
+lemma alpha_push_aux2: ∀e,y,b,n. ∀(H : (fresh_var_e (push e [y←b])≤n)).
+((∀x:Variable.rhs (beta_e e n) x→inb_b x b=false)∧distinct_rhs (beta_e e n)).
+
+#e * #y #b #n <fresh_var_push #H % // * #k #Hk elim (betae_rhs_bound … Hk) -Hk #Hk #_
+change with (max ? (max ? ?)≤n) in H; lapply (transitive_le … (le_maxr … (le_maxr … H)) Hk)
+lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb qed.
+
+lemma sse_push_aux1: ∀y', e, s.  ∀(H : (inb_e y' (push e s)=false)).
+ (inb_s y' s=false).
+#y' #e #s >inb_push #H elim (orb_false … H) // qed. 
+
+lemma sse_push_aux2: ∀y', e, s.  ∀(H : (inb_e y' (push e s)=false)).
+ (inb_e y' e=false).
+#y' #e #s >inb_push #H elim (orb_false … H) // qed. 
+(*
+lemma sse_push: ∀e, s, y, y', H. sse (push e s) y y' H = concat (sse (Snoc Epsilon s) y y' (sse_push_aux1 … H)) (sse e y y' (sse_push_aux2 … H)) .
+@Environment_simple_ind2
+[ * #z #b #y #y' #H
+  whd in match (push ? ?); whd in match (sse ? ? ? ?);
+  whd in match (sse Epsilon ? ? ?);
+  whd in match (push ? ?); >concat_e_epsilon cases veqb //
+| #e * #z' #b' #HI * #z #b #y #y' #H 
+  whd in match (push ? ?); whd in match (sse (Snoc ? ?) ? ? ?);
+  >HI
+  [ 1:
+  whd in match (sse (Snoc ? ?) ? ? ?);
+  whd in match (sse (Snoc ? ?) ? ? ?);
+   cut (veqb y z' = true ∨ veqb y z' = false) // * #Hyz'
+   [ elim (veqb_true_to_eq y z') #Heq lapply (Heq Hyz') -Heq #Heq destruct #_ 
+     >veqb_true >if_t >if_t
+      cut (veqb z z' = true ∨ veqb z z' = false) // * #Hzz'
+       [ elim (veqb_true_to_eq z z') #Heq lapply (Heq Hzz') -Heq #Heq destruct #_ 
+     >veqb_true >if_t whd in ⊢(? ? %%); whd in match (concat ? ?);  @eq_f2 // >if_t
+
+   cut (veqb y z' = false)
+   [ lapply H  normalize >inb_push normalize cases veqb
+
+] qed.
+*)
+
+lemma sse_push:∀e, b, x, y, z, H1, H2, H3. ∀(K: domb_e y e = false). 
+(sse (push e [x←b]) y z H1
+  =push (sse e y z H2) [x←ssb b y z H3 ]).
+@Environment_simple_ind2
+[ #b #x #y #z #H1 #H2 #H3 #K normalize cases (veqb y x) //
+| #e * #w #bb #HI #b #x #y #z #H1 #H2 #H3
+  #Hdomb cut (veqb y w = false ∧ domb_e y e= false)
+    [ change with (orb ? ? = false) in Hdomb;
+      elim (orb_false … Hdomb) #Ha #Hb % //] * #Ha #Hb
+  whd in match (sse ? ? ? ?);
+  whd in match (sse (Snoc ? ?) ? ? ?); >Ha >if_f >if_f
+  whd in ⊢ ( ? ? % (? % ?));
+  whd in match (push (Snoc ? ?) ?); @eq_f2 // >HI //
+] qed.
+
+lemma e_len_push: ∀e, s. e_len (push e s) = S (e_len e).
+@Environment_simple_ind2 // qed.
+
+lemma domf_alpha_e: ∀e, x, n, H. x < n  → domb_e (νx) (pi1 … (alpha_e e n H)) = false.
+@Environment_simple_ind2 [//]
+#e * #y #b #HI #x #n #H #Hn
+whd in match (alpha_e ? ? ?);
+lapply (HI x (S n) (alpha_e_aux3 n e y b H) (le_S … (Hn)))
+cases alpha_e #ll #tt  whd in match (match ? in Sig with [_⇒?]);
+whd in match (domb_e ? (Snoc ? ?)); >dom_sse #k >k  >if_then_true_else_false
+normalize 
+cut (neqb x n = true ∨ neqb x n = false) // * // #Hrr
+elim (neqb_iff_eq x n) #Heq lapply (Heq Hrr) -Heq #Heq destruct #_ @False_ind
+lapply Hn @le_Sn_n qed. 
+
+lemma domt_alpha_e: ∀e, x, n, H. domb_e x e = true → domb_e x (pi1 … (alpha_e e n H)) = false.
+@Environment_simple_ind2 [//]
+#e * * #y #b #HI #x #n #H whd in match (domb_e ? ?);
+cut (domb_e x e = true ∨ domb_e x e = false) // * #Hd >Hd
+[ >if_monotone #_ whd in match (alpha_e ? ? ?); lapply (HI x (S n) ? Hd)
+  [ @(alpha_e_aux3 n e (νy) b H) ] cases alpha_e #gg #tt
+    whd in match (match ? in Sig with [_⇒?]);
+  whd in match (domb_e ? (Snoc ? ?)); >dom_sse #HH >HH >if_then_true_else_false
+  lapply (dom_to_in …Hd) #Hin lapply fresh_var_to_in_crumble
+  * * * * #_ #_ #He #_ #_
+  cut (veqb x (νn)=true ∨ veqb x (νn)=false) // * //
+  #Heq elim (veqb_true_to_eq x νn) #Htf #_ lapply (Htf Heq) -Heq #Heq destruct
+  lapply (He e n ?) [ @(le_maxl … H)] >Hin #abs destruct ]
+  >if_then_true_else_false #Htf 
+  elim (veqb_true_to_eq x νy) #Heq lapply (Heq Htf) -Heq #Heq destruct #_
+  whd in match (alpha_e ? ? ?);
+  lapply (domf_alpha_e e y (S n) (alpha_e_aux3 n e (νy) b H) (le_S … ((le_maxl … (le_maxr … H)))))
+  cases alpha_e #tt #gg 
+  whd in match (match ? in Sig with [_⇒?]);
+  whd in match (domb_e ? ?); whd in match (domb_e ? (Snoc ? ?)); >dom_sse
+  #Hdt >Hdt normalize cut (neqb y n = true ∨ neqb y n = false) // * #HH >HH //
+  @False_ind elim (neqb_iff_eq  y n) #Heq
+  lapply (Heq HH) -Heq #Heq destruct #_
+  lapply ((le_maxl … (le_maxr … H))) @le_Sn_n
+qed.
+  
+lemma alpha_push: ∀ e, y, b, n, H.
+ pi1 … (alpha_e (push e [y←b]) n H) =push (pi1 … (alpha_e e n (alpha_push_aux1 … H))) 
+  [ν(n+e_len e)←pi1 … (gamma_b b (beta_e e n) (alpha_push_aux2 … H))].
+ @Environment_simple_ind2
+ [ #y #b #n #H whd in match (push ? ?); whd in match (alpha_e ? ? ?);
+   whd in match (sse ? ? ? ?); whd in match (beta_e ? ?);
+   whd in match (push ? ?);  whd in match (e_len ?);
+   whd in match (gamma_b b [] ?); //
+ | #e * * #z #b' #HI #y #b #n #H
+   whd in match (push ? ?); whd in match (alpha_e ? ? ?);
+   
+   lapply (HI y b (S n) (alpha_e_aux3 n (push e [y←b]) (νz) b' H))
+   cases alpha_e #aa #hh
+   whd in match (match ?  in Sig with [_⇒?]); #Heq destruct
+   whd in match (alpha_e (Snoc ? ?) ? ?);
+   generalize in match (alpha_e_aux2 ? ? ? ? ? ? ?);
+   generalize in match (alpha_push_aux1 ? ? ? ? ?);
+   generalize in match (alpha_e_aux3 n e (νz) b' ?);
+   #P1
+   lapply (domf_alpha_e e z (S n) P1 ?)
+   [ lapply H <fresh_var_push -H #H @(le_S …(le_maxl …(le_maxr … (le_maxl … H)))) ]
+    cases alpha_e #bb #jj #GH #P2 #P3
+   whd in match (match ?  in Sig with [_⇒?]);
+   whd in match (push (Snoc ? ?) ?); @eq_f2 //
+   whd in match (beta_e (Snoc ? ?) ?);
+   whd in match (gamma_b ? (?::?) ?);
+   >sse_push [ @eq_f2 [ // ] @eq_f2 // normalize <plus_n_Sm // | 3: skip | 4: skip ]
+   @GH
+ ]
+qed.
+
+lemma sse_concat: ∀f, e, x, y, H1, H2, H3. domb_e x f = false → 
+ (sse (concat e f) x y H1)= concat (sse e x y H2) (sse f x y H3).
+@Environment_simple_ind2
+[ //
+| #f * #z #b #HI #e #x #y #H1 #H2 #H3 #Hd whd in match (concat ? ? );
+  whd in match (sse ? ? ? ?);
+  cut (veqb x z = false)
+  [ lapply Hd normalize cases veqb // >if_t >if_monotone // ] #Hf >Hf >if_f
+  whd in ⊢(? ? % ?);
+  whd in match (sse (Snoc ? ?) ? ? ?); >Hf >if_f
+   whd in ⊢(? ? ? (%)); @eq_f2 [2: //] @HI lapply Hd normalize cases domb_e //
+   >if_monotone //
+] qed.
+
+lemma dom_gamma: ∀l, e, x, H. domb_e x (pi1 … (gamma_e e l H)) = domb_e x e.
+@list_ind // * #z #z' #tl #HI #e #x #H whd in match (gamma_e ? ? ?);
+>dom_sse @HI qed.
+  
 lemma gamma_lemma: ∀D, c, n, H. (pi1 … (alpha_c (plug_c D c) n H)) = plug_c (gamma_cc (alpha_cc D (n+e_len_c c) (gamma_lemma_aux2 c D n H) ) (beta c n) (gamma_lemma_aux3 c D n H (gamma_lemma_aux2 c D n H))) (pi1 … (alpha_c c n (gamma_lemma_aux1 c D n H))).
 *
 [ * #b #e #n whd in match (plug_c hole ?); whd in match (alpha_cc hole ? ?);
@@ -1592,8 +3064,12 @@ cut (∀K, J, L.
      J)
     〈B,Epsilon〉)) [ 2: #UU @UU ]
  #K #J #L
-#HHH lapply HHH lapply L lapply J lapply K lapply h 
+#HHH lapply HHH lapply L lapply J lapply K lapply h
+
+lapply (alpha_domain_bound e b (S (n+O)) K) 
 cases     ( (alpha b e (S (n+O)) K)) * #BB #EE #hh
+
+#EEdb
 
 whd in match (match ? in Sig with [_⇒?]);
 -h #h -K #K #J -L #L #HHH destruct
@@ -1607,7 +3083,11 @@ cut (∀FF, GG.  (at (ssc 〈BB,EE〉 y (νn) L) (Snoc Epsilon [νn←B])
     (ssb BB y (ν(n+O)) FF)
     (envc
      (sse EE y (ν(n+O)) GG) ν(n+O))) 〈B,Epsilon〉))
-[ 2: #UU @UU ] #FF #GG normalize @eq_f2
+[ 2: #UU @UU ] #FF #GG normalize cut (domb_e y EE = false )
+  [ lapply H cases y #ny lapply (EEdb ny) whd in match (domb ? ?);
+    cases domb_e // #Habs elim (Habs (refl …)) -Habs #Ha #_
+    #HH @False_ind lapply (transitive_le … (le_S … (le_plus_a_r O … (le_maxl … (le_maxr … (le_maxr … HH))))) Ha)
+    @le_Sn_n ] #HdEE >HdEE >if_f whd in match (match ? in Crumble with [_⇒ ?]); @eq_f2
 [ cut (n+0 =n) // #HH >HH in FF GG ⊢ %; //
 | @eq_f2 // cut (n+0 =n) // #HH >HH in FF GG ⊢ %; #HHA #HHB @refl
 ]
@@ -1632,8 +3112,14 @@ whd in match (match «a,h»
     «at (ssc a0 z (νn) (alpha_aux3 b (concat (Snoc e [y←B]) ee) a0 n z bb h0 H))(Snoc Epsilon [νn←bb]),
     alpha_aux4 b (concat (Snoc e [y←B]) ee) a0 n z bb
     (alpha_aux3 b (concat (Snoc e [y←B]) ee) a0 n z bb h0 H) h0 H»]);
+    
+    lapply (alpha_domain_bound … (alpha_aux1 B ee [z←bb] n
+        (gamma_lemma_aux1 〈B,Snoc ee [z←bb]〉 (crc b (envc e y)) n H)))
+    
+      
  cases (alpha B ee (S n)        (alpha_aux1 B ee [z←bb] n
         (gamma_lemma_aux1 〈B,Snoc ee [z←bb]〉 (crc b (envc e y)) n H))) * #aab #aae #hh
+        #HVERIGUD
         
 whd in match (match «CCrumble aab aae,hh»
       in Sig
@@ -1758,8 +3244,11 @@ cut (∀P1, P2, P3, P4, P5, P6.   (pi1 Crumble ? (alpha b e (S (S n+e_len ee)) P
 #P1
 cases (alpha b e (S (S n+e_len ee)) ?) *
 #aAb #aAe #hH #P2
+
+lapply (alpha_domain_bound e b (S (n+S (e_len ee))) P2)
+
 cases (alpha b e (S (n+S (e_len ee))) P2) *
-#Aab #Aae #Hh #P3 #P4 #P5 #P6
+#Aab #Aae #Hh #HdomAae #P3 #P4 #P5 #P6
 
 whd in match (match ? in Sig with [_⇒?]);
 whd in match (match ? in Sig with [_⇒?]);
@@ -1946,12 +3435,61 @@ cut (∀P13, P14, P15, P16, P17.
     (at (ssc 〈aab,aae〉 z (νn) P5) (Snoc Epsilon [νn←bb]))))
 [ 2: #UU @UU ] 
 -P8 -P11 -P12 #P8 #P11 #P12 #P13 #P14
+
+whd in match (ssc (CCrumble aab aae) ? ? ?);
+cut (domb_e z aae = false)
+[ lapply H cases z #nz lapply (HVERIGUD nz)
+  whd in match (domb ? ?); cases domb_e //
+  #HJ elim (HJ (refl …)) #Ha #_
+  change with (max ? ?) in match (fresh_var ?);
+  change with (max ? ?) in match (fresh_var_e ?);  
+  >fresh_var_concat #HH @False_ind
+  lapply (transitive_le … (le_S …(le_maxl … (le_maxr … (le_maxr … HH)))) Ha)
+  @le_Sn_n ]
+
+#Hdaae >Hdaae >if_f
+
+
+
+
 whd in match (plug_c ? ?);
 whd in match (plug_e ? ?);
 whd in match (plug_c ? ?);
 whd in match (plug_e ? ?);
 >concat_e_epsilon -HI #HI destruct
 whd in match (ssc ? ? ? ?);
+
+cut (domb_e z
+        (concat
+         (Snoc
+          (pi1 …
+           (gamma_e (sse Aae y (ν(S n+e_len ee)) P2) (beta 〈B,ee〉 (S n)) P3))
+          [pi1 …
+           (gamma_var (ν(S n+e_len ee)) (beta 〈B,ee〉 (S n)) P10)←aab]) aae) = false)
+[ >domb_concat_distr >Hdaae whd in match (orb ? false); >if_then_true_else_false
+  whd in match (domb_e ? ?); >gamma_var_ns
+  [ 2: cut  (inb_e (ν(S n+e_len ee)) ee=false) 
+    [ lapply fresh_var_to_in_crumble * * * * #_ #_ #Hee #_ #_ 
+      lapply (Hee ee (S n+ e_len ee)) cases inb_e // -Hee #Hee @Hee
+      @le_plus_a_r @le_S lapply H change with (max ? ?) in match (fresh_var ?);
+      change with (max ? ?) in match (fresh_var_e ?); >fresh_var_concat #HH
+      @(le_maxr … (le_maxl … (le_maxr … HH)))
+    ] @bool_impl_inv2 @dom_to_in ]
+  cut (veqb z (ν(S n+e_len ee)) = false)
+  [ lapply H cut (veqb z (ν(S n+e_len ee)) = true ∨ veqb z (ν(S n+e_len ee)) = false) //
+    * #HJH // elim (veqb_true_to_eq z ν(S n+e_len ee)) #Heq lapply (Heq HJH) -Heq
+    #Heq destruct#_ #HH @False_ind 
+    lapply (le_plus_a_r (e_len ee) …(le_S … (le_maxl … (le_maxr … (le_maxr … HH)))))
+    @le_Sn_n ] #Hve >Hve >if_f >dom_gamma >dom_sse 
+    lapply H cases z #nz lapply (HdomAae … nz)
+    whd in match (domb ? ?); cases domb_e // <plus_n_Sm #HF #HH
+    lapply (le_S …(le_plus_a_r (e_len ee) …(le_S … (le_maxl … (le_maxr … (le_maxr … HH))))))
+    -HH #HH @False_ind elim (HF (refl …) ) #Ha #_
+    lapply (transitive_le … HH Ha) @le_Sn_n ]
+  #HDF >HDF >if_f
+
+
+
 whd in match (at ? ?);
 whd in match (beta ? ?);
 @eq_f2
@@ -2049,741 +3587,39 @@ cut (n+S (e_len ee)= S n+ (e_len ee)) [ // ] #Heq
    [ 2: #UUU @UUU ]
    cut (n+S (e_len ee)= S n+ (e_len ee)) [ // ] #Heq >Heq
    -P2 -P5 -P9 -P10 -P14
-   #P2 #P3 #P5 #P9 #P10 #P12 #P13 #P14 #P15
-  >sse_concat @eq_f2
-    [ 2: //
-    | whd in match (sse (Snoc ? ?) ? ? ?);
-      >veqb_simm cases veqb 
-      [ normalize //
-      | normalize //
-      ]
+   #P2 #P3 #P5 #P9 #P10 #P12 #P13 #P14
+   >gamma_var_ns
+   [ 2: lapply H change with (max ? ?) in match (fresh_var ?);
+     change with (max ? ?) in match (fresh_var_e ?); >fresh_var_concat -H #H
+     cut (inb_e (ν(S n+e_len ee)) ee = false) 
+     [ lapply (le_S … (le_plus_a_r (e_len ee) … (le_maxr … (le_maxl … (le_maxr … H)))))
+       lapply fresh_var_to_in_crumble * * * * #_ #_ #He #_ #_ @He ]
+       @bool_impl_inv2 @dom_to_in ] #P15
+  >sse_concat [ whd in match (sse ? ? ? ?);
+  cut (veqb z (ν(S n+e_len ee)) =false)
+  [ lapply H cases z #nz #HH lapply (le_maxl … (le_maxr … (le_maxr … HH)))
+    cut (veqb (νnz) (ν(S n+e_len ee))=true ∨ veqb (νnz) (ν(S n+e_len ee))=false) //
+    * // normalize elim (neqb_iff_eq nz (S (n+e_len ee))) #Heq #_ #HH lapply (Heq HH)
+    -Heq #Heq -HH destruct #L @False_ind lapply (le_S…  (le_plus_a_r (e_len ee) … L))
+    @le_Sn_n  ]
+  #HH >HH >if_f  @eq_f2
+    [ 2: // 
+    | @eq_f2 [ 2: >veqb_comm >HH // ] //
     ]
+  | lapply H cases z #nz lapply (HVERIGUD nz)
+    whd in match (domb ? ?);
+    cases domb_e // #HJ elim (HJ … (refl …)) -HJ #HJ #_ 
+    #HH lapply ((le_maxl … (le_maxr … (le_maxr … HH))))
+    -HH #HH lapply (transitive_le … (le_S … HJ) HH ) #JK @False_ind lapply JK
+    @le_Sn_n
+    | skip
+    | lapply P15 >inb_concat whd in match (inb_e ? ?);
+      cases inb_e [ >if_t normalize // ] >if_f
+      cases inb_s // normalize //
+    ]
+  ]
+]
 qed.
-
-lemma alpha_c_to_alpha: ∀e, b, l, H. alpha_c 〈b, e〉 l H = alpha b e l H. // qed.
-
-lemma gamma_v_aux1: ∀v.∀(H : ((∀x:Variable.rhs [] x→inb_v x v=false)∧distinct_rhs [])).
- (∀x:Variable.inb_v x v=false→¬rhs [] x→inb_v x v=false).
-#c #H #k #HH #_ @HH qed.
-
-lemma gamma_v_aux2: ∀v, hd, tl.∀(H : ((∀x:Variable.rhs (hd::tl) x→inb_v x v=false)∧distinct_rhs (hd::tl))).
-((∀x:Variable.rhs tl x→inb_v x v=false)∧distinct_rhs tl).
-#b #hd #t #H %
-  [ #k #HH elim H #HHH #_ @HHH cases hd normalize #y #y' @or_intror @HH
-  | elim H #_ cases hd normalize #y #y' * #_ //
-  ]
-qed.
-
-lemma gamma_v_aux3:  
-∀(gamma_v :
-  (∀l:list (Variable×Variable)
-   .∀v:Value
-    .(∀x:Variable.rhs l x→inb_v x v=false)∧distinct_rhs l
-     →Σd:Value.(∀x:Variable.inb_v x v=false→¬rhs l x→inb_v x d=false))).
- ∀(v : Value).
- ∀(t : (list (Variable×Variable))).
- ∀(y : Variable).
- ∀(y' : Variable).
- ∀(H : ((∀x:Variable.rhs (〈y,y'〉::t) x→inb_v x v=false)∧distinct_rhs (〈y,y'〉::t))).
- (inb_v y'
-  (pi1 Value ?
-   (gamma_v t v (gamma_v_aux2 v 〈y, y'〉 t H)))
-  =false).
-#gamma #c #t #y #y' #H cases (gamma ? ? ?) #gg #hh @hh
-[ elim H #H' #_ @H' normalize >veqb_true @or_introl @refl
-| elim H #_ normalize #H' elim H' //
-] qed.
-
-lemma gamma_v_aux4: ∀
- (gamma_v :
-  (∀v:Value
-   .∀l:list (Variable×Variable)
-    .(∀x:Variable.rhs l x→inb_v x v=false)∧distinct_rhs l
-     →Σd:Value.(∀x:Variable.inb_v x v=false→¬rhs l x→inb_v x d=false))).
- ∀(v : Value).
- ∀(tl : (list (Variable×Variable))).
- ∀(y : Variable).
- ∀(y' : Variable).
- ∀(H : ((∀x:Variable.rhs (〈y,y'〉::tl) x→inb_v x v=false)∧distinct_rhs (〈y,y'〉::tl))).
- (∀x:Variable
-  .inb_v x v=false
-   →¬rhs (〈y,y'〉::tl) x
-    →inb_v x
-     (ssv
-      (pi1 Value
-       (λd:Value.∀x0:Variable.inb_v x0 v=false→¬rhs tl x0→inb_v x0 d=false)
-       (gamma_v v tl (gamma_v_aux2 v 〈y,y'〉 tl H))) y y'
-      (gamma_v_aux3 (λl0:list (Variable×Variable).λv0:Value.gamma_v v0 l0) v tl
-       y y' H))
-     =false).
-
-#gamma_b #b #tl #y #y' #H #x #Hinb #Hr
-cut (∀J.   (inb_v x
-  (ssv
-   (pi1 Value ?
-    (gamma_b b tl (gamma_v_aux2 b 〈y,y'〉 tl H))) y y' J)
-  =false)) [ 2: #J @J ]
-#J cases gamma_b in J ⊢%; #bb #h #J
-lapply alpha_fin1 * * * * #_ #_ #_ #Hv #_ @Hv
-[ @h [ @Hinb | % #abs elim Hr #Hr' @Hr' normalize @or_intror @abs ]
-| elim Hr normalize >veqb_simm cases veqb // #abs @False_ind @abs @or_introl @refl ]
-qed.
-
-let rec gamma_v (v:Value) l on l : ((∀x. rhs l x → inb_v x v = false) ∧ distinct_rhs l) →
- (Σd. ∀x. inb_v x v = false → ¬rhs l x → inb_v x d = false) ≝ 
- match l return λl. ((∀x. rhs l x → inb_v x v = false) ∧ distinct_rhs l) →
- (Σd. ∀x. inb_v x v = false → ¬rhs l x → inb_v x d = false) with
- [ nil ⇒ λH. «v, gamma_v_aux1 … v H »
- | cons hd tl ⇒ match hd return λhd. (((∀x. rhs (hd::tl) x → inb_v x v = false) ∧ distinct_rhs (hd::tl)) →
-  (Σd. ∀x. inb_v x v = false → ¬rhs (hd::tl) x → inb_v x d = false)) with 
-  [ mk_Prod y y' ⇒ λH. «ssv (pi1 Value ? (gamma_v v tl (gamma_v_aux2 … H))) y y' (gamma_v_aux3 ? v tl y y' H), gamma_v_aux4 … H »  ]
- ] .
-
-lemma gamma_vtovaraux: ∀l,x.∀(H : ((∀x0:Variable.rhs l x0→inb_v x0 (var x)=false)∧distinct_rhs l)).
- ((∀x0:Variable.rhs l x0→veqb x0 x=false)∧distinct_rhs l).
-@list_ind // qed. 
- 
-lemma gamma_v_to_var: ∀l, x, H.
- pi1 … (gamma_v (var x) l H) = var (pi1 … (gamma_var x l (gamma_vtovaraux … H))).
-@list_ind // * #y #y' #l #HI #x #H
-whd in match (gamma_v ? ? ?);
-whd in match (gamma_var ? ? ?);
-generalize in match (gamma_v_aux2 ? ? ? ?);
-generalize in match (gamma_v_aux2 ? ? ? ?);
-generalize in match (gamma_v_aux3 ? ? ? ? ? ?); >HI
-#P1
-whd in match (ssv ? ? ? ?);
-#P2 #P3 
-cases (veqb ? y) // qed.
-
-lemma gamma_e_step_aux1: ∀l,e,y,b. ∀(H : ((∀x:Variable.rhs l x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs l)).
- ((∀x:Variable.rhs l x→veqb x y=false)∧distinct_rhs l).
- @list_ind [ #e #y #b #H % // #k normalize #abs @False_ind @abs ]
-* #z #z' #tl #HI #e #y #b #H %
-[ #k #Hk elim H #H' #_ lapply (H' … Hk) normalize cases veqb // normalize
-  >if_monotone #H @H
-| elim H #_ #HH @HH
-] qed.
-
-lemma gamma_e_step_aux2: ∀l,e,y,b. ∀(H : ((∀x:Variable.rhs l x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs l)).
- ((∀x:Variable.rhs l x→inb_b x b=false)∧distinct_rhs l).
-@list_ind [ #e #y #b #H % // #k normalize #abs @False_ind @abs ]
-* #z #z' #tl #HI #e #y #b #H %
-[ #k #Hk elim H #H' #_ lapply (H' … Hk) normalize cases inb_b //
-  >if_monotone >if_monotone #H @H
-| elim H #_ #HH @HH
-] qed.
-
-lemma gamma_e_step_aux3: ∀l,e,y,b. ∀(H : ((∀x:Variable.rhs l x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs l)).
- ((∀x:Variable.rhs l x→inb_e x e=false)∧distinct_rhs l).
-@list_ind [ #e #y #b #H % // #k normalize #abs @False_ind @abs ]
-* #z #z' #tl #HI #e #y #b #H %
-[ #k #Hk elim H #H' #_ lapply (H' … Hk) normalize cases inb_e // >if_t #H @H
-| elim H #_ #HH @HH
-] qed.
-
-lemma gamma_e_step_aux4: ∀hd,tl,e,y,b. ∀(H :((∀x:Variable.rhs (hd::tl) x→inb_e x (Snoc e [y←b])=false))
-   ∧distinct_rhs (hd::tl)).  
- ((∀x:Variable.rhs tl x→inb_e x (Snoc e [y←b])=false)∧distinct_rhs tl).
- #hd #tl #e #y #b #H %
-[ #k #Hk elim H #H' #_ @H' cases hd #z #z' normalize @or_intror @Hk
-| elim H #_ cases hd #z #z' normalize * #_ #H @H
-] qed.
-
-lemma gamma_e_step: ∀l, e, y, b, H.
- pi1 … (gamma_e (Snoc e [y←b]) l H) =
-  Snoc (pi1 … (gamma_e e l (gamma_e_step_aux3 … H))) [(pi1 … (gamma_var y l (gamma_e_step_aux1 … H))) ← pi1 … (gamma_b b l (gamma_e_step_aux2 … H))]. 
-@list_ind [ #e #y #b #H normalize @refl ]
-* #z #z' #tl #HI #e #y #b #H
-whd in match (gamma_e ? ? ?);
-whd in match (gamma_e ? (?::?) ?);
-whd in match (gamma_var ? ? ?);
-whd in match (gamma_b ? ? ?);
-generalize in match (gamma_e_aux3 ? ? ? ? ? ?);
-generalize in match (gamma_e_aux2 ? ? ? ?);
->(HI … (gamma_e_step_aux4 … H)) #gea2 #gea3
-whd in match (sse ? ? ? ?); >veqb_simm cases veqb //
-qed.
-
-lemma gamma_v_ns: ∀e,v,l,H. 
- (∀x. (domb_e x e=true) → inb_v x v = false) →
-  pi1 … (gamma_v v (beta_e e l) H) = v.
-@Environment_simple_ind2 // #e * * #y #b #HI #v #l #H #H1
-whd in match (beta_e ? ?);
-whd in match (gamma_v ? ? ?);
-generalize in match (gamma_v_aux2 ? ? ? ?);
-generalize in match (gamma_v_aux3 ? ? ? ? ? ?); >HI
-[ lapply ssc_in * * * * #_ #_ #_ #Hv #_ #HH #HHH @Hv @(H1 (νy) ?)
-  normalize >neqb_refl >if_t @refl
-| #k #Hk @H1 normalize >Hk >if_monotone @refl
-] qed.
-
-lemma gamma_var_ns: ∀e,x,l,H. 
-  (domb_e x e = false) → 
-  pi1 … (gamma_var x (beta_e e l) H) = x.
-@Environment_simple_ind2 // #e * * #y #b #HI #x #l #H #H1
-whd in match (beta_e ? ?);
-whd in match (gamma_var ? ? ?);
-generalize in match (gamma_var_aux2 ? ? ? ? ?);
->HI
-[ #H2 lapply H1 normalize cases veqb // normalize #abs destruct
-| lapply H1 normalize cases domb_e // >if_monotone #H @H
-| % // #k #Hk elim H #HH #_ @HH normalize @or_intror //
-] qed.
-
-lemma alpha_to_gamma_aux1: ∀b, e, n. ∀(H : (fresh_var 〈b,e〉≤n)).
- ((∀x:Variable.rhs (beta_e e n) x→inb_e x e=false)∧distinct_rhs (beta_e e n)).
-#b #e #n #H % // #k #Hk lapply (beta_rhs_bound 〈b,e〉 n)
-whd in match (beta ? ?); #Hbrb lapply Hk cases k #nk -Hk #Hk
-lapply (Hbrb … Hk) * #Ha #Hb
-change with (max ? ?≤n) in H;
-lapply (transitive_le … (le_maxr … H) Ha)
-lapply (fresh_var_to_in_crumble) * * * * #_ #_ #He #_ #_ @He
-qed.
-
-lemma alpha_to_gamma_aux2: ∀b, e, n. ∀(H : (fresh_var 〈b,e〉≤n)).
- ((∀x:Variable.rhs (beta_e e n) x→inb_b x b=false)∧distinct_rhs (beta_e e n)).
-#b #e #n #H % // #k #Hk lapply (beta_rhs_bound 〈b,e〉 n)
-whd in match (beta ? ?); #Hbrb lapply Hk cases k #nk -Hk #Hk
-lapply (Hbrb … Hk) * #Ha #Hb
-change with (max ? ?≤n) in H;
-lapply (transitive_le … (le_maxl … H) Ha)
-lapply (fresh_var_to_in_crumble) * * * * #_ #Hb #_ #_ #_ @Hb
-qed.
-
-lemma alpha_e_aux1:  ∀n.(∀m:ℕ.fresh_var_e Epsilon≤m∧m<n→inb_e (νm) Epsilon=false).
-#n #m #_ // qed.
-
-lemma alpha_e_aux2: ∀n, e', y, b', a.
- ∀(p : (fresh_var_e (Snoc e' [y←b'])≤n)).
- ∀(h : (∀m:ℕ.fresh_var_e e'≤m∧m<S n→inb_e (νm) a=false)).
- (inb_e (νn) a=false).
-#n #e #y #b' #a #p #H @H % // change with (max ? ? ≤ n) in p; @(le_maxl … p) qed.
-
-lemma alpha_e_aux3:  ∀n, e', y, b'. ∀(p : (fresh_var_e (Snoc e' [y←b'])≤n)).
- (fresh_var_e e'≤S n).
- #n #e' #y #b' #p change with (max ? ?≤n) in p; @(le_S … (le_maxl … p)) qed.
- 
-lemma alpha_e_aux4:
- ∀(alpha_e :
-  (∀e:Environment
-   .∀n:ℕ
-    .fresh_var_e e≤n→Σd:Environment.(∀m:ℕ.fresh_var_e e≤m∧m<n→inb_e (νm) d=false))).
-  ∀n, e', y, b', a.
- ∀(p : (fresh_var_e (Snoc e' [y←b'])≤n)).
- ∀(h : (∀m:ℕ.fresh_var_e e'≤m∧m<S n→inb_e (νm) a=false)).
-  (∀m:ℕ
-  .fresh_var_e (Snoc e' [y←b'])≤m∧m<n
-   →inb_e (νm) (Snoc (sse a y (νn) (alpha_e_aux2 n e' y b' a p h)) [νn←b'])=false).
-#alpha_e #n #e' #y #b' #a #p #h #m #H
-lapply alpha_fin1 * * * * #_ #_ #He #_ #_ whd in match (inb_e ? ?);
-cut (neqb m n = false)
-[ cut (neqb m n = true ∨ neqb m n = false) // * #Hnm //
-  elim (neqb_iff_eq m n) #Heq #_ lapply (Heq Hnm) -Heq #Heq destruct @False_ind
-  elim H #_ @le_Sn_n ] #Hmn >He
-[ normalize >Hmn normalize elim H cases y #ny
-  #Ha #_ change with (max ? (max ? ?) ≤?) in Ha; lapply(le_maxr … (le_maxr … Ha))
-  lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb
-| normalize >neq_simm @Hmn 
-| @h elim H #Ha #Hb % [ change with (max ? ? ≤?) in Ha; @(le_maxl … Ha) | @(le_S … Hb) ]
-] qed.
-
-let rec alpha_e  (e: Environment) (n: nat) on e:
- fresh_var_e e ≤ n → 
-  Σd. ∀m. fresh_var_e e ≤ m ∧ m < n → inb_e (νm) d = false ≝ 
- match e return λe. fresh_var_e e ≤ n → Σd. ∀m. fresh_var_e e ≤ m ∧ m < n → inb_e (νm) d = false  with
- [ Epsilon ⇒ λp. mk_Sig … Epsilon ?
- | Snoc e' s ⇒ match s return λs. fresh_var_e (Snoc e' s) ≤ n → Σd. ∀m. fresh_var_e (Snoc e' s) ≤ m ∧ m < n → inb_e (νm) d = false with 
-   [subst y b' ⇒ λp. match alpha_e e' (S n) (alpha_e_aux3 … p) with
-     [ mk_Sig a h ⇒ mk_Sig … (Snoc (sse (a) y (νn) (alpha_e_aux2 … p h)) (subst (νn) b')) (alpha_e_aux4 alpha_e … p h) ]
-   ]
- ].
- @(alpha_e_aux1 … n) qed.
-
-lemma alpha_to_gamma_aux11: ∀b, e, n. ∀(H : (fresh_var 〈b,e〉≤n)). 
-fresh_var_e e ≤n.
-#b #e #n #H change with (max ? ?≤n) in H; @(le_maxr … H) qed.
-
-lemma sse_proof_irrelevance: ∀e, z, z', H, H'. sse e z z' H = sse e z z' H'.
-@Environment_simple_ind2 // #e * * #y #b #HI #z #z' #H #H' whd in match (sse ? ? ? ?);
-cases veqb  qed.
-
-lemma alpha_be_to_gamma_pre: ∀b, e, n, H, H1, H2. pi1 … (alpha b e n H) =
- 〈pi1 … (gamma_b b (beta_e e n) H1), pi1 … (alpha_e e n H2)〉.
-#b @Environment_simple_ind2 //
-#e * * #y #b' #HI #n #H
-whd in match (alpha b (Snoc ? ?) ? ?); #H1 #H2
-lapply (HI (S n) ? ? ?)
-[ @(le_S … (le_maxl … (le_maxr … H)))
-| % // * #k #Hk lapply (betae_rhs_bound … Hk) * #Ha #_
-  cut (fresh_var_b b ≤ k)
-  [ @(transitive_le … (le_S … (le_maxl … H)) Ha)
-  | lapply fresh_var_to_in_crumble * * * * #_ #Hb #_ #_ #_ @Hb
-  ] 
-| 3: change with (max ? ? ≤ ?)
-   change with (max ?  (max ? ?) ≤ n) in H; @to_max
-  [ @(le_S … (le_maxl … H))
-  |  @(le_S … (le_maxl … (le_maxr … H)))
-  ]
-|  cases alpha #C #E whd in match (match ? in Sig with [_⇒?]);  #HH destruct
-  whd in match (ssc ? ? ? ?);
-  whd in match (at ? ?); @eq_f2
-  [ whd in match (gamma_b ? (cons ? ? ?) ?); //
-  | whd in match (concat ? ?); >concat_e_epsilon whd in match (alpha_e ? ? ?);
-    generalize in match (alpha_to_gamma_aux11 ? ? ? ?); #P1
-        generalize in match (le_S ? ? ?); #P2
-    
-    whd in match (alpha_e (Snoc ? ?) ? ?);
-        generalize in match (alpha_lemma1 ? ? ? ?);
-        generalize in match (alpha_e_aux3 ? ? ? ? ?); #P3
- 
-    cut (alpha_e e (S n) P2 = alpha_e e (S n) P3) [ // ] #Heq >Heq
-    cases (alpha_e ? ? ?) #AA #HH #P2
-    whd in match (match  ? in Sig with [_⇒?]); @eq_f2 //
-  ]
-] qed.
-
-lemma alpha_be_to_gamma: ∀b, e, n, H. pi1 … (alpha b e n H) =
- 〈pi1 … (gamma_b b (beta_e e n) (alpha_to_gamma_aux2 b e n H)), pi1 … (alpha_e e n (alpha_to_gamma_aux11 b e n H))〉.
-#b #e #n #H @alpha_be_to_gamma_pre qed.
-
-lemma alphae_domain_bound: ∀ e, n, H, x.
- domb_e (νx) (pi1 … (alpha_e e n H)) = true →
-  n ≤ x ∧ x ≤ n +e_len e.
-@Environment_simple_ind2
-[ #n normalize #_ #x #abs destruct
-| #e * * #y #b' #HI #n #H #x
-  whd in match (alpha_e ? ? ?);
-  lapply (HI (S n) (alpha_e_aux3 … H))
-  cases alpha_e #ae #h
-  whd in match (match ? in Sig with [_⇒?]);
-  -HI #HI
-  whd in match (domb_e ? ?);
-  whd in match (veqb ? ?);
-  cut (neqb x n = true ∨ neqb x n = false) // * #Hxn >Hxn
-  [ normalize elim (neqb_iff_eq x n) #Heq #_ lapply (Heq Hxn) -Heq #Heq
-    destruct #_ % // ]
-  >if_f #HH lapply (domb_sse … HH) *
-  [ #Ha lapply (HI … Ha) * #Haa #Hb normalize % // @lt_to_le @Haa
-  | * #Ha normalize #Hb elim (neqb_iff_eq x n) #Heq #_
-    lapply (Heq Hb) * % //
-  ]
-] qed.
-
-lemma alpha_domain_bound: ∀e, b, n, H, x.
- domb (νx) (pi1 … (alpha b e n H)) = true →
-  n ≤ x ∧ x ≤ n +e_len e.
-#e #b #n #H #x >alpha_be_to_gamma whd in match (domb ? ?);
-@alphae_domain_bound qed. 
-
-lemma dom_sse: ∀e, y, y', H. ∀x. domb_e x (sse e y y' H) = ((domb_e x e ∧ ¬veqb x y) ∨ (¬domb_e x e ∧ domb_e y e ∧ veqb x y')).
-@Environment_simple_ind2 // #e * #z #b #HI #y #y' #H #x whd in match (sse ? ? ? ?);
-whd in match (domb_e ? (Snoc ? ?)); whd in match (domb_e ? (Snoc ? ?));
-cut (veqb y z = true ∨ veqb y z = false) // * #Hyz >Hyz 
-[ >if_t whd in match (domb_e ? ?); >HI normalize >if_then_true_else_false
-  elim (veqb_true_to_eq y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
-  cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz
-  [ >if_t >if_t >if_f >if_f elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct
-    >if_monotone >if_f lapply H normalize >veqb_simm cases veqb // >if_t
-    >if_monotone #abs destruct
-  | >if_f >if_f >if_then_true_else_false cases veqb normalize cases domb_e //
-  ]
-| >if_f >if_f whd in ⊢ (? ? % ?); cut (veqb x z = true ∨ veqb x z = false) // * #Hxz
-  [ elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct >Hxz
-    >if_t >if_t >veqb_simm >Hyz normalize %
-  | >Hxz >if_f >if_f >HI //
-  ]
-] qed.
-
-lemma fvb_at: ∀e, b, e', x. fvb x (at 〈b, e'〉 e) = ((fvb x 〈b, e'〉 ∧ ¬ domb_e x e) ∨ fvb_e x e).
-@Environment_simple_ind2
-[ #b #e #x normalize cases fvb_b cases fvb_e // cases domb_e //
-| #e * #y #b' #HI #b #e' #x
-  lapply (HI b e' x) normalize >domb_concat_distr >fv_concat normalize
-  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
-  [ >if_monotone >if_monotone >if_monotone >if_f >if_f >if_f >if_monotone >if_f //
-  | >if_then_true_else_false >if_then_true_else_false
-    cases fvb_b normalize
-    [ 2: #_ cases fvb_e // cases domb_e //
-    | cases fvb_e cases domb_e // normalize
-      [ #_ cases domb_e cases fvb_b //
-      | cases domb_e //
-      ]
-    ]
-  ]
-] qed.
-
-lemma fvb_ssc1:
- (∀c, y, y', x. ∀(H). veqb x y' = false → fvb x (ssc c y y' H) = (fvb x c ∧ (¬veqb x y))) ∧
-  (∀b, y, y', x. ∀(H). veqb x y' = false → fvb_b x (ssb b y y' H) = (fvb_b x b ∧ (¬veqb x y))) ∧
-   (∀e, y, y', x. ∀(H). veqb x y' = false → fvb_e x (sse e y y' H) = (fvb_e x e ∧ (¬veqb x y))) ∧
-    (∀v, y, y', x. ∀(H). veqb x y' = false → fvb_v x (ssv v y y' H) = (fvb_v x v ∧ (¬veqb x y))) ∧
-     (∀s, y, y', x. ∀(H). veqb x y' = false → fvb_s x (sss s y y' H) = (fvb_s x s ∧ (¬veqb x y))).
-@Crumble_mutual_ind
-[ #b #e #Hb #He #y #y' #x #H1 #H2 whd in match (ssc ? ? ? ?);
-  whd in match (fvb ? ?); >Hb // >He //
-  cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy
-  [ whd in match (andb ? false); >if_monotone
-    whd in match (andb ? false); >if_monotone 
-    whd in match (andb ? false); >if_monotone %
-  | whd in match (andb ? true); >if_then_true_else_false
-    whd in match (andb ? true); >if_then_true_else_false
-    whd in match (andb ? true); >if_then_true_else_false >dom_sse >H2 >Hxy
-    normalize cases fvb_b // cases domb_e // >if_monotone //
-  ]
-| #v #HI #y #y' #x #H #H1 @HI @H1
-| #v #w #Hv #Hw #y #y' #x #H #H1 whd in match (ssb ? ? ? ?);
-  whd in match (fvb_b ? ?); >Hv // >Hw // whd in match (fvb_b ? ?); cases fvb_v
-  cases fvb_v // cases veqb //
-| #z #y #y' #x #H #H1 normalize cut (veqb z y = true ∨ veqb z y = false) // * #Hyz >Hyz
-  normalize
-  [ >H1 elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
-    cases veqb //
-  | cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz //
-    elim (veqb_true_to_eq x z) #Heq #_ lapply (Heq Hxz) -Heq #Heq destruct >Hyz
-    //
-  ]
-| #z #c #HI #y #y' #x #H #H1 whd in match (ssv ? ? ? ?);
-  cut (veqb z y = true ∨ veqb z y = false) // * #Hzy >Hzy
-  [ >if_t normalize elim (veqb_true_to_eq z y) #Heq #_ lapply (Heq Hzy) -Heq #Heq
-    destruct >veqb_simm cases veqb // cases fvb //
-  | >if_f whd in match (((λp:inb_v y' (𝛌z.c)=false.𝛌z.ssc c y y' (alpha_lemma6 y' z c p)) H));
-    whd in match (fvb_v ? ?); whd in match (fvb_v ? ?);
-    cut (veqb z x = true ∨ veqb z x = false) // * #Hzx >Hzx // >if_t >if_t
-    >HI //
-  ]
-| //
-| #e * #z #b' #He #Hs #y #y' #x #H #H1 whd in match (sse ? ? ? ?);
-  cut (veqb y z = true ∨ veqb y z = false) // * #Hyz >Hyz
-  [ >if_t whd in match (((λp:inb_e y' (Snoc e [z←b'])=false
-    .Snoc (sse e y y' (alpha_lemma8 y' e z b' p))
-     [y'←ssb b' y y' (alpha_lemma7 y' e z b' p)]) H));
-  whd in match (fvb_e ? ?); >He //
-  lapply (Hs y y' x ? H1)
-  [ lapply H change with (orb ? ?) in match (inb_e ? ?);
-    cases inb_s // whd in match (orb ? true); >if_monotone //
-  | whd in match (sss ? ? ? ?);
-    whd in match (fvb_s ? ?);
-    cut (∀Z, Z'. fvb_b x (ssb b' y y' Z) = fvb_b x (ssb b' y y' Z')) [ // ]
-    #Htmp >(Htmp ? (alpha_lemma7 … H)) #HH >HH normalize -Htmp -HH
-    elim (veqb_true_to_eq … y z) #Heq #_ lapply (Heq Hyz) -Heq #Heq destruct
-    cut (veqb x z = true ∨ veqb x z = false) // * #Hxz >Hxz normalize
-    [ >if_monotone >if_monotone >if_f //
-    | >if_then_true_else_false >if_then_true_else_false >if_then_true_else_false
-      >H1 >if_f cases fvb_e //
-    ]
-  ]
-  | >if_f whd in match 
-  ((λp:inb_e y' (Snoc e [z←b'])=false
-    .Snoc (sse e y y' (alpha_lemma8 y' e z b' p))
-     [z←ssb b' y y' (alpha_lemma7 y' e z b' p)]) H);
-    whd in match (fvb_e ? ?); whd in match (fvb_e ? (Snoc ? ?)); >He //
-    lapply (Hs y y' x ? H1)
-  [ lapply H change with (orb ? ?) in match (inb_e ? ?);
-    cases inb_s // whd in match (orb ? true); >if_monotone //
-  | whd in match (sss ? ? ? ?);
-    whd in match (fvb_s ? ?);
-    cut (∀Z, Z'. fvb_b x (ssb b' y y' Z) = fvb_b x (ssb b' y y' Z')) [ // ]
-    #Htmp >(Htmp ? (alpha_lemma7 … H)) #HH >HH -Htmp -HH
-    whd in match (fvb_s ? ?);
-    cases veqb
-    [ whd in match (andb ? false); >if_monotone
-      whd in match (andb ? false); >if_monotone
-      whd in match (andb ? false); >if_monotone //
-    | cases veqb
-      [ whd in match (andb ? false); >if_monotone
-        whd in match (andb ? false); >if_monotone //
-      | whd in match (andb ? true); >if_then_true_else_false
-        whd in match (andb ? true); >if_then_true_else_false
-        whd in match (andb ? true); >if_then_true_else_false
-        whd in match (andb ? true); >if_then_true_else_false //
-      ]
-    ]
-  ]
-  ]
-| #z #b #HI #y #y' #x #H #H1 normalize >HI //
-] qed. 
-  
-lemma alpha_fv_cons: ∀e, b, n, H. ∀x. fvb x (pi1 … (alpha b e n H)) = fvb x 〈b, e〉.
-@Environment_simple_ind2
-[ #b #n change with (max ? ?) in match (fresh_var ?); #H #x whd in match (alpha ? ? ? ?); //
-| #e * * #y #b' #HI #b #n change with (max ? (max ? (max ? ?))) in match (fresh_var ?);
-  #H #x whd in match (alpha ? ? ? ?); lapply (HI b (S n) (alpha_aux1 b e [νy←b'] n H) x)
-  cases alpha * #ab #ae #hh whd in match (match ? in Sig with [_⇒?]);
-  change with (at (CCrumble b e) (Snoc Epsilon [νy←b'])) in match (CCrumble b (Snoc e [νy←b']));
-  #HH <HH >fvb_at >fvb_at whd in match (fvb_e ? ?); whd in match (domb_e ? ?);
-  whd in match (domb_e ? ?); >if_then_true_else_false
-  whd in match (domb_e ? ?); whd in match (domb_e ? ?); >if_then_true_else_false
-  cases fvb_b
-  [ whd in match (orb ? true); >if_monotone
-    whd in match (orb ? true); >if_monotone % ]
-  whd in match (orb ? false); >if_then_true_else_false
-  whd in match (orb ? false); >if_then_true_else_false <HH
-  cut (veqb x (νn) = true ∨ veqb x (νn) = false) // * #Hxn
-  [ elim (veqb_true_to_eq … x νn) #Heq lapply (Heq Hxn) -Heq #Heq destruct #_
-    >Hxn whd in match (notb true); whd in match (andb ? false); >if_monotone
-    >HH
-    cut (inb (νn)  〈b,e〉 = false)
-    [ lapply fresh_var_to_in_crumble * * * * #Hc #_ #_ #_ #_ @Hc 
-      @to_max [ @(le_maxl … H) | @(le_maxl … (le_maxr … H)) ] ] #Hin
-    cut (fvb (νn)  〈b,e〉 = false)
-    [ lapply Hin @bool_impl_inv2 lapply fv_to_in_crumble * * * * #Hc #_ #_ #_ #_
-      @Hc ] -Hin #Hfv >Hfv whd in match (andb false ?); % ]
-  lapply fvb_ssc1 * * * * #_ #Hb #He #_ #_
-  whd in match (fvb ? ?); >Hb // >He //  >dom_sse cases veqb
-  [ whd in match (andb ? false); >if_monotone
-    whd in match (andb ? false); >if_monotone
-    whd in match (andb ? false); >if_monotone
-    whd in match (andb false ?); //
-  | whd in match (andb ? true); >if_then_true_else_false
-    whd in match (andb ? true); >if_then_true_else_false
-    whd in match (andb ? true); >if_then_true_else_false
-    whd in match (andb ? true); >if_then_true_else_false >Hxn
-    whd in match (andb ? false); >if_monotone
-    whd in match (andb ? true); >if_then_true_else_false
-    whd in match (orb ? false); >if_then_true_else_false //
-  ]
-] qed.
-
-lemma ss_fresh_var:
-(∀c, n, x, H. fresh_var (ssc c x (νn) H) ≤ max (fresh_var c) (S n)) ∧
-(∀c, n, x, H. fresh_var_b (ssb c x (νn) H) ≤ max (fresh_var_b c) (S n)) ∧
-(∀c, n, x, H. fresh_var_e (sse c x (νn) H) ≤ max (fresh_var_e c) (S n)) ∧
-(∀c, n, x, H. fresh_var_v (ssv c x (νn) H) ≤ max (fresh_var_v c) (S n)) ∧
-(∀c, n, x, H. fresh_var_s (sss c x (νn) H) ≤ max (fresh_var_s c) (S n)).
-@Crumble_mutual_ind
-[ #b #e #Hb #He #n #x #H whd in match (ssc ? ? ? ?);
-  change with (max ? ?) in match (fresh_var ?);
-  @to_max
-  [ change with (max ? ?) in match (fresh_var ?); >max_swap2 @max_add @Hb
-  | change with (max ? ?) in match (fresh_var ?); 
-     >max_comm in match (max (fresh_var_b ?) ?); >max_swap2 @max_add @He
-  ]
-| #v #HI #n #x #H whd in match (ssb ? ? ? ?);
-  whd in match (fresh_var_b ?);
-  @HI
-| #v #w #Hv #Hw #n #x #H whd in match (ssb ? ? ? ?); 
-  change with (max ? ?) in match (fresh_var_b ?);
-  change with (max ? ?) in match (fresh_var_b ?); @to_max
-  [ change with (max ? ?) in match (fresh_var ?); >max_swap2 @max_add @Hv
-  | change with (max ? ?) in match (fresh_var ?); 
-     >max_comm in match (max (fresh_var_v ?) ?); >max_swap2 @max_add @Hw
-  ]
-| * #z #n * #x #H whd in match (ssv ? ? ? ?);
-  whd in match (fresh_var_v (var ?));
-  whd in match (veqb ? ?);
-  cut (neqb z x = true ∨ neqb z x = false) // * #Htf >Htf
-  [ elim (neqb_iff_eq z x) #Heq #_ lapply (Heq Htf) -Heq #Heq destruct
-    >if_t whd in match (fresh_var_v ?); //
-  | >if_f whd in match (fresh_var_v ?); //
-  ]
-| * #z #c #HI #n * #x #H whd in match (ssv ? ? ? ?);
-  whd in match (veqb ? ?);
-  cut (neqb z x = true ∨ neqb z x = false) // * #Htf >Htf
-  [ >if_t //
-  | >if_f
-    change with (fresh_var_v (𝛌νz.ssc c (νx) (νn) (alpha_lemma6 (νn) (νz) c H)))
-     in match (fresh_var_v ?);
-    change with (max ? ?) in match (fresh_var_v ?);
-    change with (max ? ?) in match (fresh_var_v ?); @to_max // >max_comm in match (max (S z) ?);
-    <max_swap2 @max_add @HI
-  ]
-| //
-| #e * * #y #b #He #Hs #n #x #H whd in match (sse ? ? ? ?); cases veqb
-  [ >if_t change with (max ? ?) in match (fresh_var_e ?);
-    change with (max ? ?) in match (fresh_var_e (Snoc e [νy←b])); @to_max
-    [ >max_swap2 @max_add @He
-    | >max_comm in match (max (fresh_var_e ?) ?); >max_swap2 @max_add @to_max
-      [ //
-      | lapply ((Hs n x ?)) [ @(And_ind … (orb_false … H)) #_ #h @h]
-        whd in match (sss ? ? ? ?);
-        change with (max ? ?) in match (fresh_var_s ?);  #HH
-        lapply (le_maxr … HH) 
-        cut (∀b, x, n, H, K. ssb b x n H =ssb b x n K) // #HH
-        >(HH ? ? ? ? (alpha_lemma7 (νn) e (νy) b H)) //
-      ]
-    ]
-  | >if_f change with (max ? ?) in match (fresh_var_e ?);
-    change with (max ? ?) in match (fresh_var_e (Snoc e [νy←b])); @to_max
-    [ >max_swap2 @max_add @He
-    | >max_comm in match (max (fresh_var_e ?) ?); >max_swap2 @max_add @Hs
-      elim (orb_false … H) //
-    ]
-  ]
-| * #x #b #HI #n #y #H whd in match (sss ? ? ? ?);
-  change with (max ? ?) in match (fresh_var_s ?);
-  change with (max ? ?) in match (fresh_var_s ?); @to_max //
-  >max_comm in match (max (S x) ?); >max_swap2 @max_add @HI
-] qed.
-
-lemma alpha_fresh_var: ∀e, b, n, H. fresh_var (pi1 … (alpha b e n H)) ≤ n+e_len e.
-@Environment_simple_ind2
-[ #b #n #H normalize cases leb // normalize @(le_plus_a_r O … (le_maxl … H))
-| #e * * #y #b' #HI #b #n #H
-  whd in match (alpha ? ? ? ?);
-  lapply (HI b (S n) (alpha_aux1 b e [νy←b'] n H))
-  generalize in match (alpha b e (S n) (alpha_aux1 b e [νy←b'] n H)); *
-  #a #h whd in match (match ? in Sig with [_⇒?]);
-  whd in match (at ? ?);
-  lapply h cases a #ab #ae -h #h #H2
-  whd in match (ssc ? ? ? ?);
-  whd in match (match ? in Crumble with [_⇒?]);
-  whd in match (concat ? ?); >concat_e_epsilon
-  whd in match (e_len ?);
-  lapply ss_fresh_var * * * * #_ #Hb #He #_ #_
-  change with (max ? ?) in match (fresh_var ?); @to_max
-  [ lapply (Hb ab n (νy) (alpha_lemma2 (νn) ab ae (alpha_aux3 b e (CCrumble ab ae) n (νy) b' h H)))
-   #Hb' <plus_n_Sm change with (S n + e_len e) in match (S ?);
-   cut (max (fresh_var_b ab) (S n) ≤ S n+e_len e)
-   [ @to_max // @(le_maxl … H2)] #Hb'' @(transitive_le … Hb' Hb'')
-  | @to_max
-    [ lapply (He ae n (νy) (alpha_lemma1 (νn) ab ae (alpha_aux3 b e 〈ab,ae〉 n (νy) b' h H)))
-      #He' <plus_n_Sm change with (S n + e_len e) in match (S ?);
-      cut (max (fresh_var_e ae) (S n) ≤ S n+e_len e)
-   [ @to_max // @(le_maxr … H2)] #He'' @(transitive_le … He' He'') ]
-   <plus_n_Sm change with (S n + e_len e) in match (S ?); @to_max
-   // @le_plus_a_r @le_S @(le_maxr …(le_maxr … (le_maxr … H)))
-  ]
-] qed.
-
-lemma alphae_fresh_var: ∀e, n, H. fresh_var_e (pi1 … (alpha_e e n H)) ≤ n+e_len e.
-@Environment_simple_ind2
-[ #n #H normalize cases leb // normalize @(le_plus_a_r O … (le_maxl … H))
-| #e * * #y #b' #HI #n #H
-  whd in match (alpha_e ? ? ?);
-  lapply (HI (S n) (alpha_e_aux3 n e (νy) b' H))
-  generalize in match (alpha_e e (S n) (alpha_e_aux3 n e (νy) b' H)); *
-  #a #h whd in match (match ? in Sig with [_⇒?]);
-  whd in match (at ? ?); #H2
-  whd in match (e_len ?);
-  lapply ss_fresh_var * * * * #_ #_ #He #_ #Hs
-  change with (max ? ?) in match (fresh_var ?); @to_max
-  [ lapply (He a n (νy) (alpha_e_aux2 n e (νy) b' a H h))
-   #Hb' <plus_n_Sm change with (S n + e_len e) in match (S ?);
-   cut (max (fresh_var_e a) (S n) ≤ S n+e_len e)
-   [ @to_max // @(le_maxl … H2)] #Hb'' @(transitive_le … Hb' Hb'')
-  | @to_max
-    [ <plus_n_Sm @le_S_S @le_plus_a_r @le_n
-    | <plus_n_Sm change with (S n + e_len e) in match (S ?); @le_S
-      @le_plus_a_r @(le_maxr … (le_maxr … H))
-  ]
-] qed.
-
-
-lemma lt_to_le1:  ∀n:ℕ.∀m:ℕ.n<m→n≤m.
-@lt_to_le qed.
-
-lemma ssss_aux1: ∀z, e, w, b. (inb_e z (Snoc e [w←b])=false) → (inb_s z [w←b]=false).
-#z #e #w #b change with (orb ? ?) in match (inb_e ? ?); cases inb_s //
-normalize >if_monotone // qed.
-
-lemma ss_over_ss:
-(∀c, x, y, z, H1, H2, H3. ssc (ssc c x y H1) y z H2 = ssc c x z H3) ∧
-(∀b, x, y, z, H1, H2, H3. ssb (ssb b x y H1) y z H2 = ssb b x z H3) ∧
-(∀e, x, y, z, H1, H2, H3. sse (sse e x y H1) y z H2 = sse e x z H3) ∧
-(∀v, x, y, z, H1, H2, H3. ssv (ssv v x y H1) y z H2 = ssv v x z H3) ∧
-(∀s, x, y, z, H1, H2, H3. sss (sss s x y H1) y z H2 = sss s x z H3).
-@Crumble_mutual_ind
-[ #b #e #Hb #He #x #y #z #H1 #H2 #H3 
-  whd in match (ssc ? ? ? ?);
-  whd in match (ssc ? ? ? ?); //
-| #v #HI #x #y #z #H1 #H2 #H3 
-  whd in match (ssb ? ? ? ?);
-  whd in match (ssb ? ? ? ?); @eq_f >HI //
-| #v #w #Hv #Hw #x #y #z #H1 #H2 #H3
-  whd in match (ssb ? ? ? ?);
-  whd in match (ssb ? ? ? ?); //
-| #w #x #y #z  normalize cases (veqb w x) #H1 #H2 #H3
-  normalize [>veqb_true >if_t // 
-  | >veqb_simm >H1 //
-  ]
-| #w #c #HI #x #y #z #H1
-  whd in match (ssv (lambda ? ?) ? ? ?);
-  cut (veqb w x = true ∨ veqb w x = false) // * #Htf 
-  [ >Htf >if_t elim (veqb_true_to_eq w x) #Heq lapply (Heq Htf) -Heq #Heq
-    destruct #_ #H2 #H3  normalize >veqb_true normalize
-    cut (veqb x y = false) [ lapply H1 normalize cases inb
-      [ >if_monotone #abs destruct
-      | >if_then_true_else_false // ]
-      | #Htt >Htt >if_f normalize @eq_f2 //
-        lapply ssc_in * * * * #Hc #_ #_ #_ #_ @Hc lapply H1 
-        normalize cases inb // >if_monotone //
-      ]
-  | >Htf >if_f #H2 #H3 whd in match (ssv ? ? ? ?);
-    whd in match (ssv ? ? ? ?); >Htf >if_f
-    cut (veqb w y = false) [ lapply H1 normalize >veqb_comm cases veqb // >if_t //
-    | #HH >HH >if_f normalize >HI //
-    ]
-  ]
-| //
-| #e * #w #b #He #Hs #x #y #z #H1
-  whd in match (sse (Snoc ? ?) ? ? ?); #H2 #H3
-    whd in match (sse (Snoc ? ?) ? ? ?);
-
-  cut (veqb x w = true ∨ veqb x w = false) // * #Htf 
-  [ >Htf in H2 ⊢ %;  >if_t elim (veqb_true_to_eq x w) #Heq lapply (Heq Htf) -Heq #Heq
-    destruct #_ #H2 >if_t
-    whd in match (sse ? ? ? ?); >veqb_true >if_t
-    change with (Snoc ? ? = Snoc ? ?) @eq_f2 //
-    @eq_f2 // lapply (Hs w y z ? ? ?)
-    [@(ssss_aux1 … H3)
-    | whd in match (sss ? ? ? ?);
-      change with (orb ? ?) in match (inb_s ? ?);
-      cut (veqb z w = false)
-      [ lapply H3 normalize cases veqb normalize // >if_monotone //
-      | #Hf >Hf normalize 
-        cut (∀K. (inb_b z (ssb b w y K)) = false) [2: #uu @uu]
-        #K lapply H2
-        change with (orb ? ?) in match (inb_e ? ?);
-        change with (orb ? ?) in match (inb_s ? ?);
-        cut (∀J, K. inb_b z (ssb b w y K) = inb_b z (ssb b w y J)) //
-        #HH <(HH K) [ cases inb_b [ normalize >if_monotone >if_monotone // | // ]
-        | @K ]
-      ]
-    | @(ssss_aux1 … H1) ]
-    whd in match (sss ? ? ? ?); whd in match (sss ? ? ? ?); #HH destruct -HH
-    cut (∀P. ssb b w z P = ssb b w z (alpha_lemma7 z e w b H3)) // #HH
-    <HH <e0 //
-  | >Htf in H2 ⊢%; >if_f >if_f #H2
-    whd in match (sse ? ? ? ?);
-    cut (veqb y w = false)
-    [ lapply H1 normalize cases veqb // >if_t >if_monotone //
-    | #Htf >Htf >if_f change with (Snoc ? ? = Snoc ? ?) @eq_f2 //
-      @eq_f2 // lapply (Hs x y z ? ? ?)
-    [@(ssss_aux1 … H3)
-    | whd in match (sss ? ? ? ?);
-      change with (orb ? ?) in match (inb_s ? ?);
-      cut (veqb z w = false)
-      [ lapply H3 normalize cases veqb normalize // >if_monotone //
-      | #Hf >Hf normalize 
-        cut (∀K. (inb_b z (ssb b x y K)) = false) [2: #uu @uu]
-        #K lapply H2
-        change with (orb ? ?) in match (inb_e ? ?);
-        change with (orb ? ?) in match (inb_s ? ?);
-        cut (∀J, K. inb_b z (ssb b w y K) = inb_b z (ssb b w y J)) //
-        #HH <(HH K) [ cases inb_b [ normalize >if_monotone >if_monotone // | // ]
-        | @K ]
-      ]
-    | @(ssss_aux1 … H1) ]
-    whd in match (sss ? ? ? ?); whd in match (sss ? ? ? ?); #HH destruct -HH
-    cut (∀P. ssb b w z P = ssb b w z (alpha_lemma7 z e w b H3)) // #HH
-    <HH <e0 // -e0 lapply H3 normalize cases inb_b // >if_monotone >if_monotone //
-    ]
-  ]
-| #w #b #Hb #x #y #z #H1 #H2 #H3 normalize @eq_f2 // @Hb
-] qed.
-
-lemma aetg_aux1: ∀e, y, b, n. (fresh_var_e (Snoc e [y←b])≤n)→ ((∀x:Variable.rhs (beta_e (Snoc e [y←b]) n) x→inb_e x (Snoc e [y←b])=false)
-   ∧distinct_rhs (beta_e (Snoc e [y←b]) n)) →
- ((∀x:Variable.rhs (beta_e e (S n)) x→inb_e x e=false)
-  ∧distinct_rhs (beta_e e (S n))).
-#e * #y #b #n #J #H % // * #x whd in match (beta_e ? ?); #Hk lapply (betae_rhs_bound e (S n) x)
-#KK lapply (KK Hk) * #HJ #_
-cut (fresh_var_e e ≤x)
-[@(transitive_le … (le_S …(le_maxl … J)) HJ)
-| lapply fresh_var_to_in_crumble * * * * #_ #_ #He #_ #_ @He
-]qed.
-  
 (*
 lemma aa_aux1: ∀e, b, x, y, m.∀ (D :inb x 〈b,e〉=false). ∀A. ∀ AL2, GBA2, GBA3, AL22.
  (ssb
@@ -2874,13 +3710,6 @@ lemma alphae_absorbance: ∀e, n, m, H, H'.∀ K: n + (e_len e) ≤ m.
           «Snoc (sse a y (νn) (alpha_e_aux2 n e y b a H h)) [νn←b],
           alpha_e_aux4 alpha_e n e y b a H h»]); #H' #LL
   whd in match (alpha_e (Snoc ? ?) ? ?);*)
-  
-  check alpha_c
-definition alpha2_c ≝ λc, n. match c with [CCrumble b e ⇒ λH. alpha2 b e n H].
-
-lemma aca2c: ∀c, n, H. alpha2_c c n H = alpha_c c n H. * #b #e #n #H
-change with (alpha ? ? ? ?) in match (alpha_c ? ? ?);
-change with (alpha2 ? ? ? ?) in match (alpha2_c ? ? ?); /2/ qed.
 (*
 lemma alpha_absorbance: ∀e, b, n, m, d. ∀H1, H2, H3. ∀ K: n + (e_len_c 〈b, e〉) ≤ m.
 ∀(R: d = pi1 … (alpha2_c 〈b, e〉 n H1)). 

@@ -95,26 +95,26 @@ definition three : nat ≝ S (S (S O)).
    
    Definire il linguaggio (o tipo) delle liste di numeri naturali.
    
-   list_nat ::= "Nil" | "Cons" nat list_nat
+   list_nat ::= "Nil" | "Snoc" nat list_nat
    
-   dove Nil sta per lista vuota e Cons aggiunge in testa un numero naturale a
+   dove Nil sta per lista vuota e Snoc aggiunge in testa un numero naturale a
    una lista di numeri naturali.
    
-   Per esempio, `Cons O (Cons (S O) (Cons (S (S O)) Nil))` rappresenta la lista
+   Per esempio, `Snoc O (Snoc (S O) (Snoc (S (S O)) Nil))` rappresenta la lista
    `[1,2,3]`.
 *)
 
 inductive list_nat : Type[0] ≝
 | Nil: list_nat
-| Cons: nat → list_nat → list_nat
+| Snoc: nat → list_nat → list_nat
 .
 
 (* La seguente lista contiene 1,2,3 *)
-definition one_two_three : list_nat ≝ Cons one (Cons two (Cons three Nil)).
+definition one_two_three : list_nat ≝ Snoc one (Snoc two (Snoc three Nil)).
 
 (* Completate la seguente definizione di una lista contenente due uni. *)
 
-definition one_one : list_nat ≝ Cons (S O) (Cons (S O) Nil).
+definition one_one : list_nat ≝ Snoc (S O) (Snoc (S O) Nil).
 
 (* Esercizio 4
    ===========
@@ -197,7 +197,7 @@ normalize // qed.
 let rec sum l on l ≝
  match l with
   [ Nil ⇒ O
-  | Cons l1 l2 ⇒ plus l1 (sum l2)
+  | Snoc l1 l2 ⇒ plus l1 (sum l2)
   ]
  .
 
@@ -227,16 +227,16 @@ normalize // qed.
    `list_nat` ottenuta scrivendo in ordine prima i numeri della prima lista in
    input e poi quelli della seconda.
    
-   Per esempio, `append (Cons one (Cons two Nil)) (Cons 0 Nil)` deve restituire
-   `Cons one (Cons two (Cons 0 nil))`. *)
+   Per esempio, `append (Snoc one (Snoc two Nil)) (Snoc 0 Nil)` deve restituire
+   `Snoc one (Snoc two (Snoc 0 nil))`. *)
 let rec append l1 l2 on l1 ≝ 
  match l1 with
   [ Nil ⇒ l2
-  | Cons l m ⇒ Cons l (append m l2)
+  | Snoc l m ⇒ Snoc l (append m l2)
   ]
  .  
 
-theorem test_append : append (Cons one Nil) (Cons two (Cons three Nil)) = one_two_three.
+theorem test_append : append (Snoc one Nil) (Snoc two (Snoc three Nil)) = one_two_three.
 normalize // qed.
 
 (* Esercizio 10
@@ -249,22 +249,22 @@ normalize // qed.
    Suggerimento: per definire tree_nat usare la funzione `append` già definita
    in precedenza.
 
-   Esempio: `visit zero_one_two_tree = Cons O (Cons one (Cons two Nil))`.    
+   Esempio: `visit zero_one_two_tree = Snoc O (Snoc one (Snoc two Nil))`.    
 *)
 let rec visit n on n ≝
  match n with
-  [ Leaf n ⇒ Cons n Nil
+  [ Leaf n ⇒ Snoc n Nil
   | Node n1 n2 ⇒ append (visit n1) (visit n2)
   ]
  .
 
-theorem test_visit : visit zero_one_two_tree = Cons O (Cons one (Cons two Nil)).
+theorem test_visit : visit zero_one_two_tree = Snoc O (Snoc one (Snoc two Nil)).
 normalize // qed.
 
 let rec size_l l on l ≝
  match l with 
   [ Nil ⇒ O
-  | Cons n l1 ⇒ S (size_l l1)
+  | Snoc n l1 ⇒ S (size_l l1)
   ]
   .
 
@@ -278,7 +278,7 @@ let rec size_t n on n ≝
 let rec sum_l l on l ≝
  match l with 
   [ Nil ⇒ O
-  | Cons n l1 ⇒ plus n (sum_l l1)
+  | Snoc n l1 ⇒ plus n (sum_l l1)
   ]
   .
 

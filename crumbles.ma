@@ -19,11 +19,11 @@ inductive Variable: Type[0] ≝
 .
 
 inductive Crumble : Type[0] ≝
- | CCrumble: Byte → Environment → Crumble 
+ | CCrumble: Bite → Environment → Crumble 
  
-with Byte : Type[0] ≝
- | CValue: Value → Byte
- | AppValue: Value → Value → Byte
+with Bite : Type[0] ≝
+ | CValue: Value → Bite
+ | AppValue: Value → Value → Bite
 
 with Value : Type[0] ≝
  | var : Variable → Value
@@ -31,23 +31,23 @@ with Value : Type[0] ≝
   
 with Environment : Type[0] ≝
  | Epsilon: Environment
- | Cons: Environment → Substitution → Environment
+ | Snoc: Environment → Substitution → Environment
  
 with Substitution: Type[0] ≝
- | subst: Variable → Byte → Substitution
+ | subst: Variable → Bite → Substitution
 .
 
-inductive pifTerm : Type[0] ≝
- | val_to_term: pifValue → pifTerm
- | appl: pifTerm → pifTerm → pifTerm
+inductive pTerm : Type[0] ≝
+ | val_to_term: pValue → pTerm
+ | appl: pTerm → pTerm → pTerm
  
-with pifValue : Type[0] ≝
- | pvar: Variable → pifValue
- | abstr: Variable → pifTerm → pifValue
+with pValue : Type[0] ≝
+ | pvar: Variable → pValue
+ | abstr: Variable → pTerm → pValue
  .
  
-inductive pifSubst : Type[0] ≝
- | psubst: Variable → pifTerm → pifSubst
+inductive pSubst : Type[0] ≝
+ | psubst: Variable → pTerm → pSubst
  .
 
 inductive EnvContext: Type [0] ≝
@@ -56,12 +56,12 @@ inductive EnvContext: Type [0] ≝
 
 inductive CrumbleContext: Type[0] ≝
 | hole : CrumbleContext
-| crc: Byte → EnvContext → CrumbleContext
+| crc: Bite → EnvContext → CrumbleContext
 .
 
 inductive TermContext : Type[0] ≝ 
 | thole : TermContext
-| term : pifTerm → TermContext
+| term : pTerm → TermContext
 | c_appl : TermContext → TermContext → TermContext
 | c_abstr : Variable → TermContext → TermContext
 .
@@ -85,14 +85,14 @@ lemma test_lambda0: ∀x: Variable. ∀y:Crumble. (𝛌x.y) = (lambda x y).
 
 let rec push e a ≝  
  match e with
- [ Epsilon ⇒ Cons Epsilon a
- | Cons e1 a1 ⇒ Cons (push e1 a) (a1)
+ [ Epsilon ⇒ Snoc Epsilon a
+ | Snoc e1 a1 ⇒ Snoc (push e1 a) (a1)
  ].
  
 let rec e_size e ≝ 
  match e with
  [ Epsilon ⇒ O
- | Cons e s ⇒ S (e_size e)
+ | Snoc e s ⇒ S (e_size e)
  ]
 .
 
@@ -102,15 +102,15 @@ let rec pi1ps s on s ≝
 let rec pi2ps s on s≝ 
  match s with [psubst x t ⇒ t] .
  
-lemma push_test0: Cons (Cons Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Cons Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
+lemma push_test0: Snoc (Snoc Epsilon [ν0 ← CValue (var ν0)]) [ν1 ← CValue (var ν3)] = push ((Snoc Epsilon [ν1 ← CValue (var ν3)])) ([ν0 ← CValue (var ν0)]).
 normalize //. qed. 
 (*
 let rec concat a b ≝ 
  match a with
  [ Epsilon ⇒ b
- | Cons e a' ⇒ match b with 
-                      [ Epsilon ⇒ Cons e a'
-                      | Cons e' b' ⇒ Cons (concat e (push e' a')) b'
+ | Snoc e a' ⇒ match b with 
+                      [ Epsilon ⇒ Snoc e a'
+                      | Snoc e' b' ⇒ Snoc (concat e (push e' a')) b'
                       ]
  ].
 *)
@@ -118,11 +118,11 @@ let rec concat a b ≝
 let rec concat a b on b≝ 
  match b with
  [ Epsilon ⇒ a
- | Cons b' s ⇒ Cons (concat a b') s].
+ | Snoc b' s ⇒ Snoc (concat a b') s].
 
 let rec plug_e ec c on ec ≝
  match ec with
- [ envc e x ⇒ match c with [ CCrumble b f ⇒ concat (Cons e [x←b]) f]]
+ [ envc e x ⇒ match c with [ CCrumble b f ⇒ concat (Snoc e [x←b]) f]]
  .
 
 let rec plug_c cc c on c ≝
@@ -166,7 +166,7 @@ definition plug_E ≝ λE.λD.
   [ envc e x ⇒ match D with
     [ hole ⇒ E
     | crc b ec ⇒ match ec with
-      [ envc f z ⇒ envc (concat (Cons e [x ←b]) f) z]
+      [ envc f z ⇒ envc (concat (Snoc e [x ←b]) f) z]
     ]
   ]
 .
@@ -196,24 +196,24 @@ let rec plug_T T U on T ≝
  ]
  .
 
-lemma concat_test0: concat (Cons (Cons Epsilon [ν0 ← CValue (var ν 0)]) [ν1 ← CValue (var \nu 3)]) (Cons (Cons Epsilon [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)])=
-(Cons (Cons (Cons (Cons Epsilon [ν0 ← CValue (var \nu 0)]) [ν1 ← CValue (var \nu 3)]) [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)]).//. qed.
+lemma concat_test0: concat (Snoc (Snoc Epsilon [ν0 ← CValue (var ν 0)]) [ν1 ← CValue (var \nu 3)]) (Snoc (Snoc Epsilon [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)])=
+(Snoc (Snoc (Snoc (Snoc Epsilon [ν0 ← CValue (var \nu 0)]) [ν1 ← CValue (var \nu 3)]) [ν2 ← CValue (var \nu 3)]) [ν1 ← CValue (var \nu 2)]).//. qed.
 
 definition at: Crumble → Environment → Crumble ≝ λa,b.
 match a with
-[ CCrumble byte e  ⇒ CCrumble byte (concat e b) 
+[ CCrumble bite e  ⇒ CCrumble bite (concat e b) 
 ].
 
 notation "hvbox(c @ e)" with precedence 35 for @{ 'at $c $e }.
 interpretation "@ operation" 'at c e =(at c e).
 
 definition v0: Value ≝ var ν0.
-definition b0: Byte ≝ CValue v0.
+definition b0: Bite ≝ CValue v0.
 definition e0: Environment ≝ Epsilon.
-definition e1: Environment ≝ Cons e0 [ν0 ← b0].
+definition e1: Environment ≝ Snoc e0 [ν0 ← b0].
 
 definition v1: Value ≝ var \nu 1.
-definition e2: Environment ≝ Cons e0 [ν1 ← b0].
+definition e2: Environment ≝ Snoc e0 [ν1 ← b0].
 
 definition c0: Crumble ≝ 〈 b0, e1 〉.
 lemma test1:  e2 = e2. // qed.
@@ -223,35 +223,35 @@ lemma test2: c0 = CCrumble b0 e1. // qed.
 lemma test3: (〈 b0, e1 〉 @ e2) = 〈 b0, concat e1 e2 〉.
 // qed.
 
-let rec pifTerm_ind (P: pifTerm → Prop) (Q: pifValue → Prop)
+let rec pTerm_ind (P: pTerm → Prop) (Q: pValue → Prop)
 (H1: ?)
 (H2: ?)
 (H3: ?)
 (H4: ?)
-(t: pifTerm) on t: P t ≝ 
+(t: pTerm) on t: P t ≝ 
 match t return λt. P t with
- [ val_to_term v ⇒ H1 v (pifValue_ind P Q H1 H2 H3 H4 v)
- | appl t1 t2 ⇒ H2 t1 t2 (pifTerm_ind P Q H1 H2 H3 H4 t1) (pifTerm_ind P Q H1 H2 H3 H4 t2)
+ [ val_to_term v ⇒ H1 v (pValue_ind P Q H1 H2 H3 H4 v)
+ | appl t1 t2 ⇒ H2 t1 t2 (pTerm_ind P Q H1 H2 H3 H4 t1) (pTerm_ind P Q H1 H2 H3 H4 t2)
  ]
  
-and pifValue_ind (P: pifTerm → Prop) (Q: pifValue → Prop)
+and pValue_ind (P: pTerm → Prop) (Q: pValue → Prop)
 (H1: ?)
 (H2: ?)
 (H3: ?)
 (H4: ?)
-(v: pifValue) on v: Q v ≝ 
+(v: pValue) on v: Q v ≝ 
 match v return λv. Q v with
  [ pvar x ⇒ H3 x
- | abstr x t ⇒ H4 t x (pifTerm_ind P Q H1 H2 H3 H4 t)
+ | abstr x t ⇒ H4 t x (pTerm_ind P Q H1 H2 H3 H4 t)
  ]
  .
  
-lemma pifValueTerm_ind: ∀P,Q,H1,H2,H3,H4.
+lemma pValueTerm_ind: ∀P,Q,H1,H2,H3,H4.
  (∀t. P t) ∧ (∀v. Q v) ≝ 
-  λP,Q,H1,H2,H3,H4. conj … (pifTerm_ind P Q H1 H2 H3 H4) (pifValue_ind P Q H1 H2 H3 H4).
+  λP,Q,H1,H2,H3,H4. conj … (pTerm_ind P Q H1 H2 H3 H4) (pValue_ind P Q H1 H2 H3 H4).
  
  
-let rec Crumble_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) (S: Value → Prop)
+let rec Crumble_ind (P: Crumble → Prop) (Q: Bite → Prop) (R: Environment → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → R e → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -259,14 +259,14 @@ let rec Crumble_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment →
 (H4: ∀x. S (var x))
 (H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
 (H6: R Epsilon)
-(H7: ∀e.∀s. R e →  U s → R (Cons e s))
+(H7: ∀e.∀s. R e →  U s → R (Snoc e s))
 (H8: ∀x. ∀b. Q b → U (subst x b))
 (c: Crumble)
 on c: P c ≝
 match c return λc. P c with
-[ CCrumble b e ⇒ (H1 b e (Byte_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 b) (Environment_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 e))]
+[ CCrumble b e ⇒ (H1 b e (Bite_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 b) (Environment_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 e))]
 
-and Byte_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) (S: Value → Prop)
+and Bite_ind (P: Crumble → Prop) (Q: Bite → Prop) (R: Environment → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → R e → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -274,16 +274,16 @@ and Byte_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) 
 (H4: ∀x. S (var x))
 (H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
 (H6: R Epsilon)
-(H7: ∀e.∀s. R e →  U s → R (Cons e s))
+(H7: ∀e.∀s. R e →  U s → R (Snoc e s))
 (H8: ∀x. ∀b. Q b → U (subst x b))
-(b: Byte)
+(b: Bite)
 on b: Q b ≝
 match b return λb. Q b with
 [ CValue v ⇒ H2 v (Value_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 v)
 | AppValue v w ⇒ H3 v w (Value_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 v) (Value_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 w)
 ]
 
-and Value_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) (S: Value → Prop)
+and Value_ind (P: Crumble → Prop) (Q: Bite → Prop) (R: Environment → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → R e → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -291,7 +291,7 @@ and Value_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop)
 (H4: ∀x. S (var x))
 (H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
 (H6: R Epsilon)
-(H7: ∀e.∀s. R e →  U s → R (Cons e s))
+(H7: ∀e.∀s. R e →  U s → R (Snoc e s))
 (H8: ∀x. ∀b. Q b → U (subst x b))
 (v: Value)
 on v: S v ≝
@@ -300,7 +300,7 @@ match v return λv. S v with
 | lambda x c ⇒ H5 x c (Crumble_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 c)
 ]
 
-and Environment_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) (S: Value → Prop)
+and Environment_ind (P: Crumble → Prop) (Q: Bite → Prop) (R: Environment → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → R e → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -308,16 +308,16 @@ and Environment_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment →
 (H4: ∀x. S (var x))
 (H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
 (H6: R Epsilon)
-(H7: ∀e.∀s. R e →  U s → R (Cons e s))
+(H7: ∀e.∀s. R e →  U s → R (Snoc e s))
 (H8: ∀x. ∀b. Q b → U (subst x b))
 (e: Environment)
 on e: R e ≝ 
 match e return λe. R e with
 [ Epsilon ⇒ H6
-| Cons e s ⇒ H7 e s (Environment_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 e) (Substitution_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 s)
+| Snoc e s ⇒ H7 e s (Environment_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 e) (Substitution_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 s)
 ]
 
-and Substitution_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment → Prop) (S: Value → Prop)
+and Substitution_ind (P: Crumble → Prop) (Q: Bite → Prop) (R: Environment → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → R e → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -325,26 +325,26 @@ and Substitution_ind (P: Crumble → Prop) (Q: Byte → Prop) (R: Environment �
 (H4: ∀x. S (var x))
 (H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
 (H6: R Epsilon)
-(H7: ∀e.∀s. R e →  U s → R (Cons e s))
+(H7: ∀e.∀s. R e →  U s → R (Snoc e s))
 (H8: ∀x. ∀b. Q b → U (subst x b))
 (s: Substitution)
 on s: U s ≝ 
 match s return λs. U s with
-[subst x b ⇒ H8 x b (Byte_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 b)]
+[subst x b ⇒ H8 x b (Bite_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8 b)]
 .
  
 lemma Crumble_mutual_ind: ∀P,Q,R,S,U,H1,H2,H3,H4,H5,H6,H7,H8.
  (∀c. P c) ∧ (∀b. Q b) ∧ (∀e. R e) ∧ (∀v. S v) ∧ (∀s. U s)≝ 
   λP,Q,R,S,U,H1,H2,H3,H4,H5,H6,H7,H8. conj … (conj … (conj … (conj … 
   (Crumble_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8)
-  (Byte_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
+  (Bite_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
   (Environment_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
   (Value_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8))
   (Substitution_ind P Q R S U H1 H2 H3 H4 H5 H6 H7 H8)
   .
  
  
-let rec Crumble_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+let rec Crumble_ind2 (P: Crumble → Prop) (Q: Bite → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -355,9 +355,9 @@ let rec Crumble_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop
 (c: Crumble)
 on c: P c ≝
 match c return λc. P c with
-[ CCrumble b e ⇒ (H1 b e (Byte_ind2 P Q S U H1 H2 H3 H4 H5 H8 b))]
+[ CCrumble b e ⇒ (H1 b e (Bite_ind2 P Q S U H1 H2 H3 H4 H5 H8 b))]
 
-and Byte_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+and Bite_ind2 (P: Crumble → Prop) (Q: Bite → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -365,14 +365,14 @@ and Byte_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
 (H4: ∀x. S (var x))
 (H5: ∀x: Variable. ∀c: Crumble. P c → S (lambda x c))
 (H8: ∀x. ∀b. Q b → U (subst x b))
-(b: Byte)
+(b: Bite)
 on b: Q b ≝
 match b return λb. Q b with
 [ CValue v ⇒ H2 v (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8 v)
 | AppValue v w ⇒ H3 v w (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8 v) (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8 w)
 ]
 
-and Value_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+and Value_ind2 (P: Crumble → Prop) (Q: Bite → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -387,7 +387,7 @@ match v return λv. S v with
 | lambda x c ⇒ H5 x c (Crumble_ind2 P Q S U H1 H2 H3 H4 H5 H8 c)
 ]
 
-and Substitution_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Prop)
+and Substitution_ind2 (P: Crumble → Prop) (Q: Bite → Prop) (S: Value → Prop)
 (U: Substitution → Prop)
 (H1: ∀b.∀e. Q b → P 〈b, e〉)
 (H2: ∀v: Value. S v → Q (CValue v))
@@ -398,35 +398,35 @@ and Substitution_ind2 (P: Crumble → Prop) (Q: Byte → Prop) (S: Value → Pro
 (s: Substitution)
 on s: U s ≝ 
 match s return λs. U s with
-[subst x b ⇒ H8 x b (Byte_ind2 P Q S U H1 H2 H3 H4 H5 H8 b)]
+[subst x b ⇒ H8 x b (Bite_ind2 P Q S U H1 H2 H3 H4 H5 H8 b)]
 .
 
 lemma Crumble_mutual_ind2: ∀P,Q,S,U,H1,H2,H3,H4,H5,H8.
  (∀c. P c) ∧ (∀b. Q b) ∧ (∀v. S v) ∧ (∀s. U s)≝ 
   λP,Q,S,U,H1,H2,H3,H4,H5,H8. conj … (conj … (conj … 
   (Crumble_ind2 P Q S U H1 H2 H3 H4 H5 H8)
-  (Byte_ind2 P Q S U H1 H2 H3 H4 H5 H8))
+  (Bite_ind2 P Q S U H1 H2 H3 H4 H5 H8))
   (Value_ind2 P Q S U H1 H2 H3 H4 H5 H8))
   (Substitution_ind2 P Q S U H1 H2 H3 H4 H5 H8)
   .
 
 let rec Environment_simple_ind (P: Environment → Prop) (Q: Substitution → Prop) 
 (H1: P Epsilon)
-(H2: ∀e.∀s. P e → Q s → P (Cons e s))
+(H2: ∀e.∀s. P e → Q s → P (Snoc e s))
 (H3: ∀s. Q s)
 e on e ≝
  match e return λe. P e with
  [ Epsilon ⇒ H1
- | Cons e s ⇒ H2 e s (Environment_simple_ind P Q H1 H2 H3 e) (H3 s)
+ | Snoc e s ⇒ H2 e s (Environment_simple_ind P Q H1 H2 H3 e) (H3 s)
  ].
 
 let rec Environment_simple_ind2 (P: Environment → Prop)
 (H1: P Epsilon)
-(H2: ∀e.∀s. P e → P (Cons e s))
+(H2: ∀e.∀s. P e → P (Snoc e s))
 e on e ≝
  match e return λe. P e with
  [ Epsilon ⇒ H1
- | Cons e s ⇒ H2 e s (Environment_simple_ind2 P H1 H2 e)
+ | Snoc e s ⇒ H2 e s (Environment_simple_ind2 P H1 H2 e)
  ].
  
 

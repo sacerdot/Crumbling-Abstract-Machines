@@ -23,7 +23,7 @@ lemma closed2:
  (∀v, x. closed_tv (abstr x (val_to_term v)) →
   (closed_tv v ∨ (fvb_tv x v = true  ∧ ∀y. fvb_tv y v = true → y = x))).
  
-@pifValueTerm_ind
+@pValueTerm_ind
 [ #v #HI #x #H lapply (HI x H) normalize //
 | #t1 #t2 #H1 #H2 #x #H normalize in H;
   lapply (closed_abstr_appl_to_l … H) #H1'
@@ -118,7 +118,7 @@ lemma closed1:
  (∀t. (closed_t t ∨ ¬(closed_t t))) ∧
   ∀v. (closed_tv v ∨ ¬(closed_tv v)).
   
-@pifValueTerm_ind
+@pValueTerm_ind
 [ #v normalize //
 | #t1 #t2 normalize #H1 #H2 elim H1 elim H2
   [ #H1' #H2' @or_introl #x lapply (H1' x) lapply (H2' x)

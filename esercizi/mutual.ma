@@ -19,7 +19,7 @@ inductive tree : Type[0] ≝
 
 with list_tree : Type[0] ≝
    Nil : list_tree
- | Cons : tree → list_tree → list_tree.
+ | Snoc : tree → list_tree → list_tree.
 
 let rec tree_ind
  (P: tree → Prop)
@@ -40,7 +40,7 @@ and list_tree_ind
  (l : list_tree) on l : Q l ≝
  match l return λl. Q l with
  [ Nil ⇒ H2
- | Cons hd tl ⇒ H3 hd tl (tree_ind P Q H1 H2 H3 hd) (list_tree_ind P Q H1 H2 H3 tl) ].
+ | Snoc hd tl ⇒ H3 hd tl (tree_ind P Q H1 H2 H3 hd) (list_tree_ind P Q H1 H2 H3 tl) ].
 
 lemma tree_list_tree_ind:
  ∀P,Q,H1,H2,H3.
@@ -54,7 +54,7 @@ let rec size_tree t ≝
 and size_list_tree l ≝
  match l with
  [ Nil ⇒ 0
- | Cons hd tl ⇒ size_tree hd + size_list_tree tl ].
+ | Snoc hd tl ⇒ size_tree hd + size_list_tree tl ].
  
 check tree_list_tree_ind. 
 

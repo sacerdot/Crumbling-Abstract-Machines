@@ -18,10 +18,10 @@ include "crumbles.ma".
 
 inductive list' (A: Type[0]) : nat → Type[0] ≝
    Nil' : list' A 0
- | Cons' : ∀n. A → list' A n → list' A (S n).
+ | Snoc' : ∀n. A → list' A n → list' A (S n).
 
 let rec list_ind' (A: Type[0]) (P : ∀m. list' A m → Prop)
-(H1 : P 0 (Nil' A)) (H2: ∀m. ∀hd. ∀tl. P m tl → P (S m) (Cons' A m hd tl))
+(H1 : P 0 (Nil' A)) (H2: ∀m. ∀hd. ∀tl. P m tl → P (S m) (Snoc' A m hd tl))
 (n: nat) (l : list' A n) on l
 : P n l
 ≝
@@ -29,7 +29,7 @@ let rec list_ind' (A: Type[0]) (P : ∀m. list' A m → Prop)
  return λn.λl. P n l
  with
   [ Nil' ⇒ H1
-  | Cons' m hd tl ⇒
+  | Snoc' m hd tl ⇒
      H2 m hd tl (list_ind' A P H1 H2 m tl)
   ].
 

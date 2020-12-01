@@ -17,7 +17,7 @@ include "underline_readback.ma".
 let rec dist_dom e on e ≝ 
  match e with
   [ Epsilon ⇒ true
-  | Cons e s ⇒ (¬domb_e match s with [subst y b ⇒ y] e) ∧ dist_dom e
+  | Snoc e s ⇒ (¬domb_e match s with [subst y b ⇒ y] e) ∧ dist_dom e
   ].
   
 let rec well_named c on c ≝
@@ -39,7 +39,7 @@ and well_named_v v on v ≝
 and well_named_e e on e ≝
  match e with
  [ Epsilon ⇒ true
- | Cons e s ⇒ (well_named_e e) ∧ (well_named_s s)
+ | Snoc e s ⇒ (well_named_e e) ∧ (well_named_s s)
  ]
  
 and well_named_s s on s ≝
@@ -47,14 +47,14 @@ and well_named_s s on s ≝
  [ subst y b ⇒ well_named_b b ]
 .
 
-lemma dist_dom_push: ∀e, s. dist_dom (push e s) = dist_dom (Cons e s).
+lemma dist_dom_push: ∀e, s. dist_dom (push e s) = dist_dom (Snoc e s).
 
 @Environment_simple_ind2
 [ normalize //
 | #e * #y #b #H * #y' #b'
   whd in match (push ? ?);
-  whd in match (dist_dom (Cons ? ?));
-  whd in match (dist_dom (Cons (Cons ? ?) ?));
+  whd in match (dist_dom (Snoc ? ?));
+  whd in match (dist_dom (Snoc (Snoc ? ?) ?));
   >H normalize >dom_push
   whd in match (domb_e ? ?);
   >veqb_comm cases veqb normalize //
@@ -62,28 +62,28 @@ lemma dist_dom_push: ∀e, s. dist_dom (push e s) = dist_dom (Cons e s).
   >if_monotone //
 ] qed.
 
-lemma well_named_push: ∀e, s. well_named_e (push e s) = well_named_e (Cons e s).
+lemma well_named_push: ∀e, s. well_named_e (push e s) = well_named_e (Snoc e s).
 
 @Environment_simple_ind2
 [ normalize //
 | #e #s #H * #y #b
   whd in match (push ? ?);
-  whd in match (well_named_e (Cons ? ?));
-  whd in match (well_named_e (Cons (Cons ? ?) ?));
+  whd in match (well_named_e (Snoc ? ?));
+  whd in match (well_named_e (Snoc (Snoc ? ?) ?));
   >H normalize cases well_named_e normalize //
   cases well_named_b normalize
   [ >if_then_true_else_false | >if_monotone ] //
 ] qed.
 
-lemma dist_dom_conservative: ∀e, s. dist_dom (Cons e s) =true → dist_dom e=true.
+lemma dist_dom_conservative: ∀e, s. dist_dom (Snoc e s) =true → dist_dom e=true.
 @Environment_simple_ind2
 [ #s normalize //
 | #e * #y #b #H * #y' #b'
   whd in match (dist_dom ?);
   whd in match (match ? return λ_:Substitution.Variable with 
-         [subst (y0:Variable)   (b0:Byte)⇒y0]);
+         [subst (y0:Variable)   (b0:Bite)⇒y0]);
   lapply (H ([y←b]))
-  cases (dist_dom (Cons e [y←b])) //
+  cases (dist_dom (Snoc e [y←b])) //
   >if_monotone #_ #abs destruct
 ] qed.
 
@@ -96,7 +96,7 @@ lemma well_named_concat:
   whd in match (concat ? ?);
   whd in match (well_named_e ?);
   >H
-  whd in match (well_named_e (Cons ? ?));
+  whd in match (well_named_e (Snoc ? ?));
   cases well_named_e normalize //
 ] qed.
 
@@ -116,12 +116,12 @@ lemma dist_dom_lemma:
   whd in match (concat ? ?); whd in match (dist_dom ?);
   >concat_e_epsilon
   whd in match (match ?  return λ_:Substitution.Variable with 
-                  [subst (y:Variable)   (b0:Byte)⇒y]);
+                  [subst (y:Variable)   (b0:Bite)⇒y]);
   >dom_push >dist_dom_push
   whd in match (domb_e ? ?);
   whd in match (dist_dom ?);
   whd in match (match ?  return λ_:Substitution.Variable with 
-                  [subst (y:Variable)   (b0:Byte)⇒y]);
+                  [subst (y:Variable)   (b0:Bite)⇒y]);
   change with (neqb ? ?) in match (veqb ? ?);
   >neqb_false >if_f
   cut (∀x:ℕ.m≤x → domb_e (νx) e=false)
@@ -129,7 +129,7 @@ lemma dist_dom_lemma:
     lapply (transitive_le … (abs1 (refl bool true)) abs2) /2/ ]
     #Hu1' >Hu1' >Hu1' // normalize @Hde
 | #f * #y #b #HI #e #s #m #n #b #b1 #Hsn #Hnm #Hl1 #Hu1 #Hl2 #Hu2 #Hde #Hde1
-  whd in match (push (Cons ? ?) ?);
+  whd in match (push (Snoc ? ?) ?);
   whd in match (concat ? ?);
   whd in match (dist_dom ?);
   whd in match (match ? in Substitution with [_⇒?]);
@@ -142,7 +142,7 @@ lemma dist_dom_lemma:
   | 7: #k #Hk @Hl1 normalize >Hk >if_monotone @refl ]
   >if_then_true_else_false
   whd in match (domb_e ? ?);
-  whd in match (domb_e ? (Cons ? ?));
+  whd in match (domb_e ? (Snoc ? ?));
   cut (veqb y (νm)=true ∨ veqb y (νm)=false) // * #Hym
   [ elim (veqb_true_to_eq y (νm)) #Heq #_ lapply (Heq Hym)
     -Heq #Heq destruct @False_ind lapply (transitive_le … (Hu1 m ?) Hnm)
@@ -162,14 +162,14 @@ lemma dist_dom_lemma:
   
 lemma four_dot_one_dot_four:
 
- (∀(t: pifTerm).
+ (∀(t: pTerm).
    ∀(s:nat). fresh_var_t t ≤ s →
-    well_named (fst … (underline_pifTerm t s))=true) ∧
- (∀(v: pifValue).
+    well_named (fst … (underline_pTerm t s))=true) ∧
+ (∀(v: pValue).
    ∀(s:nat). fresh_var_tv v ≤ s →
-    well_named (fst … (underline_pifTerm (val_to_term v) s))=true).
+    well_named (fst … (underline_pTerm (val_to_term v) s))=true).
   
-@pifValueTerm_ind
+@pValueTerm_ind
 [ #v #H @H
 | lapply (line_monotone_names) * #Hmono1 #Hmono2
   lapply (line_names) * #Hline1 #Hline2
@@ -198,9 +198,9 @@ lemma four_dot_one_dot_four:
       lapply (Hldom (appl u1 u2) s)
       lapply (Hmono1 (appl u1 u2) s)
       lapply (Hline1 (appl u1 u2) s)
-      change with (underline_pifTerm (appl u1 u2) s)
-        in match ( match u2 in pifTerm with [_⇒ ?]);
-      cases (underline_pifTerm (appl u1 u2) s) * #b #e #n
+      change with (underline_pTerm (appl u1 u2) s)
+        in match ( match u2 in pTerm with [_⇒ ?]);
+      cases (underline_pTerm (appl u1 u2) s) * #b #e #n
       normalize
       change with (max (fresh_var_t ?) (fresh_var_t ?))
         in match (if ? then ? else ?);
@@ -223,7 +223,7 @@ lemma four_dot_one_dot_four:
       whd in match (well_named_s ?);
       whd in match (dist_dom ?);
       whd in match (match ?  return λ_:Substitution.Variable with 
-                  [subst (y:Variable)   (b0:Byte)⇒y]);
+                  [subst (y:Variable)   (b0:Bite)⇒y]);
       cut (∀x:ℕ.n≤x → domb_e (νx) e=false)
       [ #x lapply (Hbound1 x) cases domb_e // #abs1 #abs2 @False_ind
         lapply (transitive_le … (abs1 (refl bool true)) abs2) /2/ ]
@@ -235,13 +235,13 @@ lemma four_dot_one_dot_four:
     ]
   | #u1 #u2 normalize #H1 #H2 #s
     lapply (H2 s)
-    change with (underline_pifTerm (appl u1 u2) s)
-      in match ( match u2 in pifTerm with [_⇒ ?]);
+    change with (underline_pTerm (appl u1 u2) s)
+      in match ( match u2 in pTerm with [_⇒ ?]);
     lapply (Hbound (appl u1 u2) s)
     lapply (Hldom (appl u1 u2) s)
     lapply (Hmono1 (appl u1 u2) s)
     lapply (Hline1 (appl u1 u2) s)
-    cases (underline_pifTerm (appl u1 u2) s) * #b1 #e1 #n
+    cases (underline_pTerm (appl u1 u2) s) * #b1 #e1 #n
     lapply H1 -H1
     cases t1
     [ #v1 #H1 normalize
@@ -278,7 +278,7 @@ lemma four_dot_one_dot_four:
       whd in match (well_named_s ?);
       whd in match (dist_dom ?);
       whd in match (match ?  return λ_:Substitution.Variable with 
-                  [subst (y:Variable)   (b0:Byte)⇒y]);
+                  [subst (y:Variable)   (b0:Bite)⇒y]);
       cut (∀x:ℕ.n≤x → domb_e (νx) e1=false)
       [ #x lapply (Hbound2 x) cases domb_e // #abs1 #abs2 @False_ind
         lapply (transitive_le … (abs1 (refl bool true)) abs2) /2/ ]
@@ -290,9 +290,9 @@ lemma four_dot_one_dot_four:
       lapply (Hldom (appl r1 r2) n)
       lapply (Hmono1 (appl r1 r2) n)
       lapply (Hline1 (appl r1 r2) n)
-      change with (underline_pifTerm (appl r1 r2) n)
-        in match ( match r2 in pifTerm with [_⇒ ?]);
-      cases (underline_pifTerm (appl r1 r2) n ) * #b #e #m
+      change with (underline_pTerm (appl r1 r2) n)
+        in match ( match r2 in pTerm with [_⇒ ?]);
+      cases (underline_pTerm (appl r1 r2) n ) * #b #e #m
       normalize
       change with (fresh_var_t ?)
         in match (pi1 ? ? (fresh_var_t_Sig u1));
@@ -320,7 +320,7 @@ lemma four_dot_one_dot_four:
       lapply (H1' (transitive_le … (le_maxl … Hm) Hsn)) -H1' #H1'
       >well_named_concat >well_named_push >well_named_push
       whd in match (well_named_e ?);
-      whd in match (well_named_e (Cons e [ν(S m)←?]));
+      whd in match (well_named_e (Snoc e [ν(S m)←?]));
       whd in match (well_named_s ?);
       whd in match (well_named_s ?);
       
@@ -349,7 +349,7 @@ lemma four_dot_one_dot_four:
 | #y #x #s normalize //
 | #t * #x #H #s
   change with (max (S x) (fresh_var_t ?)) in match (fresh_var_tv ?); #Hm
-  lapply (H s (le_maxr … Hm)) normalize cases underline_pifTerm * #b #e #n
+  lapply (H s (le_maxr … Hm)) normalize cases underline_pTerm * #b #e #n
   normalize >if_then_true_else_false >if_then_true_else_false #h' @h'
 ] qed.
 
@@ -361,7 +361,7 @@ lemma well_named_relax: ∀c. well_named c=true → w_well_named c=true.
 * #b #e normalize cases well_named_b cases well_named_e normalize //
 #abs destruct qed.
 
-lemma dist_dom_s_dom: ∀e, y, b. dist_dom (Cons e [y←b]) =true → domb_e y e =false.
+lemma dist_dom_s_dom: ∀e, y, b. dist_dom (Snoc e [y←b]) =true → domb_e y e =false.
 
 @Environment_simple_ind2
 [ #y #b normalize //
@@ -384,7 +384,7 @@ lemma dist_dom_concat:
 #e @Environment_simple_ind2
 [ normalize #H >H % @refl
 | #f #s
-  whd in match (concat ? (Cons ? ?));
+  whd in match (concat ? (Snoc ? ?));
   #HI #H lapply (HI (dist_dom_conservative … H)) *
   #Ha #Hb >Ha % //
   lapply H cases s #y #b
@@ -427,7 +427,7 @@ cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
 ] qed.
   
 lemma four_dot_five_dot_three:
- (∀t,C,b,e,s. fresh_var_t t ≤ s → \fst (underline_pifTerm t s) = plug_c C 〈b, e〉 → 
+ (∀t,C,b,e,s. fresh_var_t t ≤ s → \fst (underline_pTerm t s) = plug_c C 〈b, e〉 → 
   ∀x. (domb_cc x C ∧ fvb_b x b) = false).
   
 #t #C #b #e cases C
@@ -436,16 +436,16 @@ lemma four_dot_five_dot_three:
     lapply (dis_dom t s x H)
     lapply (four_dot_one_dot_four) * #H414 #_
     lapply (H414 t s H)
-    lapply H' cases underline_pifTerm * #bbb #eee #n -H' #H' destruct
+    lapply H' cases underline_pTerm * #bbb #eee #n -H' #H' destruct
     #Hwn
-    cut (dist_dom (concat (Cons ee [y←b]) e)=true)
+    cut (dist_dom (concat (Snoc ee [y←b]) e)=true)
     [ lapply Hwn normalize cases dist_dom // >if_monotone #abs destruct ]
     -Hwn #Hdd lapply (dist_dom_concat3 … Hdd) #Hdd'
     normalize
     
     
     >fv_concat >domb_concat_distr
-    whd in match (fvb_e ? ?); whd in match (domb_e ? (Cons ? ?));
+    whd in match (fvb_e ? ?); whd in match (domb_e ? (Snoc ? ?));
     lapply (Hdd' x) normalize
     cut (veqb x y = true ∨ veqb x y = false) // * #Hxy >Hxy normalize
     [ elim (veqb_true_to_eq x y) #Heq #_ lapply (Heq Hxy) -Heq

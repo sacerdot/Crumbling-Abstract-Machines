@@ -18,18 +18,18 @@ include "libnat.ma".
 
 let rec Environment_double_ind2 (P: Environment → Environment → Prop)
 (H1: P Epsilon Epsilon)
-(H3: ∀e, s. P (Cons e s) Epsilon)
-(H4: ∀e, s. P Epsilon (Cons e s))
-(H2: ∀e.∀f.∀s.∀t. P e f → P (Cons e s) (Cons f t))
+(H3: ∀e, s. P (Snoc e s) Epsilon)
+(H4: ∀e, s. P Epsilon (Snoc e s))
+(H2: ∀e.∀f.∀s.∀t. P e f → P (Snoc e s) (Snoc f t))
 e f on e ≝
  match e return λe. P e f with
  [ Epsilon ⇒ match f with 
    [ Epsilon ⇒ H1
-   | Cons f t ⇒ H4 f t
+   | Snoc f t ⇒ H4 f t
    ]
- | Cons e s ⇒ match f with 
+ | Snoc e s ⇒ match f with 
    [ Epsilon ⇒ H3 e s
-   | Cons f t ⇒ H2 e f s t (Environment_double_ind2 P H1 H3 H4 H2 e f)
+   | Snoc f t ⇒ H2 e f s t (Environment_double_ind2 P H1 H3 H4 H2 e f)
    ]
  ].
 
@@ -37,7 +37,7 @@ e f on e ≝
 let rec e_len e on e ≝
  match e with
  [ Epsilon ⇒ 0
- | Cons e s ⇒ S (e_len e)
+ | Snoc e s ⇒ S (e_len e)
  ]
 .
 
@@ -67,7 +67,7 @@ lemma concat_len: ∀f,e. e_len (concat e f) = (e_len e + e_len f).
 | #e #s #HI #t normalize >HI //
 ] qed.
 
-lemma concat_to_push :∀e, s. concat (Cons Epsilon s) e = push e s.
+lemma concat_to_push :∀e, s. concat (Snoc Epsilon s) e = push e s.
 @Environment_simple_ind2
 [ #s normalize //
 | #e #s #HI #t normalize >HI //
@@ -100,7 +100,7 @@ lemma env_lemma1:
       ]
     ]
   | #e1 #e2 #s1 #s2 normalize #HI #hs #H
-  cut (push e1 s = Cons (push e2 u) s2)
+  cut (push e1 s = Snoc (push e2 u) s2)
   [ destruct @e0 ] #e0
     lapply (HI … e0) * #Ha #Hb % // @eq_f2 //
     lapply H -H cases (push e1 s)
@@ -126,15 +126,15 @@ lemma env_lemma1:
   #j #k #Hf destruct //
 ] qed.
 
-lemma env_lemma2: ∀f, e, s. concat (Cons e s) f = concat e (push f s).
+lemma env_lemma2: ∀f, e, s. concat (Snoc e s) f = concat e (push f s).
 @Environment_simple_ind2
 [ normalize //
 | #f #s #HI #e #s1 normalize >HI @refl
 ] qed.
 
 lemma env_lemma3: ∀f, e, s, t, u.
- (push (Cons e u) s=Cons f t) →
-  ∃d. f = push d s ∧ Cons e u = Cons d t.
+ (push (Snoc e u) s=Snoc f t) →
+  ∃d. f = push d s ∧ Snoc e u = Snoc d t.
 @Environment_simple_ind2
 [ #e #s #t #u normalize cases e
   [ normalize #H destruct
@@ -143,10 +143,10 @@ lemma env_lemma3: ∀f, e, s, t, u.
 | #f #sf #HI #e #s #t #u normalize #H
   cut (t=u)
   [ lapply H generalize in match (push e s); #j #HH destruct @refl ] #H1
-  >H1 cut (push e s = Cons f sf)
+  >H1 cut (push e s = Snoc f sf)
   [ destruct @e0 ] cases e
   [ normalize #HH destruct % [ @Epsilon ] % //
-  | #j #k #e0 lapply (HI … e0) * #x * #Ha #Hb >Ha >Hb % [ @(Cons x sf) ]
+  | #j #k #e0 lapply (HI … e0) * #x * #Ha #Hb >Ha >Hb % [ @(Snoc x sf) ]
     normalize % //
   ]
 ] qed.
@@ -157,7 +157,7 @@ lemma env_lemma4: ∀f, e, s. push (concat e f) s = concat (push e s) f.
 | #f #sf #H #e #s normalize >H @refl
 ] qed.
 
-lemma env_lemma5: ∀f, e, s. concat (Cons e s) f = concat e (push f s).
+lemma env_lemma5: ∀f, e, s. concat (Snoc e s) f = concat e (push f s).
 @Environment_simple_ind2
 [ #e #s normalize //
 | #ff #sf #HI #e #s normalize >HI //
@@ -171,8 +171,8 @@ lemma concat_decomposition1: ∀f, h, g, e.
    ∃d. g = concat e d ∧  f = concat d h.
 @Environment_double_ind2
 [ #g #e normalize #H destruct @or_introl % [ @Epsilon] % //
-| #f #s #g #e normalize #H @or_intror % [ @(Cons f s) ] % // <H normalize //
-| #h #s #g #e normalize #H @or_introl % [ @(Cons h s) ] % // >H normalize //
+| #f #s #g #e normalize #H @or_intror % [ @(Snoc f s) ] % // <H normalize //
+| #h #s #g #e normalize #H @or_introl % [ @(Snoc h s) ] % // >H normalize //
 | #f #h #sf #sh normalize #HI #g #e #H cut (concat e f = concat g h)
   [ destruct @e0
   | #HH lapply (HI … HH) cut (sf = sh)
@@ -185,20 +185,20 @@ lemma concat_decomposition1: ∀f, h, g, e.
   ]
 ] qed.
 
-lemma abs_cons: ∀e, s. e = Cons e s → False.
+lemma abs_cons: ∀e, s. e = Snoc e s → False.
 @Environment_simple_ind2
 [ #s #abs destruct
 | #e #s #HI #t normalize #H @(HI … s) destruct @e0
 ] qed.
 
-lemma abs_concat: ∀e, f, s. e = concat (Cons e s) f → False.
+lemma abs_concat: ∀e, f, s. e = concat (Snoc e s) f → False.
 #e #f #s /2/ qed.
-lemma abs_concat2: ∀e, f, s, t. e = Cons (concat (Cons e s) f) t → False.
+lemma abs_concat2: ∀e, f, s, t. e = Snoc (concat (Snoc e s) f) t → False.
 #e #f #s #t /2/ qed.
 
 lemma cons_concat: ∀f, e, s, g.
- Cons e s = concat g f → 
-  g = Cons e s ∧ f= Epsilon ∨ (∃d. e = concat g d ∧ f = Cons d s).
+ Snoc e s = concat g f → 
+  g = Snoc e s ∧ f= Epsilon ∨ (∃d. e = concat g d ∧ f = Snoc d s).
 @Environment_simple_ind2
 [ normalize #e #s #g #H % >H % @refl
 | #f #sf #HI #e #s #g normalize cases e
@@ -208,7 +208,7 @@ lemma cons_concat: ∀f, e, s, g.
     | #jj #kk normalize #abs destruct
     | #e1 #jk #e2 #kl normalize #abs destruct
     ]
-  | #ee #ss #HH cut (Cons ee ss = concat g f)
+  | #ee #ss #HH cut (Snoc ee ss = concat g f)
     [ destruct @e0 ] #HHH lapply (HI … HHH) *
     [ * #Hf #Hf2 >Hf in HHH; lapply HH cases f
       [ normalize #HHf #HHH  destruct @or_intror % [ @Epsilon ] % //
@@ -217,27 +217,27 @@ lemma cons_concat: ∀f, e, s, g.
         | #fff #ffs normalize #_ #gh destruct @False_ind @(abs_concat2 … e0)
         ]
       ]
-    | * #x * #H1 #H2 @or_intror destruct % [ @(Cons x ss) ] normalize % //
+    | * #x * #H1 #H2 @or_intror destruct % [ @(Snoc x ss) ] normalize % //
     ]
   ]
 ] qed.
 
 lemma cons_push_decomposition: ∀e, f, s, t.
- Cons e s = push f t →
-  (s=t ∧ f= Epsilon ∧ e=Epsilon) ∨ ∃d. e = push d t ∧ f = Cons d s.
+ Snoc e s = push f t →
+  (s=t ∧ f= Epsilon ∧ e=Epsilon) ∨ ∃d. e = push d t ∧ f = Snoc d s.
 @Environment_double_ind2
 [ #s #t normalize #H destruct % % // % //
 | #e #s #t #u normalize #abs destruct
 | #f #s #t #u normalize #H destruct @False_ind lapply e0
   cases f [ normalize #abs destruct | #hh #jj normalize #abs destruct ]
-| #e #f #s #t #HI #u #v normalize #H cut (Cons e s = push f v)
+| #e #f #s #t #HI #u #v normalize #H cut (Snoc e s = push f v)
   [ destruct @e0 ] #HH cut (t=u)
   [ lapply H
-    generalize in match (Cons e s);
+    generalize in match (Snoc e s);
     generalize in match (push f v); #y #r #HHH destruct @refl ]
    #Hc lapply (HI … HH) >Hc *
    [  * * #Ha #Hb #Hd destruct @or_intror % [ @Epsilon ] normalize % //
-   | * #x * #Ha #Hb @or_intror % [@(Cons x s)] normalize % //
+   | * #x * #Ha #Hb @or_intror % [@(Snoc x s)] normalize % //
    ]
 ] qed.
 

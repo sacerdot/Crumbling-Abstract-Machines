@@ -256,3 +256,7 @@ lemma push_eq_inv: ∀e, f, s, t. push e s = push f t → e = f ∧ s=t.
     generalize in match (push f u); #j #H destruct @refl ]
   #sesf >sesf % @refl
 ] qed.
+
+
+ 
+

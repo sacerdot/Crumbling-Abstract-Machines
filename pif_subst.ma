@@ -849,7 +849,7 @@ qed.
 axiom daemon: False.
 *)
 
-(*
+
 lemma abstr_step_subst: ∀x, y, t, u.
  fvb_t x u = false →
   veqb y x = false →
@@ -861,28 +861,72 @@ whd in match (match ? in pSubst with [_ ⇒ ?]);
 cut (∀K, K1, K2. pi1 pTerm
   (λu0:pTerm
    .t_size u0
-    =t_size (val_to_term (abstr x t))
-     +free_occ_t y (val_to_term (abstr x t))*(t_size u-1)
+    =plus (t_size (val_to_term (abstr x t)))
+     (free_occ_t y (val_to_term (abstr x t))*(minus (t_size u) 1))
     ∧(∀z:Variable
       .free_occ_t z u0
        =if veqb y z 
         then free_occ_t z (val_to_term (abstr x t))*free_occ_t z u 
-        else free_occ_t y (val_to_term (abstr x t))*free_occ_t z u
-                 +free_occ_t z (val_to_term (abstr x t)) ))
- (match veqb y x return λb. veqb y x = b → S (t_size t) ≤ S (t_size t) →
-    Σu: pTerm. ?
- with
-  [ true ⇒ λH: veqb y x =true.
+        else plus (free_occ_t y (val_to_term (abstr x t))*free_occ_t z u)
+                 (free_occ_t z (val_to_term (abstr x t)))))
+ (match veqb y x
+return λb.
+veqb y x = b
+→ S (t_size t) ≤ S (t_size t)
+→ Σu: pTerm. 
+ ?
+with
+  [ true ⇒ 
+   λH: veqb y x =true.
      λp: S (t_size t ) ≤ S (t_size t).
        «val_to_term (abstr x t), K H p »
-  |  false  ⇒ λH: veqb y x =false. match fvb_t x u return λb'. fvb_t x u = b' →
-                                       S (t_size t) ≤ S (t_size t) →
-                                        Σu: pTerm. ?
-              with
-              [ true ⇒ λHH: fvb_t x u = true. λp:S (t_size t) ≤ S (t_size t). let z ≝ (max (S match x with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t) (fresh_var_t u))))
-                  in match (p_subst_sig (t_size t) (psubst x (val_to_term (pvar ν(z)))) t (le_n ?)) with
-                     [ mk_Sig a h ⇒ «(val_to_term (abstr (ν(z)) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
-              | false ⇒ λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t). «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »
+  | false ⇒
+   λH: veqb y x =false. match fvb_t x u
+       return λb'.
+         fvb_t x u = b'
+         → S (t_size t) ≤ S (t_size t)
+         → Σu: pTerm. ?
+       with
+        [ true ⇒
+          λHH: fvb_t x u = true. λp:S (t_size t) ≤ S (t_size t).
+           let z ≝ (max (S match x with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t) (fresh_var_t u))))
+           in
+            match (p_subst_sig (t_size t) (psubst x (val_to_term (pvar (variable z)))) t (le_n ?))
+            with
+             [ mk_Sig a h ⇒ «(val_to_term (abstr (variable z) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
+        | false ⇒
+         λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t).
+          «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »]
+      (refl bool (fvb_t x u))
+  ] (refl bool (veqb y x))  (le_n (S (t_size t))))= val_to_term (abstr x (p_subst t (psubst y u)))
+)
+[ >veq >fv #K #K1 #K2  // | #K whd in match (t_size (val_to_term (abstr x t))); normalize
+check check  @K
+
+ match veqb y x return λb. veqb y x = b → S (t_size t) ≤ S (t_size t) →
+    Σu: pTerm. ?
+ with
+  [ true ⇒ 
+   λH: veqb y x =true.
+     λp: S (t_size t ) ≤ S (t_size t).
+       «val_to_term (abstr x t), K H p »
+  | false ⇒ 
+   λH: veqb y x =false. match fvb_t x u 
+       return λb'.
+         fvb_t x u = b'
+         → S (t_size t) ≤ S (t_size t) 
+         → Σu: pTerm. ?
+       with
+        [ true ⇒
+          λHH: fvb_t x u = true. λp:S (t_size t) ≤ S (t_size t).
+           let z ≝ (max (S match x with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t) (fresh_var_t u))))
+           in
+            match (p_subst_sig (t_size t) (psubst x (val_to_term (pvar ν(z)))) t (le_n ?))
+            with
+             [ mk_Sig a h ⇒ «(val_to_term (abstr (ν(z)) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
+        | false ⇒
+         λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t).
+          «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »
               ] (refl bool (fvb_t x u))
   ] (refl bool (veqb y x))  (le_n (S (t_size t))))= val_to_term (abstr x (p_subst t (psubst y u))))
 [ >veq >fv normalize #K #K1 #K2 // | #K 

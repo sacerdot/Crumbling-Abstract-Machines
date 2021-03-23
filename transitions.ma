@@ -14,7 +14,7 @@
 
 include "alpha.ma".
 include "pif_subst.ma".
-
+(*
 let rec replace (t : pTerm) (s : pSubst) : pTerm ≝
   match t with
   [ val_to_term v ⇒ match v with
@@ -31,6 +31,7 @@ let rec replace (t : pTerm) (s : pSubst) : pTerm ≝
     ]
   | appl t1 t2 ⇒ appl ( replace t1 s ) ( replace t2 s ) ]
 .
+*)
 
 let rec evaluate (x : Variable) ve on ve : Bite ≝
   match ve with
@@ -66,7 +67,7 @@ inductive CTrans : Crumble → Crumble → Prop ≝
  → CTrans (plug_c cc1 c1) (plug_c cc2 c2)
 .
 
-definition normal_c ≝ λc. ∀c'. ¬CTrans c c'.
+definition normal_c ≝ λc. ∀c'. ¬(CTrans c c').
 
 
 inductive reachable_c : Crumble → Crumble → Prop ≝
@@ -77,7 +78,7 @@ inductive reachable_c : Crumble → Crumble → Prop ≝
 
 definition reachable_Crumble ≝ λc'. ∃t. ∃s. closed_t t
  → CTrans (match underline_pTerm t s with [ mk_Prod c n ⇒ c]) c'.
-
+ 
 
 definition valZ : Variable ≝ variable 0.
 definition termZ : pTerm ≝ val_to_term (pvar valZ).
@@ -139,6 +140,28 @@ lemma pract_env_concat : ∀e1, e2. VEnvironment e1 → VEnvironment e2 → VEnv
   [ @H3
    [ @(p_e_to_e e3 s3) // | @(p_e_to_s e3 s3) // ]
   | // ]
+ ]
+] qed.
+
+lemma pract_concat_l : ∀e1, e2. VEnvironment (concat e1 e2) → VEnvironment e1.
+@Environment_simple_ind2
+[ @Environment_simple_ind2 //
+| #e1 #s1 #H1 @Environment_simple_ind2
+ [ normalize //
+ | #e2 #s2 #H2 normalize #H3 @H2 @(p_e_to_e ? s2) @H3
+ ]
+] qed.
+
+lemma pract_concat_r : ∀e1, e2. VEnvironment (concat e1 e2) → VEnvironment e2.
+
+@Environment_simple_ind2
+[ @Environment_simple_ind2 //
+| #e1 #s1 #H1 @Environment_simple_ind2
+ [ normalize //
+ | #e2 #s2 #H2 #H3 @PSnoc
+  [ lapply H3 normalize #H4 @H2 @(p_e_to_e ? s2) @H4
+  | lapply H3 normalize #H4 @(p_e_to_s ? ? H4)
+  ]
  ]
 ] qed.
 
@@ -334,6 +357,9 @@ lemma closed_to_lam: ∀c, b, e. normal_c c
  [ #v #e #norm #clos #eq normalize | #H1 #H2 #H3 #H4 #H5 #H6 normalize // ] |(*ottieni assurdo CTrans e ¬CTrans o esegui*)
   lapply norm normalize #norm1 inversion b
 *)
+(*
+
+(*TODO use pif_subst instead of replace*)
 lemma D_one: ∀v, v', x. is_value_t v
 → is_value_t v'
  → is_value_t (replace v (psubst x v')).
@@ -350,6 +376,7 @@ lemma D_one: ∀v, v', x. is_value_t v
  | #t1 #t2 #x #H1 #H2 elim H2 ]
 | #t1 #t2 #v' #x #H1 elim H1 ]
 qed.
+*)
 
 lemma witness: ∀x, e. domb_e x e = true
 → VEnvironment e
@@ -520,33 +547,116 @@ lemma wnamed_step: ∀b, x, b', e. well_named 〈b,concat (Snoc Epsilon [x←b']
   #abs destruct
 ] qed.
 
+lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
+→ closed_c 〈AppValue v1 v2, e〉
+ → VEnvironment e
+  → False.
+*
+[ #v' #v2 #e #norm #clos #VEnv lapply (witness v' e ? VEnv)
+ [ lapply clos whd in match (closed_c); normalize #clos1 lapply (clos1 v')
+   lapply (veqb_true v') #veq >veq cases (domb_e v'e)
+  [ // | normalize // ]
+ | * #y #wit lapply norm whd in match (normal_c ?); #norm1
+   lapply (norm1 (CCrumble (AppValue y v2) e)) #nctr
+   lapply (sub_t v' v2 y e VEnv ? wit)
+  [ lapply clos whd in match (closed_c); normalize #clos1 lapply (clos1 v')
+    lapply (veqb_true v') #veq >veq cases (domb_e v'e)
+    [ // | normalize // ]
+  | #tctr lapply (top_step ? ? tctr) #ctr @(absurd ? ctr nctr)
+  ]
+ ]
+| #x * #b #e #v2 #ev #norm #clos #VEnv lapply norm whd in match (normal_c ?); #norm1
+  lapply (norm1 (at (pi1 … (alpha b (push e [x ← CValue v2]) ? ? ) ) ev))
+ [ 1,2: // | #nctr
+   lapply (cbeta_v x b e v2 ev VEnv) #tctr lapply (top_step ? ? tctr) #ctr @(absurd ? ctr nctr)
+ ]
+] qed.
+
+   
 lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
 → well_named 〈b, e〉 = true
  → ( normal_c 〈b, e〉 ↔ V_Crumble 〈b, e〉).
 @Environment_reverse_ind
-[ 2: #e' * #x #b' #IH #b #clos #wnamed %
- [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←b']) e') ? ? clos wnamed norm) //
-  lapply (IH b' ? ?)
-   [ @(wnamed_step b x b' e' wnamed)
-   | @(clos_step b x b' e' clos)
-   | cut (normal_c 〈b', e'〉)
+[ 2: #e' * #x *
+ [ 2: #v1 #v2 #IH #b #clos #wnamed %
+  [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←AppValue v1 v2]) e') ? ? clos wnamed norm) //
+    lapply (IH (AppValue v1 v2) ? ?)
+   [ @(wnamed_step b x (AppValue v1 v2) e' wnamed)
+   | @(clos_step b x (AppValue v1 v2) e' clos)
+   | cut (normal_c 〈(AppValue v1 v2), e'〉)
     [ lapply norm whd in match (normal_c ?); #norm1 whd in match (normal_c ?);
-      #c' lapply (norm1 c') @inverse #CTr cut (plug_c (crc b (envc Epsilon x)) 〈b', e'〉=〈b,concat (Snoc Epsilon [x←b']) e'〉)
+      #c' lapply (norm1 c') @inverse #CTr cut (plug_c (crc b (envc Epsilon x)) 〈AppValue v1 v2, e'〉=〈b,concat (Snoc Epsilon [x←AppValue v1 v2]) e'〉)
      [ normalize //
-     | #eq1 cut (plug_c (hole) c' = c') [ //
-      | #eq2 <eq1 <eq2 @closure_step @CTr
-      ]
+     | #eq1 cut (plug_c (hole) c' = c')
+      [ // | #eq2 <eq1 <eq2 @closure_step @CTr ]
+     ]
+    | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C cases (? : False)
+      @(norm_app_value v1 v2 e' norm1 ?)
+     [ @(clos_step b x (AppValue v1 v2) e' clos)
+     | @(p_vc_to_e (AppValue v1 v2) e') @V_C
+     ]
+    ]
+   ]
+  | #V_C cases (? : False) cut (EPracticalBite (AppValue v1 v2))
+   [ @(p_s_to_eb x) @(p_e_to_s Epsilon) @(pract_concat_l ? e') @(p_vc_to_e b)
+     @V_C
+   | #abs inversion abs #v #_ #abs2 destruct
+   ]
+  ] 
+ | #v' #IH #b #clos #wnamed %
+  [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←CValue v']) e') ? ? clos wnamed norm) //
+    lapply (IH (CValue v') ? ?)
+   [ @(wnamed_step b x (CValue v') e' wnamed)
+   | @(clos_step b x (CValue v') e' clos)
+   | cut (normal_c 〈(CValue v'), e'〉)
+    [ lapply norm whd in match (normal_c ?); #norm1 whd in match (normal_c ?);
+      #c' lapply (norm1 c') @inverse #CTr cut (plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉=〈b,concat (Snoc Epsilon [x←CValue v']) e'〉)
+     [ normalize //
+     | #eq1 cut (plug_c (hole) c' = c')
+      [ // | #eq2 <eq1 <eq2 @closure_step @CTr ]
      ]
     | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C @pract_env_concat
-     [ @PSnoc [ @PEpsilon | @Psubst 
- |
+     [ @PSnoc
+      [ @PEpsilon | @Psubst @EPValue @p_b_to_v @(p_vc_to_b (CValue v') e') @V_C ]
+     | @(p_vc_to_e (CValue v') e') @V_C ] 
+    ]
+   ]
+  | #V_C whd in match (normal_c ?); #c' @nmk #ctr cut (plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉=〈b,concat (Snoc Epsilon [x←CValue v']) e'〉)
+   [ normalize //
+   | #eq1 cut (plug_c (hole) c' = c')
+    [ //
+    | #eq2 lapply ctr <eq1 <eq2 #ctr2 inversion ctr2
+    ]
+   ] 
+        (*cut (normal_c 〈(CValue v'), e'〉)
+   [ 
+   | whd in match (normal_c ?); #norm1 whd in match (normal_c ?); #c'
+     lapply (norm1 c') @(not_to_not ? ? ?)
+     cut (〈b,concat (Snoc Epsilon [x←CValue v']) e'〉 = plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉)
+    [ normalize //
+    | #eq1 cut (plug_c (hole) c' = c')
+     [ normalize //
+     | #eq2 >eq1 <eq2 in match (CTrans (plug_c (crc b (envc Epsilon x)) 〈CValue v',e'〉) c');
+       #ctr @ @(closure_step ? ? ? ?)
+     ]
+    ]
+   ]*)
+  ]
  ]
 | 1: #b #clos #wnamed %
  [ #norm @(D_four ? b Epsilon ? ? clos wnamed norm) //
- | #VC
+ | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr 
+  [ #c1 #c2 #tctr #eq1 #eq2 inversion tctr
+   [ #x #b0 #e #v #ev #VEnv #eq3 #eq4 destruct 
+   |
+   |
+   ]
+  |
+  ]
+ ]
+] qed.
 
-
-
+(*
 #e @(Environment_reverse_ind ? ? ? e)
 [ #b #clos #wnamed #norm @(D_four ? b Epsilon ? ? clos wnamed norm) [ // | @PEpsilon ]
 | #e' * #x #b'  #IH #b #clos #wnamed #norm cut (normal_c 〈b', e'〉)
@@ -637,11 +747,6 @@ cut (normal_c 〈b', e'〉)
   [ cut (dist_dom e' = true)   whd in match (well_named ?); lapply wnamed  whd in match (well_named ?); cases (well_named_b b∧well_named_e (Snoc e' [x←b'])) [ 2: normalize #abs destruct
    | normalize change in match (if ? then ? else ?); with dist_dom (Snoc e' [x←b']); cut (well_named_e (Snoc e' [x←b'])= true) #wnamed' normalize 
 *)
-
-lemma five_dot_three_r : ∀c. closed_c c
-→ well_named c
- → V_Crumble c
-  → normal_c c.
 
 
 lemma D_eight : ∀(t: pTerm). ∀(u: pTerm). ∀(x: Variable). ∀(v : pValue). (*per casi su veqb e fvb_t *)

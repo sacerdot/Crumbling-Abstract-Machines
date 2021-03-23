@@ -849,7 +849,7 @@ qed.
 axiom daemon: False.
 *)
 
-
+(*
 lemma abstr_step_subst: ∀x, y, t, u.
  fvb_t x u = false →
   veqb y x = false →

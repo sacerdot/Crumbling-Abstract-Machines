@@ -72,7 +72,8 @@ inductive CPracticalValue : Value → Prop ≝
 
 inductive PracticalBite : Bite → Prop ≝
 | PValue : ∀v. CPracticalValue v → PracticalBite (CValue v)
-| PAppValue : ∀v1, v2. CPracticalValue v1 → CPracticalValue v2 → PracticalBite (AppValue v1 v2)
+(*| PAppValue : ∀v1, v2. CPracticalValue v1 → CPracticalValue v2 → PracticalBite (AppValue v1 v2)
+*)
 .
 
 inductive EPracticalBite : Bite → Prop ≝

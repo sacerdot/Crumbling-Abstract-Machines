@@ -63,8 +63,8 @@ inductive CTrans : Crumble → Crumble → Prop ≝
 (*| no_step : ∀c. CTrans c c*)
 | top_step : ∀c1, c2. TCTrans c1 c2
  → CTrans c1 c2
-| closure_step : ∀c1, c2, cc1, cc2. CTrans c1 c2
- → CTrans (plug_c cc1 c1) (plug_c cc2 c2)
+| closure_step : ∀c1, c2, cc. TCTrans c1 c2
+ → CTrans (plug_c cc c1) (plug_c cc c2)
 .
 
 definition normal_c ≝ λc. ∀c'. ¬(CTrans c c').
@@ -179,7 +179,7 @@ lemma p_vc_to_b : ∀b, e. V_Crumble 〈b, e〉 → PracticalBite b.
 #b #e #H inversion H
 #b0 #e0 #H2 #_ #eq destruct //
 qed.
-
+(*
 lemma p_b_to_eb : ∀b, v. b = CValue v
 → PracticalBite b
  → EPracticalBite b.
@@ -187,15 +187,27 @@ lemma p_b_to_eb : ∀b, v. b = CValue v
 (*[*)#v0 #CPVal #eq2 @EPValue @CPVal
 (*| #v1 #v2 #_ #_ #eq2 destruct*)
 qed.
+*)
 
+
+(*
 lemma p_s_to_eb : ∀v, b. PracticalSubstitution (subst v b) → EPracticalBite b.
 #v #b #H1 inversion H1
 #v' #b' #H2 #eq destruct //
 qed.
+*)
 
+
+lemma p_s_to_b : ∀v, b. PracticalSubstitution (subst v b) → PracticalBite b.
+#v #b #H1 inversion H1
+#v' #b' #H2 #eq destruct @H2
+qed.
+
+(*
 lemma p_eb_to_v : ∀v. EPracticalBite (CValue v) → CPracticalValue v.
 #v #H1 inversion H1 #v' #H2 #eq destruct //
 qed.
+*)
 
 lemma p_b_to_v : ∀v. PracticalBite (CValue v) → CPracticalValue v.
 #v #H1 inversion H1
@@ -220,12 +232,12 @@ lemma pract_ren : ∀b1, e, v, b2, v'.
   → (veqb (ν (fresh_var〈b1, (Snoc e (subst v b2))〉)) v' = true)
    → VE_Crumble 〈b1, (Snoc e (subst v' b2))〉.
 #b1 (@Environment_simple_ind2)
-[ #v #b2 #v' #H1 #eq @PCCrumble @PSnoc // @Psubst @(p_s_to_eb v b2) @(p_e_to_s Epsilon [v←b2]) @(p_ve_to_e b1 (Snoc Epsilon [v←b2])) //
+[ #v #b2 #v' #H1 #eq @PCCrumble @PSnoc // @Psubst @(p_s_to_b v b2) @(p_e_to_s Epsilon [v←b2]) @(p_ve_to_e b1 (Snoc Epsilon [v←b2])) //
 | #e #s #H1 #v #b2 #v' #H2 #veq @PCCrumble @PSnoc
  [ @PSnoc
   [ @(p_e_to_e e s) @(p_e_to_e (Snoc e s) [v←b2]) @(p_ve_to_e b1 (Snoc (Snoc e s) [v←b2])) //
   | @(p_e_to_s e s) @(p_e_to_e (Snoc e s) [v←b2]) @(p_ve_to_e b1 (Snoc (Snoc e s) [v←b2])) // ]
- | @Psubst @(p_s_to_eb v b2) @(p_e_to_s (Snoc e s) [v←b2]) @(p_ve_to_e b1 (Snoc (Snoc e s) [v←b2])) // ]
+ | @Psubst @(p_s_to_b v b2) @(p_e_to_s (Snoc e s) [v←b2]) @(p_ve_to_e b1 (Snoc (Snoc e s) [v←b2])) // ]
 ] qed.
 
 lemma pract_ssv : ∀v, y, z. ∀(H: inb_v z v = false). CPracticalValue v → CPracticalValue (ssv v y z H).
@@ -244,9 +256,9 @@ lemma pract_ssb : ∀b, y, z. ∀(H: inb_b z b = false). PracticalBite b → Pra
  | @p_b_to_v @PValue @pract_ssv @(p_ab_to_v2 v1 v2) //
 ] qed.
 *)
-lemma pract_sseb : ∀b, y, z. ∀(H: inb_b z b = false). EPracticalBite b → EPracticalBite (ssb b y z H).
+lemma pract_sseb : ∀b, y, z. ∀(H: inb_b z b = false). PracticalBite b → PracticalBite (ssb b y z H).
 *
-[ #v #y #z #H #EP whd in ⊢ (? %); @EPValue @pract_ssv @p_eb_to_v @EP
+[ #v #y #z #H #EP whd in ⊢ (? %); @PValue @pract_ssv @p_b_to_v @EP
 | #v1 #v2 #y #z #H #EP whd in ⊢ (? %); inversion EP #H5 #H6 #H7 destruct ]
 qed.
 
@@ -256,10 +268,10 @@ lemma pract_sse : ∀e, y, z. ∀(H: inb_e z e = false). VEnvironment e → VEnv
 | #e * #v #b #H1 #y #z #H0 #H2 whd in match (sse ? ? ? ?); inversion (veqb y v)
  [ #eq whd in ⊢ (? %); @PSnoc
   [ @H1 @p_e_to_e //
-  | @Psubst @pract_sseb @(p_s_to_eb v) @(p_e_to_s e) // ]
+  | @Psubst @pract_sseb @(p_s_to_b v) @(p_e_to_s e) // ]
  | #eq whd in ⊢ (? %); @PSnoc
   [ @H1 @(p_e_to_e e [v←b]) //
-  | @Psubst @pract_sseb @(p_s_to_eb v) @(p_e_to_s e) // ] ]
+  | @Psubst @pract_sseb @(p_s_to_b v) @(p_e_to_s e) // ] ]
 ] qed. 
 
 lemma pract_at : ∀b1, e1, e2. VE_Crumble〈b1, e1〉→ VEnvironment e2 → VE_Crumble (at〈b1, e1〉 e2).
@@ -282,7 +294,7 @@ lemma pract_alpha : ∀b, e. ∀n. ∀(H: fresh_var 〈b, e〉≤ n). VE_Crumble
  [ @PCCrumble @pract_sse @(p_ve_to_e b'') @H4
   [ @(alpha_aux1 b e ([v'←b']) n) //
   | @PCCrumble @(p_e_to_e e [v'←b']) @(p_ve_to_e b) // ]
- | @PSnoc [ // | @Psubst @(p_s_to_eb v') @(p_e_to_s e) @(p_ve_to_e b) // ]
+ | @PSnoc [ // | @Psubst @(p_s_to_b v') @(p_e_to_s e) @(p_ve_to_e b) // ]
 ] qed.
 (*
 lemma pract_cbeta_v : ∀x, b, e, v, ev, n. ∀(H: fresh_var 〈b,(push e [x←CValue v])〉≤n).
@@ -398,8 +410,8 @@ lemma witness: ∀x, e. domb_e x e = true
    | @(p_e_to_e e [v' ← CValue v]) @Venv ]
   ]
  | #v1 #v2 #H1 #dom #Venv cut (PracticalSubstitution [v'←AppValue v1 v2])
-  [ @(p_e_to_s e ?) @Venv | #Psubst cut (EPracticalBite (AppValue v1 v2))
-   [ @(p_s_to_eb v' ?) @Psubst | #EP inversion EP #v #CPr #eq destruct ]
+  [ @(p_e_to_s e ?) @Venv | #Psubst cut (PracticalBite (AppValue v1 v2))
+   [ @(p_s_to_b v' ?) @Psubst | #P inversion P #v #CPr #eq destruct ]
   ]
  ]
 ] qed.
@@ -554,6 +566,17 @@ lemma wnamed_step: ∀b, x, b', e. well_named 〈b,concat (Snoc Epsilon [x←b']
   #abs destruct
 ] qed.
 
+lemma norm_step: ∀c1, c2, cc. c1 = plug_c cc c2
+(*∀b, e, x, b', e'. e= concat (Snoc Epsilon [x← b']) e'*)
+→ normal_c c1
+ → normal_c c2.
+* #b #e * #b' #e' #cc #eq #norm
+whd in match (normal_c ?); lapply norm whd in match (normal_c ?); #norm1
+#c' lapply (norm1 (plug_c cc c')) @not_to_not >eq #ctr @closure_step inversion ctr
+
+@closure_step
+qed.
+
 lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
 → closed_c 〈AppValue v1 v2, e〉
  → VEnvironment e
@@ -579,6 +602,20 @@ lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
  ]
 ] qed.
 
+lemma pract_plug_to_c : ∀b1, e1, b2, e2, x. V_Crumble (plug_c (crc b2 (envc e2 x)) 〈b1, e1〉)
+→ V_Crumble 〈b1, e1〉 ∧ V_Crumble 〈b2, e2〉.
+#b1 #e1 #b2 #e2 #c #V_C lapply V_C whd in match (plug_c ? ?); whd in match (plug_e ? ?); #V_C2
+%
+[ lapply (p_vc_to_e ? ? V_C2 ) #Venv1 @PCrumble
+ [ lapply (pract_concat_l ? ? Venv1) #Venv2 lapply (p_e_to_s … Venv2) @p_s_to_b
+ | @(pract_concat_r ? ? Venv1)
+ ]
+| @PCrumble
+ [ @(p_vc_to_b ? ? V_C2)
+ | lapply (p_vc_to_e ? ? V_C2) #Venv1 lapply (pract_concat_l ? ? Venv1) #Venv2 @(p_e_to_e ? ? Venv2)
+ ] 
+] qed.
+
 
 lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
 → well_named 〈b, e〉 = true
@@ -590,22 +627,16 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
     lapply (IH (AppValue v1 v2) ? ?)
    [ @(wnamed_step b x (AppValue v1 v2) e' wnamed)
    | @(clos_step b x (AppValue v1 v2) e' clos)
-   | cut (normal_c 〈(AppValue v1 v2), e'〉)
-    [ lapply norm whd in match (normal_c ?); #norm1 whd in match (normal_c ?);
-      #c' lapply (norm1 c') @inverse #CTr cut (plug_c (crc b (envc Epsilon x)) 〈AppValue v1 v2, e'〉=〈b,concat (Snoc Epsilon [x←AppValue v1 v2]) e'〉)
-     [ normalize //
-     | #eq1 cut (plug_c (hole) c' = c')
-      [ // | #eq2 <eq1 <eq2 @closure_step @CTr ]
-     ]
-    | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C cases (? : False)
+   | lapply (norm_step 〈b, concat (Snoc Epsilon [x←AppValue v1 v2]) e'〉 〈AppValue v1 v2, e'〉 (crc b (envc Epsilon x)) ? norm)
+    [ // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C cases (? : False)
       @(norm_app_value v1 v2 e' norm1 ?)
      [ @(clos_step b x (AppValue v1 v2) e' clos)
      | @(p_vc_to_e (AppValue v1 v2) e') @V_C
      ]
     ]
    ]
-  | #V_C cases (? : False) cut (EPracticalBite (AppValue v1 v2))
-   [ @(p_s_to_eb x) @(p_e_to_s Epsilon) @(pract_concat_l ? e') @(p_vc_to_e b)
+  | #V_C cases (? : False) cut (PracticalBite (AppValue v1 v2))
+   [ @(p_s_to_b x) @(p_e_to_s Epsilon) @(pract_concat_l ? e') @(p_vc_to_e b)
      @V_C
    | #abs inversion abs #v #_ #abs2 destruct
    ]
@@ -615,41 +646,44 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
     lapply (IH (CValue v') ? ?)
    [ @(wnamed_step b x (CValue v') e' wnamed)
    | @(clos_step b x (CValue v') e' clos)
-   | cut (normal_c 〈(CValue v'), e'〉)
-    [ lapply norm whd in match (normal_c ?); #norm1 whd in match (normal_c ?);
-      #c' lapply (norm1 c') @inverse #CTr cut (plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉=〈b,concat (Snoc Epsilon [x←CValue v']) e'〉)
-     [ normalize //
-     | #eq1 cut (plug_c (hole) c' = c')
-      [ // | #eq2 <eq1 <eq2 @closure_step @CTr ]
-     ]
-    | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C @pract_env_concat
+   | lapply (norm_step 〈b, concat (Snoc Epsilon [x←CValue v']) e'〉 〈CValue v', e'〉 (crc b (envc Epsilon x)) ? norm)
+    [ // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C @pract_env_concat
      [ @PSnoc
-      [ @PEpsilon | @Psubst @EPValue @p_b_to_v @(p_vc_to_b (CValue v') e') @V_C ]
+      [ @PEpsilon | @Psubst @PValue @p_b_to_v @(p_vc_to_b (CValue v') e') @V_C ]
      | @(p_vc_to_e (CValue v') e') @V_C ] 
     ]
    ]
-  | #V_C whd in match (normal_c ?); #c' @nmk #ctr cut (plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉=〈b,concat (Snoc Epsilon [x←CValue v']) e'〉)
+  | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr
+   [ 2: * #b' #ev #c2 * 
+    [ 2: #b2 #ec elim ec #e2 #y (*aggiungi lemma v_c plug ab → v_c a, v_c b*)
+     #ctr2 #H1 #eq2 #eq3 lapply V_C >eq2 #V_C_cc lapply (pract_plug_to_c … V_C_cc) #V_c_and
+     inversion ctr2 
+     [ 2: #c'' #c'''
+  
+  
+  
+  
+  
+   #c' cut (plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉=〈b,concat (Snoc Epsilon [x←CValue v']) e'〉)
    [ normalize //
-   | #eq1 lapply ctr <eq1 cut (plug_c hole c'=c')
-    [ // | #eq0 <eq0 #ctr2 inversion ctr2
-     [ #c1 #c2 #tct #eq2 #eq3 inversion tct
-      [ #x0 #b0 #e #v #ev #Venv #eq4 #eq5 destruct lapply eq4 whd in match (plug_c ? ?);
-        whd in match (plug_e ? ?); #eq5 lapply V_C >eq5 #vc inversion vc #b1 #e0 #pb #ve #eq6
-        inversion pb #H1 #H2 #H3 destruct
-      | #x0 #ev #Venv #dombe #eq4 #eq5 lapply eq2 >eq4 whd in match (plug_c ? ?);
-        whd in match (plug_e ? ?); #eq6 lapply (p_vc_to_b ? ? V_C) cut (b=CValue (var x0))
-       [ destruct // | #eq7 >eq7 #Pb lapply (p_b_to_v ? Pb) #Pv inversion Pv #H1 #H2 #H3 destruct ]
-      | #x0 #v #v0 #ev #Venv #dombe #eq4 #eq5 #eq6 lapply eq2 >eq5 whd in match (plug_c ? ?);
-        #eq6 lapply (p_vc_to_b ? ? V_C) #Pb inversion Pb #v1 #Pv #eq7 inversion Pv
-        #v2 #c3 #eq8 lapply eq6 >eq7 >eq8 whd in match (plug_e ? ?); #eq9 destruct skip (c' c2)
+   | #eq1 <eq1 @nmk #ctr inversion ctr
+    [ #c1 #c2 #tct #eq2 #eq3 inversion tct
+     [ #x0 #b0 #e #v #ev #Venv #eq4 #eq5 destruct lapply eq4 whd in match (plug_c ? ?);
+       whd in match (plug_e ? ?); #eq5 lapply V_C >eq5 #vc inversion vc #b1 #e0 #pb #ve #eq6
+       inversion pb #H1 #H2 #H3 destruct
+     | #x0 #ev #Venv #dombe #eq4 #eq5 lapply eq2 >eq4 whd in match (plug_c ? ?);
+       whd in match (plug_e ? ?); #eq6 lapply (p_vc_to_b ? ? V_C) cut (b=CValue (var x0))
+      [ destruct // | #eq7 >eq7 #Pb lapply (p_b_to_v ? Pb) #Pv inversion Pv #H1 #H2 #H3 destruct ]
+     | #x0 #v #v0 #ev #Venv #dombe #eq4 #eq5 #eq6 lapply eq2 >eq5 whd in match (plug_c ? ?);
+       #eq6 lapply (p_vc_to_b ? ? V_C) #Pb inversion Pb #v1 #Pv #eq7 inversion Pv
+       #v2 #c3 #eq8 lapply eq6 >eq7 >eq8 whd in match (plug_e ? ?); #eq9 destruct skip (c' c2)
+     ]
+    | #c1 #c2 #cc #ctr2 #H1 #eq2 #eq3 destruct
+     [ inversion cc
+      [ #eq4 >eq2 >eq4 //
+      | #b1 #envc1 #eq4 lapply eq2 >eq4 whd in match (plug_c ? ?);
       ]
-     | #c1 #c2 #cc1 #cc2 #ctr3 #H1 #eq2 #eq3 @H1
-      [ inversion cc1
-       [ #eq4 >eq2 >eq4 //
-       | #b1 #cc' #eq4 lapply eq2 >eq4 whd in match (plug_c ? ?);
-       ]
-      |
-      ] 
+     |
      ]
     ]
    ] 

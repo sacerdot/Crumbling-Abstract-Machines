@@ -76,12 +76,14 @@ inductive PracticalBite : Bite → Prop ≝
 *)
 .
 
+(*
 inductive EPracticalBite : Bite → Prop ≝
 | EPValue : ∀v. CPracticalValue v → EPracticalBite (CValue v)
 .
+*)
 
 inductive PracticalSubstitution : Substitution → Prop ≝
-| Psubst : ∀v, b. EPracticalBite b → PracticalSubstitution (subst v b)
+| Psubst : ∀v, b. PracticalBite b → PracticalSubstitution (subst v b)
 .
 
 inductive VEnvironment : Environment → Prop ≝

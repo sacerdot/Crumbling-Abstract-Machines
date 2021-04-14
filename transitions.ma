@@ -59,13 +59,19 @@ inductive TCTrans : Crumble → Crumble → Prop ≝
    → TCTrans (CCrumble (AppValue (var x) v) ev) (CCrumble (AppValue v' v) ev)
 . // qed.
 
+inductive CCTrans : Crumble → Crumble → Prop ≝
+| closure_step : ∀c1, c2, cc. TCTrans c1 c2
+ → CCTrans (plug_c cc c1) (plug_c cc c2)
+.
+
 inductive CTrans : Crumble → Crumble → Prop ≝
 (*| no_step : ∀c. CTrans c c*)
 | top_step : ∀c1, c2. TCTrans c1 c2
  → CTrans c1 c2
-| closure_step : ∀c1, c2, cc. TCTrans c1 c2
- → CTrans (plug_c cc c1) (plug_c cc c2)
+| clos_step : ∀c1, c2. CCTrans c1 c2
+ → CTrans c1 c2
 .
+
 
 definition normal_c ≝ λc. ∀c'. ¬(CTrans c c').
 
@@ -491,9 +497,9 @@ lemma normal_value: ∀c, b, v, e. b = CValue v
      → V_Crumble c.
 #c #b *
 [ #x #e #eq1 #eq2 #VEnv #clos #wnamed #norm inversion (domb_e x e)
- [ #domb cut (TCTrans c (CCrumble (evaluate x e) e))
-  [ destruct @(sub_var x e VEnv domb)
-  | #Trans lapply norm normalize #norm1 lapply (norm1 〈evaluate x e,e〉) #abs elim abs #abs1 lapply (top_step ? ? Trans) #Trans2 lapply (abs1 Trans2) #False elim False ]
+ [ #domb cut (CTrans c (CCrumble (evaluate x e) e))
+  [ destruct @top_step @(sub_var x e VEnv domb)
+  | #Trans lapply norm normalize #norm1 lapply (norm1 〈evaluate x e,e〉) #abs elim abs #abs1 lapply (abs1 Trans) #False elim False ]
  | #ndom @(D_three c ? e x ? ? ? eq2 VEnv ? clos wnamed ndom) [ // | // | // | @or_introl @or_intror // ] ]
 | #y #c' #e #eq1 #eq2 #VEnv #clos #wnamed #norm destruct @PCrumble
  [ @PValue @Plambda | @VEnv ]
@@ -566,16 +572,40 @@ lemma wnamed_step: ∀b, x, b', e. well_named 〈b,concat (Snoc Epsilon [x←b']
   #abs destruct
 ] qed.
 
-lemma norm_step: ∀c1, c2, cc. c1 = plug_c cc c2
-(*∀b, e, x, b', e'. e= concat (Snoc Epsilon [x← b']) e'*)
-→ normal_c c1
- → normal_c c2.
-* #b #e * #b' #e' #cc #eq #norm
+lemma norm_step: ∀b1, e1, b2, e2, cc, x, b'. 〈b1, e1〉 = plug_c cc 〈b2, e2〉
+(*∀b, e, x, b', e'.*) 
+→ e1 = concat (Snoc Epsilon [x← b']) e2
+ → normal_c 〈b1, e1〉
+  → normal_c 〈b2, e2〉.
+#b1 #e1 #b2 #e2 #cc #x #b' #eq1 #eq2 #norm
 whd in match (normal_c ?); lapply norm whd in match (normal_c ?); #norm1
-#c' lapply (norm1 (plug_c cc c')) @not_to_not >eq #ctr @closure_step inversion ctr
+#c' lapply (norm1 (plug_c cc c'))(* #nctr @nmk #ctr inversion ctr
+[ #c1 #c2 #tctr #eq3 #eq4 lapply (closure_step ? ? cc tctr) #cctr lapply (clos_step ? ? cctr)
+  #ctrabs lapply nctr >eq1 >eq3 >eq4 #nctrabs @(absurd … ctrabs nctrabs)
+| #c1 #c2 #cctr #eq3 #eq4 destruct inversion cctr #c1' #c2'
+  #cc' #tctr #eq2 #eq3 destruct cut (CTrans 〈b1,concat (Snoc Epsilon [x←b']) e2〉 (plug_c cc (plug_c cc' c2')))
+ [ >eq1 @clos_step @closure_step 
+ |
+ ] 
+]
 
-@closure_step
+
+*) @not_to_not >eq1 #ctr @clos_step @closure_step inversion ctr
+(* scomponi i plug in crumble, dovrebbero ridursi a irriducibili*)
+[ //
+| #c1 #c2 #cctr #eq3 #eq4 (**) lapply eq1 elim cc
+ [ whd in match (plug_c ? ?); #eq5 <eq5 lapply (norm1 c2) >eq5 <eq4 #nctr cases (?:False) @(absurd … ctr (nctr))
+ | #b'' * #e'' #y whd in match (plug_c ? ?); whd in match (plug_e ? ?); destruct >eq1
+   #eq2  destruct check check  
+ ] 
+
+(**)inversion cctr * #b1 #e1 * #b2 #e2 #cc #tctr #eq3 #eq4 destruct elim cc
+ [
+ | #b'' * #e'' #x normalize
+ ]
+]
 qed.
+
 
 lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
 → closed_c 〈AppValue v1 v2, e〉
@@ -592,13 +622,13 @@ lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
   [ lapply clos whd in match (closed_c); normalize #clos1 lapply (clos1 v')
     lapply (veqb_true v') #veq >veq cases (domb_e v'e)
     [ // | normalize // ]
-  | #tctr lapply (top_step ? ? tctr) #ctr @(absurd ? ctr nctr)
+  | #ctr @(absurd ? (top_step … ctr) nctr)
   ]
  ]
 | #x * #b #e #v2 #ev #norm #clos #VEnv lapply norm whd in match (normal_c ?); #norm1
   lapply (norm1 (at (pi1 … (alpha b (push e [x ← CValue v2]) ? ? ) ) ev))
  [ 1,2: // | #nctr
-   lapply (cbeta_v x b e v2 ev VEnv) #tctr lapply (top_step ? ? tctr) #ctr @(absurd ? ctr nctr)
+   lapply (cbeta_v x b e v2 ev VEnv) #ctr @(absurd ? (top_step … ctr) nctr)
  ]
 ] qed.
 
@@ -654,7 +684,7 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
     ]
    ]
   | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr
-   [ 2: * #b' #ev #c2 * 
+   [ 4: * #b' #ev #c2 * 
     [ 2: #b2 #ec elim ec #e2 #y (*aggiungi lemma v_c plug ab → v_c a, v_c b*)
      #ctr2 #H1 #eq2 #eq3 lapply V_C >eq2 #V_C_cc lapply (pract_plug_to_c … V_C_cc) #V_c_and
      inversion ctr2 

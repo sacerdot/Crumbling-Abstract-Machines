@@ -47,6 +47,22 @@ let rec evaluate (x : Variable) ve on ve : Bite ≝
 inductive PifTrans : pTerm → pTerm → Prop ≝ 
 | beta_v : ∀v1, t1, t2. PifTrans (appl (val_to_term (abstr v1 t1)) t2) (p_subst t1 (psubst v1 t2)).
 
+(*
+** Devo evitare che la CTr che attiva la closure_step sia a sua volta una closure_step
+** Quindi escludo alt 3
+** Devo dimostrare:
+**  - Lo step di normalità (normal 〈b,[x←b']e'〉 → normal 〈b', e'〉)
+**  - ⇐ di 5.3
+** Problema: per inversione mi trovo CTrans tra le ipotesi ma mi servirebbe TCTrans
+** per dimostare l'assurdo 
+**  - (CTrans c1 c2 ?→ TCTrans c1 c2)
+**  - Devo porre delle condizioni su cc?
+*)
+
+(*
+** Alternativa 1, TCT e CC → CT
+*)
+
 inductive TCTrans : Crumble → Crumble → Prop ≝
 | cbeta_v : ∀x, b, e, v, ev. VEnvironment ev
  → TCTrans (CCrumble (AppValue (lambda x (CCrumble b e)) v) ev) (at (pi1 … (alpha b (push e [x ← CValue v]) ? ? ) ) ev)
@@ -65,13 +81,55 @@ inductive CCTrans : Crumble → Crumble → Prop ≝
 .
 
 inductive CTrans : Crumble → Crumble → Prop ≝
-(*| no_step : ∀c. CTrans c c*)
 | top_step : ∀c1, c2. TCTrans c1 c2
  → CTrans c1 c2
 | clos_step : ∀c1, c2. CCTrans c1 c2
  → CTrans c1 c2
 .
 
+
+(*
+** Alternativa 2, TCT → CT, TCT → C〈CT〉
+*)
+(*
+inductive TCTrans : Crumble → Crumble → Prop ≝
+| cbeta_v : ∀x, b, e, v, ev. VEnvironment ev
+ → TCTrans (CCrumble (AppValue (lambda x (CCrumble b e)) v) ev) (at (pi1 … (alpha b (push e [x ← CValue v]) ? ? ) ) ev)
+| sub_var : ∀x, ev. VEnvironment ev
+ → domb_e x ev = true
+  → TCTrans (CCrumble (CValue (var x)) ev) (CCrumble (evaluate x ev) ev)
+| sub_t : ∀x, v, v', ev. VEnvironment ev
+ → domb_e x ev = true
+  → evaluate x ev = CValue v'
+   → TCTrans (CCrumble (AppValue (var x) v) ev) (CCrumble (AppValue v' v) ev)
+. // qed.
+
+inductive CTrans : Crumble → Crumble → Prop ≝
+| top_step : ∀c1, c2. TCTrans c1 c2
+ → CTrans c1 c2
+| clos_step : ∀c1, c2, cc. TCTrans c1 c2
+ → CTrans (plug_c cc c1) (plug_c cc c2)
+.
+*)
+
+(*
+** Alternativa 3, CT → CT
+*)
+(*
+inductive CTrans : Crumble → Crumble → Prop ≝
+| cbeta_v : ∀x, b, e, v, ev. VEnvironment ev
+ → CTrans (CCrumble (AppValue (lambda x (CCrumble b e)) v) ev) (at (pi1 … (alpha b (push e [x ← CValue v]) ? ? ) ) ev)
+| sub_var : ∀x, ev. VEnvironment ev
+ → domb_e x ev = true
+  → CTrans (CCrumble (CValue (var x)) ev) (CCrumble (evaluate x ev) ev)
+| sub_t : ∀x, v, v', ev. VEnvironment ev
+ → domb_e x ev = true
+  → evaluate x ev = CValue v'
+   → CTrans (CCrumble (AppValue (var x) v) ev) (CCrumble (AppValue v' v) ev)
+| closure_step : ∀c1, c2, cc. CTrans c1 c2
+ → CTrans (plug_c cc c1) (plug_c cc c2)
+. // qed.
+*)
 
 definition normal_c ≝ λc. ∀c'. ¬(CTrans c c').
 
@@ -572,12 +630,34 @@ lemma wnamed_step: ∀b, x, b', e. well_named 〈b,concat (Snoc Epsilon [x←b']
   #abs destruct
 ] qed.
 
-lemma norm_step: ∀b1, e1, b2, e2, cc, x, b'. 〈b1, e1〉 = plug_c cc 〈b2, e2〉
+lemma norm_step: ∀b1, e1, b2, e2, cc, x. 〈b1, e1〉 = plug_c cc 〈b2, e2〉
 (*∀b, e, x, b', e'.*) 
-→ e1 = concat (Snoc Epsilon [x← b']) e2
+→ e1 = concat (Snoc Epsilon [x← b2]) e2
  → normal_c 〈b1, e1〉
   → normal_c 〈b2, e2〉.
-#b1 #e1 #b2 #e2 #cc #x #b' #eq1 #eq2 #norm
+#b1 #e1 #b2 #e2(**) *
+[ #x #eq1 #eq2 #norm cases (? : False) lapply eq1 normalize destruct #eq2 destruct /2/
+| #b' * #e' #y #x #eq1 #eq2 #norm whd in match (normal_c ?); * #b3 #e3 lapply norm
+  whd in match (normal_c ?); #norm1 @nmk #ctr inversion ctr
+ [ #c1 #c2 #tctr #eq3 #eq4 destruct lapply (closure_step ? ? (crc b' (envc e' y)) tctr) #cctr
+   lapply (clos_step ? ? cctr) <eq1 #ctrTrue lapply (norm1 (plug_c (crc b' (envc e' y)) 〈b3,e3〉))
+   #ctrFalse @(absurd ? ctrTrue ctrFalse)
+ | #c1 #c2 #cctr #eq3 #eq4 destruct inversion cctr * #b1' #e1' * #b2' #e2' *
+  [ #tctr normalize #eq2 #eq3 destruct lapply (closure_step ? ? (crc b' (envc e' y)) tctr)
+    #cctr lapply (clos_step ? ? cctr) <eq1 #ctrTrue lapply (norm1 (plug_c (crc b' (envc e' y)) 〈b2',e2'〉))
+    #ctrFalse @(absurd ? ctrTrue ctrFalse)
+  | #b3 * #e3 #z #tctr normalize #eq2 #eq3 lapply eq1 >eq2 whd in match (plug_c ? ?);
+    whd in match (plug_e ? ?); lapply (comm_concat (Snoc e' [y←b3]) (Snoc e3 [z←b1']) e1') #eq_concat
+    >eq_concat normalize #eq4 lapply (closure_step ? ? (crc b' (envc (concat (Snoc e' [y←b3]) e3) z)) tctr)
+    #cctr2 lapply (clos_step ? ? cctr2) normalize <eq4 #ctrTrue
+    lapply (norm1 〈b',concat (Snoc (concat (Snoc e' [y←b3]) e3) [z←b2']) e2'〉) #ctrFalse
+    @(absurd ? ctrTrue ctrFalse)
+  ]
+ ]
+] qed.
+
+(*
+(**) #cc #x #eq1 #eq2 #norm
 whd in match (normal_c ?); lapply norm whd in match (normal_c ?); #norm1
 #c' lapply (norm1 (plug_c cc c'))(* #nctr @nmk #ctr inversion ctr
 [ #c1 #c2 #tctr #eq3 #eq4 lapply (closure_step ? ? cc tctr) #cctr lapply (clos_step ? ? cctr)
@@ -604,7 +684,7 @@ whd in match (normal_c ?); lapply norm whd in match (normal_c ?); #norm1
  | #b'' * #e'' #x normalize
  ]
 ]
-qed.
+qed. *)
 
 
 lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
@@ -646,7 +726,7 @@ lemma pract_plug_to_c : ∀b1, e1, b2, e2, x. V_Crumble (plug_c (crc b2 (envc e2
  ] 
 ] qed.
 
-
+(*TODO lemma PracticalBite b → TCTrans 〈b,*〉 * → False*)
 lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
 → well_named 〈b, e〉 = true
  → ( normal_c 〈b, e〉 ↔ V_Crumble 〈b, e〉).
@@ -657,8 +737,8 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
     lapply (IH (AppValue v1 v2) ? ?)
    [ @(wnamed_step b x (AppValue v1 v2) e' wnamed)
    | @(clos_step b x (AppValue v1 v2) e' clos)
-   | lapply (norm_step 〈b, concat (Snoc Epsilon [x←AppValue v1 v2]) e'〉 〈AppValue v1 v2, e'〉 (crc b (envc Epsilon x)) ? norm)
-    [ // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C cases (? : False)
+   | lapply (norm_step b (concat (Snoc Epsilon [x←AppValue v1 v2]) e') (AppValue v1 v2) e' (crc b (envc Epsilon x)) x ? ? norm)
+    [ // | normalize // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C cases (? : False)
       @(norm_app_value v1 v2 e' norm1 ?)
      [ @(clos_step b x (AppValue v1 v2) e' clos)
      | @(p_vc_to_e (AppValue v1 v2) e') @V_C
@@ -676,166 +756,70 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
     lapply (IH (CValue v') ? ?)
    [ @(wnamed_step b x (CValue v') e' wnamed)
    | @(clos_step b x (CValue v') e' clos)
-   | lapply (norm_step 〈b, concat (Snoc Epsilon [x←CValue v']) e'〉 〈CValue v', e'〉 (crc b (envc Epsilon x)) ? norm)
-    [ // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C @pract_env_concat
+   | lapply (norm_step b (concat (Snoc Epsilon [x←CValue v']) e') (CValue v') e' (crc b (envc Epsilon x)) x ? ? norm)
+    [ // | normalize // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C @pract_env_concat
      [ @PSnoc
       [ @PEpsilon | @Psubst @PValue @p_b_to_v @(p_vc_to_b (CValue v') e') @V_C ]
      | @(p_vc_to_e (CValue v') e') @V_C ] 
     ]
    ]
   | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr
-   [ 4: * #b' #ev #c2 * 
-    [ 2: #b2 #ec elim ec #e2 #y (*aggiungi lemma v_c plug ab → v_c a, v_c b*)
-     #ctr2 #H1 #eq2 #eq3 lapply V_C >eq2 #V_C_cc lapply (pract_plug_to_c … V_C_cc) #V_c_and
-     inversion ctr2 
-     [ 2: #c'' #c'''
-  
-  
-  
-  
-  
-   #c' cut (plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉=〈b,concat (Snoc Epsilon [x←CValue v']) e'〉)
-   [ normalize //
-   | #eq1 <eq1 @nmk #ctr inversion ctr
-    [ #c1 #c2 #tct #eq2 #eq3 inversion tct
-     [ #x0 #b0 #e #v #ev #Venv #eq4 #eq5 destruct lapply eq4 whd in match (plug_c ? ?);
-       whd in match (plug_e ? ?); #eq5 lapply V_C >eq5 #vc inversion vc #b1 #e0 #pb #ve #eq6
-       inversion pb #H1 #H2 #H3 destruct
-     | #x0 #ev #Venv #dombe #eq4 #eq5 lapply eq2 >eq4 whd in match (plug_c ? ?);
-       whd in match (plug_e ? ?); #eq6 lapply (p_vc_to_b ? ? V_C) cut (b=CValue (var x0))
-      [ destruct // | #eq7 >eq7 #Pb lapply (p_b_to_v ? Pb) #Pv inversion Pv #H1 #H2 #H3 destruct ]
-     | #x0 #v #v0 #ev #Venv #dombe #eq4 #eq5 #eq6 lapply eq2 >eq5 whd in match (plug_c ? ?);
-       #eq6 lapply (p_vc_to_b ? ? V_C) #Pb inversion Pb #v1 #Pv #eq7 inversion Pv
-       #v2 #c3 #eq8 lapply eq6 >eq7 >eq8 whd in match (plug_e ? ?); #eq9 destruct skip (c' c2)
+   [ * #b1 #e1 * #b2 #e2 #tctr #eq1 #eq2 destruct inversion tctr
+    [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
+    | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
+      inversion H22 #H25 #H26 #H27 destruct
+    | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
+    ]
+   | * #b1 #e1 * #b2 #e2 #cctr #eq1 #eq2 inversion cctr * #b1' #e1' * #b2' #e2' *
+    [ #tctr #eq3 #eq4 destruct lapply eq3 whd in match (plug_c ? ?); #eq4 lapply tctr
+      <eq4 #abs2 inversion abs2
+     [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
+     | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
+       inversion H22 #H25 #H26 #H27 destruct
+     | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
      ]
-    | #c1 #c2 #cc #ctr2 #H1 #eq2 #eq3 destruct
-     [ inversion cc
-      [ #eq4 >eq2 >eq4 //
-      | #b1 #envc1 #eq4 lapply eq2 >eq4 whd in match (plug_c ? ?);
-      ]
-     |
+    | #b3 * #e3 #y #tctr normalize #eq3 #eq4 destruct lapply V_C >eq1 #V_C2 lapply (p_vc_to_e ? ? V_C2) #VEnv
+      lapply (pract_concat_l ? ? VEnv) #VEnv2 lapply (p_e_to_s ? ? VEnv2) #P_S lapply (p_s_to_b ? ? P_S) #P_B
+      inversion tctr
+     [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ inversion P_B #H10 #H11 #H12 destruct 
+     | #H14 #H15 #H16 #H17 #H18 #H19 inversion P_B #H21 #H22 #H23 destruct
+       inversion H22 #H25 #H26 #H27 destruct
+     | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 inversion P_B #H39 #H40 #H41 destruct
      ]
     ]
-   ] 
-        (*cut (normal_c 〈(CValue v'), e'〉)
-   [ 
-   | whd in match (normal_c ?); #norm1 whd in match (normal_c ?); #c'
-     lapply (norm1 c') @(not_to_not ? ? ?)
-     cut (〈b,concat (Snoc Epsilon [x←CValue v']) e'〉 = plug_c (crc b (envc Epsilon x)) 〈CValue v', e'〉)
-    [ normalize //
-    | #eq1 cut (plug_c (hole) c' = c')
-     [ normalize //
-     | #eq2 >eq1 <eq2 in match (CTrans (plug_c (crc b (envc Epsilon x)) 〈CValue v',e'〉) c');
-       #ctr @ @(closure_step ? ? ? ?)
-     ]
-    ]
-   ]*)
+   ]
   ]
  ]
 | 1: #b #clos #wnamed %
  [ #norm @(D_four ? b Epsilon ? ? clos wnamed norm) //
  | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr 
-  [ #c1 #c2 #tctr #eq1 #eq2 inversion tctr
-   [ #x #b0 #e #v #ev #VEnv #eq3 #eq4 destruct 
-   |
-   |
+  [ * #b1 #e1 * #b2 #e2 #tctr #eq1 #eq2 destruct inversion tctr
+   [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
+   | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
+     inversion H22 #H25 #H26 #H27 destruct
+   | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
    ]
-  |
+  | * #b1 #e1 * #b2 #e2 #cctr #eq1 #eq2 inversion cctr * #b1' #e1' * #b2' #e2' *
+   [ #tctr #eq3 #eq4 destruct lapply eq3 whd in match (plug_c ? ?); #eq4 lapply tctr
+     <eq4 #abs2 inversion abs2
+    [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
+    | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
+      inversion H22 #H25 #H26 #H27 destruct
+    | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
+    ]
+   | #b3 * #e3 #y #tctr normalize #eq3 #eq4 destruct lapply V_C >eq1 #V_C2 lapply (p_vc_to_e ? ? V_C2) #VEnv
+     lapply (pract_concat_l ? ? VEnv) #VEnv2 lapply (p_e_to_s ? ? VEnv2) #P_S lapply (p_s_to_b ? ? P_S) #P_B
+     inversion tctr
+    [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ inversion P_B #H10 #H11 #H12 destruct 
+    | #H14 #H15 #H16 #H17 #H18 #H19 inversion P_B #H21 #H22 #H23 destruct
+      inversion H22 #H25 #H26 #H27 destruct
+    | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 inversion P_B #H39 #H40 #H41 destruct
+    ]
+   ]
   ]
  ]
 ] qed.
 
-(*
-#e @(Environment_reverse_ind ? ? ? e)
-[ #b #clos #wnamed #norm @(D_four ? b Epsilon ? ? clos wnamed norm) [ // | @PEpsilon ]
-| #e' * #x #b'  #IH #b #clos #wnamed #norm cut (normal_c 〈b', e'〉)
- [ whd in match (normal_c ?); #c' lapply norm whd in match (normal_c ?); #norm1 lapply (norm1 c')
-  #norm2 @(not_to_not ? (CTrans (plug_c (crc b (envc e' x)) 〈b', Epsilon〉) (plug_c hole c')))
-  [ 2: cut (plug_c (crc b (envc e' x)) 〈b', Epsilon〉 = 〈b,concat e' (Snoc Epsilon [x←b'])〉 ∧ plug_c hole c'=c')
-   [ % [ normalize // | // ]
-   | #andeq lapply (proj1 … andeq) #eq1 lapply (proj2 … andeq) #eq2 >eq1 >eq2 @norm2 ]
-  | #CTr cases (? : False) inversion CTr
-   [ #c1 #c2 #TCTr #eq1 #eq2 cut (CTrans 〈b,concat e' (Snoc Epsilon [x←b'])〉 c')
-    [ cut (plug_c (crc b (envc e' x)) 〈b', Epsilon〉 = 〈b,concat e' (Snoc Epsilon [x←b'])〉 ∧ plug_c hole c'=c')
-     [ % [ normalize // | // ]
-     | #andeq lapply (proj1 … andeq) #eq3 lapply (proj2 … andeq) #eq4 <eq3 <eq4 @closure_step
-   |
-   ]
-  ]
- |
-    @(closure_step (CCrumble b' e') c' (crc b (envc e' x)) hole ?) inversion CTr
-    [ #c1 #c2 #TCTr #eq1 #eq2 @TCTr | (* #c1 #c2 #cc1 #cc2 #TCTr #eq1 #eq2*)
-      cut (plug_c (crc b (envc e' x)) 〈b', Epsilon〉 = 〈b,concat e' (Snoc Epsilon [x←b'])〉 ∧ plug_c hole c'=c')
-     [ % [ normalize // | // ]
-     | #andeq lapply (proj1 … andeq) #eq3 lapply (proj2 … andeq) #eq4
-     lapply norm2 <eq3 <eq4 
-    
-     lapply CTr >eq1 >eq2
-  cases (absurd ? ? (norm …)) whd in match (normal_c ?); #c' lapply norm whd in match (normal_c ?); #norm1
-   cases (absurd ? ? (norm …)) 
-   
-(CTrans (plug_c (crc b (envc e' x)) 〈b', Epsilon〉) )
-
-
-cut (V_Crumble 〈b', e'〉 ∧ normal_c 〈b', e'〉)
- [ 2: #H lapply (proj1 … H) #V_C lapply (proj2 … H) #norm2 @(D_four ? b (Snoc e' [x←b']) ? ? clos wnamed norm)
-  [ // | @PSnoc
-   [ @(p_vc_to_e b' e' V_C) | @Psubst lapply (p_vc_to_b b' e' V_C) #Pract inversion Pract
-    [ #v #H1 #eq <eq @(p_b_to_eb b' v eq Pract)
-    | #v1 #v2 #H1 #H2 #eq cases (? : False) inversion H1 #y * #b'' #e'' #eq2
-      cases (absurd ? ? (norm2 …)) [ destruct @top_step @cbeta_v @(p_vc_to_e ? e' V_C) | skip ]
-    ]
-   ]
-  ]
-  | % 
-   [ @(IH b' ? ? ?)
-    [ whd in match (closed_c ?); #x0 lapply clos whd in match (closed_c ?); #clos0
-     whd in match (fvb ? ?); inversion (fvb_b x0 b'∧¬domb_e x0 e')
-     [ #eq0 lapply (clos0 x0) whd in match (fvb ? ?); inversion (fvb_b x0 b∧¬domb_e x0 (Snoc e' [x←b']))
-      [ #eq2 whd in match (if true then true else fvb_e x0 (Snoc e' [x←b'])); #abs destruct
-      | #eq2 whd in match (if false then true else fvb_e x0 (Snoc e' [x←b'])); inversion (fvb_e x0 e'∧¬veqb x0 x)
-       [ #eq3 whd in match (if true then true else fvb_b x0 b'); #abs @abs
-       | #eq3 whd in match (if false then true else fvb_b x0 b'); #fvbf lapply eq0 >fvbf
-         whd in match (false∧¬domb_e x0 e'); #abs destruct ]
-      ]
-     | #eq0 whd in match (if false then true else fvb_e x0 e'); lapply (clos0 x0) whd in match (fvb ? ?);
-       inversion (fvb_b x0 b∧¬domb_e x0 (Snoc e' [x←b']))
-      [ #eq1 whd in match (if true then true else fvb_e x0 (Snoc e' [x←b'])); #abs destruct
-      | #eq1 whd in match (if false then true else fvb_e x0 (Snoc e' [x←b'])); inversion (fvb_e x0 e'∧¬veqb x0 x)
-       [ #eq2 whd in match (if true then true else fvb_b x0 b'); #abs destruct
-       | #eq2 whd in match (if false then true else fvb_b x0 b'); #fvf inversion (veqb x0 x)
-        [ #veq 
-         
-       ]
-      ] 
-     ]
-
-     [ #H1 whd in match (if true then true else fvb_e x0 (Snoc e' [x←b'])); #abs destruct
-     | #H1 whd in match (if false then true else fvb_e x0 (Snoc e' [x←b']));
-       inversion (fvb_e x0 e'∧¬veqb x0 x)
-      [ #H2 whd in match (if true then true else fvb_b x0 b'); #abs destruct
-      | #H2 whd in match (if false then true else fvb_b x0 b'); #fvbx0b' whd in match (fvb ? ?);
-        >fvbx0b' whd in match (false∧¬domb_e x0 e'); whd in match (if false then true else fvb_e x0 e');
-        whd in match (fvb_e ? ?); cases H2
-  
-  
-   check check 
-  whd in match (closed_c ?); #x0 lapply clos whd in match (closed_c ?); #clos0 lapply (clos0 x0) #clos1 whd in match (fvb ? ?);
-   inversion (fvb_b x0 b'∧¬domb_e x0 e')
-    [ #eq lapply clos1 whd in match (fvb ? ?); cases (fvb_b x0 b∧¬domb_e x0 (Snoc e' [x←b']))
-     [ normalize // | whd in match (if false then true else fvb_e x0 (Snoc e' [x←b']));
-      whd in match (if true then true else fvb_e x0 e'); cases (fvb_b x0 b)
-     [ normalize
-    
-     #clos0 lapply clos0 whd in match (fvb ? ?); normalize
-
- @(D_four ? b (Snoc e' [x←b']) ? ? clos wnamed norm)
- [ // |  
-cut (normal_c 〈b', e'〉)
- [ 2: #norm' lapply (IH b' ? ? norm')
-  [ cut (dist_dom e' = true)   whd in match (well_named ?); lapply wnamed  whd in match (well_named ?); cases (well_named_b b∧well_named_e (Snoc e' [x←b'])) [ 2: normalize #abs destruct
-   | normalize change in match (if ? then ? else ?); with dist_dom (Snoc e' [x←b']); cut (well_named_e (Snoc e' [x←b'])= true) #wnamed' normalize 
-*)
 
 
 lemma D_eight : ∀(t: pTerm). ∀(u: pTerm). ∀(x: Variable). ∀(v : pValue). (*per casi su veqb e fvb_t *)

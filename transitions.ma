@@ -141,7 +141,7 @@ inductive reachable_c : Crumble → Crumble → Prop ≝
 
 
 definition reachable_Crumble ≝ λc'. ∃t. ∃s. closed_t t
- → CTrans (match underline_pTerm t s with [ mk_Prod c n ⇒ c]) c'.
+ → reachable_c (match underline_pTerm t s with [ mk_Prod c n ⇒ c]) c'.
  
 
 definition valZ : Variable ≝ variable 0.
@@ -435,12 +435,39 @@ lemma closed_to_lam: ∀c, b, e. normal_c c
 *)
 
 
+(*come formalizzare "senza perdita di generalità suppongo y∈fv ecc.."?*)
 (*
+lemma D_one: ∀v, v', x. ∃vs. p_subst (val_to_term v) (psubst x (val_to_term v')) = val_to_term vs.
+*
+[ #y #v' #x inversion (veqb x y)
+ [ #veqt lapply (atomic_subst y (val_to_term v'))
+   lapply (veqb_true_to_eq x y) * #Hveq #_ lapply (Hveq veqt) #eq
+   >eq #H1 >H1 % //
+ | #veqf lapply (no_subst y x (val_to_term v') veqf) #H1 >H1 % //
+ ]
+| #y #u #v' #x
+] qed.
+
+
+lemma D_one: ∀v, v', x. is_value_t (p_subst (val_to_term v) (psubst x (val_to_term v'))).
+*
+[ #y #v' #x inversion (veqb x y)
+ [ #veqt lapply (atomic_subst y (val_to_term v'))
+   lapply (veqb_true_to_eq x y) * #Hveq #_ lapply (Hveq veqt) #eq
+   >eq #H1 >H1 //
+ | #veqf lapply (no_subst y x (val_to_term v') veqf) #H1 >H1 //
+ ]
+| apply (λy. fvb_t y (val_to_term (abstr y u)) #y #u #v' #x cut (fvb_t y (val_to_term (abstr y u)) = false) 
+] qed.
+
+
+
 lemma D_one: ∀v, v', x. is_value_t v
 → is_value_t v'
  → is_value_t (p_subst v (psubst x v')).
 *
-[ #v *
+[ #v
+
  [ #v' #x #H1 #H2 cases v
   [ #v1 inversion (veqb x v1)
    [ #veqt lapply (atomic_subst x (val_to_term v'))
@@ -451,7 +478,8 @@ lemma D_one: ∀v, v', x. is_value_t v
    [ #veqt lapply (no_subst2 y t (val_to_term v'))
     lapply (veqb_true_to_eq y x) * #Hveq #_ lapply (Hveq veqt) #eq <eq
     #eq2 >eq2 //
-   | #veqf (*qua mi serve abstr_step_subst*)
+   | #veqf lapply (abstr_step_subst y x t (val_to_term v') ? ?)
+    [ // | normalize whd in match (free_occ_v ? ?);
    ]
   ]
  |
@@ -479,6 +507,7 @@ lemma witness: ∀x, e. domb_e x e = true
   ]
  ]
 ] qed.
+
 (*
 lemma aux_rb_to_abst: ∀ev, x. VEnvironment ev
 → domb_e x ev = true
@@ -501,9 +530,12 @@ lemma read_back_to_abst: ∀ev, x. VEnvironment ev
 | #e #s #H1 #x #Venv #dom whd in match (read_back ?); whd in match (read_back_b ?);
  inversion (inb_s x s) #inb lapply (H1 x ? ?) whd in match (aux_read_back ? ?);   
 *)
-
-
 (*
+lemma D_two: ∀ev, b, v. VEnvironment ev
+→ b = CValue v
+ → (∃pv. read_back 〈b, ev〉 = val_to_term pv. ∧
+  ∀
+
 lemma D_two: ∀ev, v'. VEnvironment ev
 (*→ b = CValue v'*)
  →  ∃pv'. read_back 〈CValue v', ev〉= val_to_term pv'.
@@ -565,7 +597,7 @@ lemma normal_value: ∀c, b, v, e. b = CValue v
 
 
 
-lemma D_four: ∀c, b, e. c = 〈b, e〉
+corollary D_four: ∀c, b, e. c = 〈b, e〉
 → VEnvironment e
  → closed_c c
   → well_named c = true
@@ -726,34 +758,37 @@ lemma pract_plug_to_c : ∀b1, e1, b2, e2, x. V_Crumble (plug_c (crc b2 (envc e2
  ] 
 ] qed.
 
-(*TODO lemma PracticalBite b → TCTrans 〈b,*〉 * → False*)
+lemma practB_TCT_to_abs: ∀b, e, c'. PracticalBite b
+→ TCTrans 〈b, e〉 c'
+ → False.
+#b #e #c' #P_B #tctr inversion tctr
+[ #x #b0 #e0 #v #ev #VEnv #eq1 #eq2 destruct inversion P_B #v0 #P_V #eq1 destruct
+| #x #ev #VEnv #dombe #eq1 #eq2 destruct inversion P_B #v #P_V #eq destruct inversion P_V #v #c #eq destruct
+| #x #v #v' #ev #VEnv #dombe #eq1 #eq2 #eq3 destruct inversion P_B #v0 #P_V #eq1 destruct 
+] qed.
+
 lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
 → well_named 〈b, e〉 = true
  → ( normal_c 〈b, e〉 ↔ V_Crumble 〈b, e〉).
 @Environment_reverse_ind
 [ 2: #e' * #x *
  [ 2: #v1 #v2 #IH #b #clos #wnamed %
-  [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←AppValue v1 v2]) e') ? ? clos wnamed norm) //
-    lapply (IH (AppValue v1 v2) ? ?)
+  [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←AppValue v1 v2]) e') ? ? clos wnamed norm) // lapply (IH (AppValue v1 v2) ? ?)
    [ @(wnamed_step b x (AppValue v1 v2) e' wnamed)
    | @(clos_step b x (AppValue v1 v2) e' clos)
    | lapply (norm_step b (concat (Snoc Epsilon [x←AppValue v1 v2]) e') (AppValue v1 v2) e' (crc b (envc Epsilon x)) x ? ? norm)
     [ // | normalize // | #norm1 * #norm_to_vc #_ lapply (norm_to_vc norm1) #V_C cases (? : False)
       @(norm_app_value v1 v2 e' norm1 ?)
-     [ @(clos_step b x (AppValue v1 v2) e' clos)
-     | @(p_vc_to_e (AppValue v1 v2) e') @V_C
-     ]
+     [ @(clos_step b x (AppValue v1 v2) e' clos) | @(p_vc_to_e (AppValue v1 v2) e') @V_C ]
     ]
    ]
   | #V_C cases (? : False) cut (PracticalBite (AppValue v1 v2))
-   [ @(p_s_to_b x) @(p_e_to_s Epsilon) @(pract_concat_l ? e') @(p_vc_to_e b)
-     @V_C
+   [ @(p_s_to_b x) @(p_e_to_s Epsilon) @(pract_concat_l ? e') @(p_vc_to_e b) @V_C
    | #abs inversion abs #v #_ #abs2 destruct
    ]
   ] 
  | #v' #IH #b #clos #wnamed %
-  [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←CValue v']) e') ? ? clos wnamed norm) //
-    lapply (IH (CValue v') ? ?)
+  [ #norm  @(D_four ? b (concat (Snoc Epsilon  [x←CValue v']) e') ? ? clos wnamed norm) // lapply (IH (CValue v') ? ?)
    [ @(wnamed_step b x (CValue v') e' wnamed)
    | @(clos_step b x (CValue v') e' clos)
    | lapply (norm_step b (concat (Snoc Epsilon [x←CValue v']) e') (CValue v') e' (crc b (envc Epsilon x)) x ? ? norm)
@@ -764,28 +799,14 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
     ]
    ]
   | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr
-   [ * #b1 #e1 * #b2 #e2 #tctr #eq1 #eq2 destruct inversion tctr
-    [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
-    | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
-      inversion H22 #H25 #H26 #H27 destruct
-    | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
-    ]
+   [ * #b1 #e1 * #b2 #e2 #tctr #eq1 #eq2 destruct @(practB_TCT_to_abs b1 ? 〈b2,e2〉 ? tctr)
+     @(p_vc_to_b ? ? V_C)
    | * #b1 #e1 * #b2 #e2 #cctr #eq1 #eq2 inversion cctr * #b1' #e1' * #b2' #e2' *
     [ #tctr #eq3 #eq4 destruct lapply eq3 whd in match (plug_c ? ?); #eq4 lapply tctr
-      <eq4 #abs2 inversion abs2
-     [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
-     | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
-       inversion H22 #H25 #H26 #H27 destruct
-     | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
-     ]
+      <eq4 #abs2 @(practB_TCT_to_abs b1 ? 〈b2', e2'〉 ? abs2) @(p_vc_to_b ? ? V_C)
     | #b3 * #e3 #y #tctr normalize #eq3 #eq4 destruct lapply V_C >eq1 #V_C2 lapply (p_vc_to_e ? ? V_C2) #VEnv
       lapply (pract_concat_l ? ? VEnv) #VEnv2 lapply (p_e_to_s ? ? VEnv2) #P_S lapply (p_s_to_b ? ? P_S) #P_B
-      inversion tctr
-     [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ inversion P_B #H10 #H11 #H12 destruct 
-     | #H14 #H15 #H16 #H17 #H18 #H19 inversion P_B #H21 #H22 #H23 destruct
-       inversion H22 #H25 #H26 #H27 destruct
-     | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 inversion P_B #H39 #H40 #H41 destruct
-     ]
+      @(practB_TCT_to_abs b1' e1' 〈b2',e2'〉 P_B tctr)
     ]
    ]
   ]
@@ -793,32 +814,32 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
 | 1: #b #clos #wnamed %
  [ #norm @(D_four ? b Epsilon ? ? clos wnamed norm) //
  | #V_C whd in match (normal_c ?); #c' @nmk #ctr inversion ctr 
-  [ * #b1 #e1 * #b2 #e2 #tctr #eq1 #eq2 destruct inversion tctr
-   [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
-   | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
-     inversion H22 #H25 #H26 #H27 destruct
-   | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
-   ]
+  [ * #b1 #e1 * #b2 #e2 #tctr #eq1 #eq2 destruct 
+    @(practB_TCT_to_abs b1 ? 〈b2, e2〉 ? tctr) @(p_vc_to_b ? ? V_C)
   | * #b1 #e1 * #b2 #e2 #cctr #eq1 #eq2 inversion cctr * #b1' #e1' * #b2' #e2' *
    [ #tctr #eq3 #eq4 destruct lapply eq3 whd in match (plug_c ? ?); #eq4 lapply tctr
-     <eq4 #abs2 inversion abs2
-    [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H10 #H11 #H12 destruct 
-    | #H14 #H15 #H16 #H17 #H18 #H19 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H21 #H22 #H23 destruct
-      inversion H22 #H25 #H26 #H27 destruct
-    | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 lapply (p_vc_to_b ? ? V_C) destruct #abs inversion abs #H39 #H40 #H41 destruct
-    ]
+     <eq4 #abs2 @(practB_TCT_to_abs b1 ? 〈b2', e2'〉 ? abs2) @(p_vc_to_b ? ? V_C)
    | #b3 * #e3 #y #tctr normalize #eq3 #eq4 destruct lapply V_C >eq1 #V_C2 lapply (p_vc_to_e ? ? V_C2) #VEnv
      lapply (pract_concat_l ? ? VEnv) #VEnv2 lapply (p_e_to_s ? ? VEnv2) #P_S lapply (p_s_to_b ? ? P_S) #P_B
-     inversion tctr
-    [ #H1 #H2 #H3 #H4 #H5 #H6 #H7 #_ inversion P_B #H10 #H11 #H12 destruct 
-    | #H14 #H15 #H16 #H17 #H18 #H19 inversion P_B #H21 #H22 #H23 destruct
-      inversion H22 #H25 #H26 #H27 destruct
-    | #H29 #H30 #H31 #H32 #H33 #H34 #H35 #H36 #H37 inversion P_B #H39 #H40 #H41 destruct
-    ]
+     @(practB_TCT_to_abs b1' e1' 〈b2',e2'〉 P_B tctr)
    ]
   ]
  ]
 ] qed.
+
+lemma five_dot_five_one: ∀c. reachable_Crumble c
+→ well_named c.
+
+lemma five_dot_five_two: ∀c. reachable_Crumble c
+→ closed_c c.
+
+lemma five_dot_five_three: ∀c. reachable_Crumble c
+→
+
+lemma five_dot_five_four: ∀c. reachable_Crumble c
+
+lemma five_dot_five: ∀c. reachable_Crumble c
+→ well_named c ∧ closed_c c ∧
 
 
 

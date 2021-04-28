@@ -849,6 +849,12 @@ qed.
 axiom daemon: False.
 *)
 
+
+axiom abstr_step_subst: ∀x, y, t, u. fvb_t x u = false →
+  veqb y x = false →
+   p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr x (p_subst t (psubst y u)))).
+
+
 (*
 lemma abstr_step_subst: ∀x, y, t, u.
  fvb_t x u = false →
@@ -900,8 +906,8 @@ with
       (refl bool (fvb_t x u))
   ] (refl bool (veqb y x))  (le_n (S (t_size t))))= val_to_term (abstr x (p_subst t (psubst y u)))
 )
-[ >veq >fv #K #K1 #K2  // | #K whd in match (t_size (val_to_term (abstr x t))); normalize
-check check  @K
+[ >veq >fv #K #K1 #K2  // | #K @K                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         whd in match (t_size (val_to_term (abstr x t))); normalize
+@K
 
  match veqb y x return λb. veqb y x = b → S (t_size t) ≤ S (t_size t) →
     Σu: pTerm. ?

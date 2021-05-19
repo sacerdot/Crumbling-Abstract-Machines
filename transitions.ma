@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-include "alpha.ma".
+include "newalpha.ma".
 include "pif_subst.ma".
 (*
 let rec replace (t : pTerm) (s : pSubst) : pTerm ≝
@@ -134,15 +134,31 @@ inductive CTrans : Crumble → Crumble → Prop ≝
 definition normal_c ≝ λc. ∀c'. ¬(CTrans c c').
 
 
-inductive reachable_c : Crumble → Crumble → Prop ≝
-| selfT : ∀c. reachable_c c c
-| recurT : ∀c, c', c''. reachable_c c c' → CTrans c' c'' → reachable_c c c''
+inductive k_closure_c : Crumble → Crumble → Prop ≝
+| selfT : ∀c. k_closure_c c c
+| recurT : ∀c1, c2, c3. k_closure_c c1 c2 → CTrans c2 c3 → k_closure_c c1 c3
 .
 
 
-definition reachable_Crumble ≝ λc'. ∃t. ∃s. closed_t t
- → reachable_c (match underline_pTerm t s with [ mk_Prod c n ⇒ c]) c'.
- 
+(* Se faccio inversion sull'ipotesi kclos mi trovo un IH sbagliata (c2=c3!?), forse sbagliata la definizione?*)
+
+(*
+lemma k_closure_wnamed_induction:∀c. well_named c=true
+→ ∀c1. k_closure_c c c1 → well_named c1 = true.
+#c #wnamed #c1 #kclos inversion kclos
+[ #c0 #eq1 #eq2 destruct @wnamed
+| #c' #c'' #c''' #kclos2 #ctr #IH #eq1 #eq2 destruct
+] qed.
+*)
+
+(*
+definition initial_state ≝ λc. ∃t. ∃s. fresh_var_t t ≤ s ∧ closed_t t
+ ∧ fst ? ?(underline_pTerm t s) = c.
+*)
+
+definition reachable_Crumble ≝ λc'. ∃c. ∃t. ∃s. fresh_var_t t ≤ s ∧ closed_t t
+ ∧ fst ? ?(underline_pTerm t s) = c ∧ k_closure_c c c'.
+
 
 definition valZ : Variable ≝ variable 0.
 definition termZ : pTerm ≝ val_to_term (pvar valZ).
@@ -164,7 +180,7 @@ definition abs0: Value ≝ lambda (ν0) c0 .
 definition b1: Bite ≝ CValue abs0 .
 definition c1: Crumble ≝ 〈 b1, e0 〉.
 definition c2: Crumble ≝ 〈 (AppValue (lambda (ν1) c0) v0), e0 〉.
-(*TODO test CTrans*)
+
 lemma Veo : VEnvironment e0.
 @PEpsilon qed.
 (* (λv1.c0)v0,e0 ⇒ (c0@[v1←v0])^α@e0*)
@@ -182,6 +198,9 @@ lemma trans_test : PifTrans term0 termZ.
 lemma trans_test2 : PifTrans term1 termY.
 @beta_v qed.
 *)
+
+(*Di seguito alcuni lemmi sulla transivita` della praticita` nei Crumble*)
+
 lemma p_e_to_s : ∀e, s. VEnvironment (Snoc e s) → PracticalSubstitution s.
 #e #s #H(* lapply (refl … (Snoc e s)) cases H in ⊢(? ? ? %→ ?);*)
 inversion H
@@ -331,18 +350,21 @@ lemma pract_sse : ∀e, y, z. ∀(H: inb_e z e = false). VEnvironment e → VEnv
 [ //
 | #e * #v #b #H1 #y #z #H0 #H2 whd in match (sse ? ? ? ?); inversion (veqb y v)
  [ #eq whd in ⊢ (? %); @PSnoc
-  [ @H1 @p_e_to_e //
+  [ @(p_e_to_e e [v←b] H2)
   | @Psubst @pract_sseb @(p_s_to_b v) @(p_e_to_s e) // ]
  | #eq whd in ⊢ (? %); @PSnoc
-  [ @H1 @(p_e_to_e e [v←b]) //
+  [ @H1 @(p_e_to_e e [v←b]) @H2
   | @Psubst @pract_sseb @(p_s_to_b v) @(p_e_to_s e) // ] ]
 ] qed. 
 
-lemma pract_at : ∀b1, e1, e2. VE_Crumble〈b1, e1〉→ VEnvironment e2 → VE_Crumble (at〈b1, e1〉 e2).
-#b1 #e1 #e2 #H0 #H1 normalize @PCCrumble @(pract_env_concat e1 e2)
+lemma pract_at : ∀c1, e2. VE_Crumble c1→ VEnvironment e2 → VE_Crumble (at c1 e2).
+* #b1 #e1 #e2 #H0 #H1 normalize @PCCrumble @(pract_env_concat e1 e2)
 [ @(p_ve_to_e b1 e1) // | // ]
 qed.
 
+
+(* Con newalpha questa dimostrazione è da aggiornare*)
+(*
 lemma pract_alpha : ∀b, e. ∀n. ∀(H: fresh_var 〈b, e〉≤ n). VE_Crumble〈b, e〉 → VE_Crumble (pi1 Crumble ? (alpha b e n H)).
 #b (@Environment_simple_ind2)
 [ //
@@ -354,12 +376,14 @@ lemma pract_alpha : ∀b, e. ∀n. ∀(H: fresh_var 〈b, e〉≤ n). VE_Crumble
      [mk_Sig a h⇒
       «at (ssc a ? (νn) ?) (Snoc Epsilon [νn←b']),
       ?»]);
- @pract_at
- [ @PCCrumble @pract_sse @(p_ve_to_e b'') @H4
+ @pract_at 
+ [ whd in match (ssc ? ? ? ?); @PCCrumble @pract_sse @(p_ve_to_e b'') @H4
   [ @(alpha_aux1 b e ([v'←b']) n) //
   | @PCCrumble @(p_e_to_e e [v'←b']) @(p_ve_to_e b) // ]
  | @PSnoc [ // | @Psubst @(p_s_to_b v') @(p_e_to_s e) @(p_ve_to_e b) // ]
 ] qed.
+*)
+
 (*
 lemma pract_cbeta_v : ∀x, b, e, v, ev, n. ∀(H: fresh_var 〈b,(push e [x←CValue v])〉≤n).
 CTrans 〈 AppValue (lambda x 〈 b, e〉) v, ev〉 (at (pi1 …(alpha b (push e [x←CValue v]) n H)) ev)
@@ -436,58 +460,27 @@ lemma closed_to_lam: ∀c, b, e. normal_c c
 
 
 (*come formalizzare "senza perdita di generalità suppongo y∈fv ecc.."?*)
-(*
-lemma D_one: ∀v, v', x. ∃vs. p_subst (val_to_term v) (psubst x (val_to_term v')) = val_to_term vs.
+(*ERRORE nella dim: y ∉ u invece che v`*)
+
+lemma D_one: ∀v, v', x. closed_t (val_to_term v')
+→ ∃vs. p_subst (val_to_term v) (psubst x (val_to_term v')) = val_to_term vs.
 *
-[ #y #v' #x inversion (veqb x y)
+[ #y #v' #x #_ inversion (veqb x y)
  [ #veqt lapply (atomic_subst y (val_to_term v'))
    lapply (veqb_true_to_eq x y) * #Hveq #_ lapply (Hveq veqt) #eq
    >eq #H1 >H1 % //
  | #veqf lapply (no_subst y x (val_to_term v') veqf) #H1 >H1 % //
  ]
-| #y #u #v' #x
-] qed.
-
-
-lemma D_one: ∀v, v', x. is_value_t (p_subst (val_to_term v) (psubst x (val_to_term v'))).
-*
-[ #y #v' #x inversion (veqb x y)
- [ #veqt lapply (atomic_subst y (val_to_term v'))
-   lapply (veqb_true_to_eq x y) * #Hveq #_ lapply (Hveq veqt) #eq
-   >eq #H1 >H1 //
- | #veqf lapply (no_subst y x (val_to_term v') veqf) #H1 >H1 //
- ]
-| apply (λy. fvb_t y (val_to_term (abstr y u)) #y #u #v' #x cut (fvb_t y (val_to_term (abstr y u)) = false) 
-] qed.
-
-
-
-lemma D_one: ∀v, v', x. is_value_t v
-→ is_value_t v'
- → is_value_t (p_subst v (psubst x v')).
-*
-[ #v
-
- [ #v' #x #H1 #H2 cases v
-  [ #v1 inversion (veqb x v1)
-   [ #veqt lapply (atomic_subst x (val_to_term v'))
-    lapply (veqb_true_to_eq x v1) * #Hveq #_ lapply (Hveq veqt) #eq <eq #eq2 >eq2 @H2
-   | #veqf lapply (no_subst v1 x (val_to_term v') veqf) #eq >eq normalize //
-   ]
-  | #y #t inversion (veqb y x)
-   [ #veqt lapply (no_subst2 y t (val_to_term v'))
-    lapply (veqb_true_to_eq y x) * #Hveq #_ lapply (Hveq veqt) #eq <eq
-    #eq2 >eq2 //
-   | #veqf lapply (abstr_step_subst y x t (val_to_term v') ? ?)
-    [ // | normalize whd in match (free_occ_v ? ?);
-   ]
+| #y #u #v' #x #clos cut (fvb_t y (val_to_term v') = false)
+ [ lapply clos whd in match (closed_t ?); #clos1 @(clos1 y)
+ | inversion (veqb x y)
+  [ #veqt lapply (veqb_true_to_eq x y) * #H0 #_ lapply (H0 veqt) #eq >eq #_ lapply (no_subst2 x u (val_to_term v')) #eq2 >eq2
+    % //  
+  | #veqf #fvbf lapply (abstr_step_subst y x u (val_to_term v') fvbf veqf) #eq >eq % //
   ]
- |
  ]
-|
-]
-qed.
-*)
+] qed.
+
 
 lemma witness: ∀x, e. domb_e x e = true
 → VEnvironment e
@@ -530,11 +523,23 @@ lemma read_back_to_abst: ∀ev, x. VEnvironment ev
 | #e #s #H1 #x #Venv #dom whd in match (read_back ?); whd in match (read_back_b ?);
  inversion (inb_s x s) #inb lapply (H1 x ? ?) whd in match (aux_read_back ? ?);   
 *)
-(*
-lemma D_two: ∀ev, b, v. VEnvironment ev
-→ b = CValue v
- → (∃pv. read_back 〈b, ev〉 = val_to_term pv. ∧
-  ∀
+lemma snoc_to_concat: ∀e1, e2, s. Snoc (concat e1 e2) s = concat e1 (Snoc e2 s).
+// qed.
+
+
+
+lemma witness2: ∀x, e. domb_e x e = true
+→ ∃e1, b, e2. e= concat (Snoc e2 (subst x b)) e1.
+#x @Environment_simple_ind2
+[ normalize #abs cases (? : False) @(absurd (false=true)) // 
+| #e * #y #b1 #IH normalize inversion (veqb x y)
+ [ #veqt #_ lapply (veqb_true_to_eq x y) * #H1 #_ lapply (H1 veqt) #eq >eq %
+  [ @Epsilon | normalize /3/ 
+  ]
+ | #veqf normalize #domT lapply (IH domT) * #e1 * #b1 * #e2 #eq >eq
+   lapply (snoc_to_concat (Snoc e2 [x←b1]) e1 [y←b1]) #eq2 /4/
+ ]  
+] qed.
 
 lemma D_two: ∀ev, v'. VEnvironment ev
 (*→ b = CValue v'*)
@@ -543,10 +548,17 @@ lemma D_two: ∀ev, v'. VEnvironment ev
 [ *
  [ #x #Venv normalize % //
  | #x * #b' #e'#Venv whd in match (read_back ?); % // ]
-| #e1 #s1 #H1 *
+| #e1 #s1 #IH *
  [ #x #Venv inversion (domb_e x (Snoc e1 s1))
-  [ #domT lapply (witness x
-  
+  [ #domT lapply (witness2 x (Snoc e1 s1) domT) * #e2 * #b2 * #e3 #eq  whd in match (read_back ?);
+   [ #y #evl destruct
+   |
+   ]
+  |
+ |
+] qed.
+
+
 lemma read_back_to_abs: ∀ev, x. VEnvironment ev
 → domb_e x ev = true
  → ∃e1, e2. ev = concat e1 e2
@@ -620,7 +632,6 @@ lemma concat_to_push :∀e, s. concat (Snoc Epsilon s) e = push e s.
 [ #s normalize //
 | #e #s #HI #t normalize >HI //
 ] qed.
-(* qui devo definire env_ind a partire dalla coda*)
 
 lemma clos_step: ∀b, x, b', e. closed_c 〈b,concat (Snoc Epsilon [x←b']) e〉 → closed_c 〈b', e〉.
 #b #x #b' #e whd in match (closed_c ?);
@@ -687,36 +698,6 @@ lemma norm_step: ∀b1, e1, b2, e2, cc, x. 〈b1, e1〉 = plug_c cc 〈b2, e2〉
   ]
  ]
 ] qed.
-
-(*
-(**) #cc #x #eq1 #eq2 #norm
-whd in match (normal_c ?); lapply norm whd in match (normal_c ?); #norm1
-#c' lapply (norm1 (plug_c cc c'))(* #nctr @nmk #ctr inversion ctr
-[ #c1 #c2 #tctr #eq3 #eq4 lapply (closure_step ? ? cc tctr) #cctr lapply (clos_step ? ? cctr)
-  #ctrabs lapply nctr >eq1 >eq3 >eq4 #nctrabs @(absurd … ctrabs nctrabs)
-| #c1 #c2 #cctr #eq3 #eq4 destruct inversion cctr #c1' #c2'
-  #cc' #tctr #eq2 #eq3 destruct cut (CTrans 〈b1,concat (Snoc Epsilon [x←b']) e2〉 (plug_c cc (plug_c cc' c2')))
- [ >eq1 @clos_step @closure_step 
- |
- ] 
-]
-
-
-*) @not_to_not >eq1 #ctr @clos_step @closure_step inversion ctr
-(* scomponi i plug in crumble, dovrebbero ridursi a irriducibili*)
-[ //
-| #c1 #c2 #cctr #eq3 #eq4 (**) lapply eq1 elim cc
- [ whd in match (plug_c ? ?); #eq5 <eq5 lapply (norm1 c2) >eq5 <eq4 #nctr cases (?:False) @(absurd … ctr (nctr))
- | #b'' * #e'' #y whd in match (plug_c ? ?); whd in match (plug_e ? ?); destruct >eq1
-   #eq2  destruct check check  
- ] 
-
-(**)inversion cctr * #b1 #e1 * #b2 #e2 #cc #tctr #eq3 #eq4 destruct elim cc
- [
- | #b'' * #e'' #x normalize
- ]
-]
-qed. *)
 
 
 lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
@@ -827,8 +808,24 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
  ]
 ] qed.
 
+
 lemma five_dot_five_one: ∀c. reachable_Crumble c
-→ well_named c.
+→ well_named c = true.
+#c whd in match (reachable_Crumble ?); * #c' * #t * #s #H3 lapply (proj2 … H3) #kclos lapply (proj2 …(proj1… H3)) #eq1
+lapply (proj2 …(proj1 …(proj1… H3))) #clos lapply (proj1 …(proj1 …(proj1… H3))) #fresh_v
+-H3 inversion kclos
+[ lapply (proj1 …four_dot_one_dot_four) #th #c0 #eq2 #eq3 destruct @(th t s fresh_v)
+| #c0 #c0' #c'' #kclos1 #CTr #IH #eq2 #eq3 destruct inversion CTr
+  [ #c1 #c2 #tctr #eq1 #eq2 destruct inversion tctr
+   [ #x #b #e #v #ev #VEnv #eq1 #eq2 <eq2 whd in match (pi1 …);
+   |
+   |
+   ]
+  |
+  ]
+ ]
+] qed.
+
 
 lemma five_dot_five_two: ∀c. reachable_Crumble c
 → closed_c c.
@@ -840,7 +837,7 @@ lemma five_dot_five_four: ∀c. reachable_Crumble c
 
 lemma five_dot_five: ∀c. reachable_Crumble c
 → well_named c ∧ closed_c c ∧
-
+*)
 
 
 lemma D_eight : ∀(t: pTerm). ∀(u: pTerm). ∀(x: Variable). ∀(v : pValue). (*per casi su veqb e fvb_t *)

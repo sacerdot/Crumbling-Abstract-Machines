@@ -849,10 +849,15 @@ qed.
 axiom daemon: False.
 *)
 
+axiom abstr_step_subst2: ∀x, y, t, u. fvb_t x u = true →
+ veqb y x = false →
+  ∃z.p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr z (p_subst (p_subst t (psubst x (val_to_term (pvar z)))) (psubst y u)))).
+
+
 
 axiom abstr_step_subst: ∀x, y, t, u. fvb_t x u = false →
-  veqb y x = false →
-   p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr x (p_subst t (psubst y u)))).
+ veqb y x = false →
+  p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr x (p_subst t (psubst y u)))).
 
 
 (*

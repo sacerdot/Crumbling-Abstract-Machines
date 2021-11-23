@@ -12,26 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-include "newalpha.ma".
-include "pif_subst.ma".
-(*
-let rec replace (t : pTerm) (s : pSubst) : pTerm ≝
-  match t with
-  [ val_to_term v ⇒ match v with
-    [ pvar pv ⇒ match s with
-      [ psubst nv pt ⇒ match veqb nv pv with
-        [ true ⇒ pt
-        | false ⇒ t ]
-      ] 
-    | abstr x t1 ⇒ match s with
-      [ psubst nv pt ⇒ match veqb nv x with
-        [ true ⇒ t
-        | false ⇒ val_to_term ( abstr x ( replace t1 s ) ) ]
-      ]
-    ]
-  | appl t1 t2 ⇒ appl ( replace t1 s ) ( replace t2 s ) ]
-.
-*)
+include "alpha.ma".
+
 
 let rec evaluate (x : Variable) ve on ve : Bite ≝
   match ve with
@@ -65,7 +47,7 @@ inductive PifTrans : pTerm → pTerm → Prop ≝
 
 inductive TCTrans : Crumble → Crumble → Prop ≝
 | cbeta_v : ∀x, b, e, v, ev. VEnvironment ev
- → TCTrans (CCrumble (AppValue (lambda x (CCrumble b e)) v) ev) (at (pi1 … (alpha b (push e [x ← CValue v]) ? ? ) ) ev)
+ → TCTrans (CCrumble (AppValue (lambda x (CCrumble b e)) v) ev) (at (pi1 … (alpha b (push e [x ← CValue v]) (fresh_var 〈b,push e [x←CValue v]〉) ? ) ) ev)
 | sub_var : ∀x, ev. VEnvironment ev
  → domb_e x ev = true
   → TCTrans (CCrumble (CValue (var x)) ev) (CCrumble (evaluate x ev) ev)
@@ -183,26 +165,10 @@ definition c2: Crumble ≝ 〈 (AppValue (lambda (ν1) c0) v0), e0 〉.
 
 lemma Veo : VEnvironment e0.
 @PEpsilon qed.
-(* (λv1.c0)v0,e0 ⇒ (c0@[v1←v0])^α@e0*)
-(*lemma cTransTest0 : CTrans c2 ((at (pi1 … (alpha b0 (push e1 [(ν1) ← (CValue v0)]) ? ? )) e0)).
-[ @cbeta_v @Veo qed.
-(*c0 ⇒ c0*)
-(*
-lemma cTransTest1 : CTrans c0 c0.
-@sub_var @PSnoc [@Veo | @Psubst @PValue @
-*)
-(* (λx.z) y ⇒βv z*)
-lemma trans_test : PifTrans term0 termZ.
-@beta_v qed.
-(* (λz.z) y ⇒βv y*)
-lemma trans_test2 : PifTrans term1 termY.
-@beta_v qed.
-*)
 
-(*Di seguito alcuni lemmi sulla transivita` della praticita` nei Crumble*)
 
 lemma p_e_to_s : ∀e, s. VEnvironment (Snoc e s) → PracticalSubstitution s.
-#e #s #H(* lapply (refl … (Snoc e s)) cases H in ⊢(? ? ? %→ ?);*)
+#e #s #H
 inversion H
 [ #abs destruct
 | #e' #s' #He' #Hs' #_ #eq destruct //
@@ -262,54 +228,17 @@ lemma p_vc_to_b : ∀b, e. V_Crumble 〈b, e〉 → PracticalBite b.
 #b #e #H inversion H
 #b0 #e0 #H2 #_ #eq destruct //
 qed.
-(*
-lemma p_b_to_eb : ∀b, v. b = CValue v
-→ PracticalBite b
- → EPracticalBite b.
-#b #v #eq #H inversion H
-(*[*)#v0 #CPVal #eq2 @EPValue @CPVal
-(*| #v1 #v2 #_ #_ #eq2 destruct*)
-qed.
-*)
-
-
-(*
-lemma p_s_to_eb : ∀v, b. PracticalSubstitution (subst v b) → EPracticalBite b.
-#v #b #H1 inversion H1
-#v' #b' #H2 #eq destruct //
-qed.
-*)
-
 
 lemma p_s_to_b : ∀v, b. PracticalSubstitution (subst v b) → PracticalBite b.
 #v #b #H1 inversion H1
 #v' #b' #H2 #eq destruct @H2
 qed.
 
-(*
-lemma p_eb_to_v : ∀v. EPracticalBite (CValue v) → CPracticalValue v.
-#v #H1 inversion H1 #v' #H2 #eq destruct //
-qed.
-*)
-
 lemma p_b_to_v : ∀v. PracticalBite (CValue v) → CPracticalValue v.
 #v #H1 inversion H1
-(*[*) #v' #H2 #eq destruct //
-(*| #v1 #v2 #H2 #H3 #eq destruct ]*)
+#v' #H2 #eq destruct @H2
 qed.
-(*
-lemma p_ab_to_v1 : ∀v1, v2. PracticalBite (AppValue v1 v2) → CPracticalValue v1.
-#v1 #v2 #H1 inversion H1
-[ #v #H2 #eq destruct
-| #v1' #v2' #H2 #H3 #eq destruct //
-] qed.
 
-lemma p_ab_to_v2 : ∀v1, v2. PracticalBite (AppValue v1 v2) → CPracticalValue v2.
-#v1 #v2 #H1 inversion H1
-[ #v #H2 #eq destruct
-| #v1' #v2' #H2 #H3 #eq destruct //
-] qed.
-*)
 lemma pract_ren : ∀b1, e, v, b2, v'.
  VE_Crumble 〈b1, (Snoc e (subst v b2))〉
   → (veqb (ν (fresh_var〈b1, (Snoc e (subst v b2))〉)) v' = true)
@@ -330,77 +259,17 @@ lemma pract_ssv : ∀v, y, z. ∀(H: inb_v z v = false). CPracticalValue v → C
  [ normalize //
  | normalize @Plambda ]
 ] qed.
-(*
-lemma pract_ssb : ∀b, y, z. ∀(H: inb_b z b = false). PracticalBite b → PracticalBite (ssb b y z H).
-*
-[ #val #y #z #H #H1 whd in ⊢ (? %); @PValue @pract_ssv @p_b_to_v //
-| #v1 #v2 #y #z #H #H1 whd in ⊢(? %); @PAppValue
- [ @p_b_to_v @PValue @pract_ssv @(p_ab_to_v1 v1 v2) //
- | @p_b_to_v @PValue @pract_ssv @(p_ab_to_v2 v1 v2) //
-] qed.
-*)
+
 lemma pract_sseb : ∀b, y, z. ∀(H: inb_b z b = false). PracticalBite b → PracticalBite (ssb b y z H).
 *
 [ #v #y #z #H #EP whd in ⊢ (? %); @PValue @pract_ssv @p_b_to_v @EP
 | #v1 #v2 #y #z #H #EP whd in ⊢ (? %); inversion EP #H5 #H6 #H7 destruct ]
 qed.
 
-lemma pract_sse : ∀e, y, z. ∀(H: inb_e z e = false). VEnvironment e → VEnvironment (sse e y z H).
-@Environment_simple_ind2
-[ //
-| #e * #v #b #H1 #y #z #H0 #H2 whd in match (sse ? ? ? ?); inversion (veqb y v)
- [ #eq whd in ⊢ (? %); @PSnoc
-  [ @(p_e_to_e e [v←b] H2)
-  | @Psubst @pract_sseb @(p_s_to_b v) @(p_e_to_s e) // ]
- | #eq whd in ⊢ (? %); @PSnoc
-  [ @H1 @(p_e_to_e e [v←b]) @H2
-  | @Psubst @pract_sseb @(p_s_to_b v) @(p_e_to_s e) // ] ]
-] qed. 
-
 lemma pract_at : ∀c1, e2. VE_Crumble c1→ VEnvironment e2 → VE_Crumble (at c1 e2).
 * #b1 #e1 #e2 #H0 #H1 normalize @PCCrumble @(pract_env_concat e1 e2)
 [ @(p_ve_to_e b1 e1) // | // ]
 qed.
-
-
-(* Con newalpha questa dimostrazione è da aggiornare*)
-(*
-lemma pract_alpha : ∀b, e. ∀n. ∀(H: fresh_var 〈b, e〉≤ n). VE_Crumble〈b, e〉 → VE_Crumble (pi1 Crumble ? (alpha b e n H)).
-#b (@Environment_simple_ind2)
-[ //
-| #e * #v' #b' #H1 #n #H2 #H3 whd in match (fresh_var ?); whd in match (alpha ? ? ? ?);
- lapply (H1 (S n)) cases (alpha b e (S n)) * #b'' #e' #KK #H4
- whd in match ( match «〈b'',e'〉,?»
-      in Sig
-      with 
-     [mk_Sig a h⇒
-      «at (ssc a ? (νn) ?) (Snoc Epsilon [νn←b']),
-      ?»]);
- @pract_at 
- [ whd in match (ssc ? ? ? ?); @PCCrumble @pract_sse @(p_ve_to_e b'') @H4
-  [ @(alpha_aux1 b e ([v'←b']) n) //
-  | @PCCrumble @(p_e_to_e e [v'←b']) @(p_ve_to_e b) // ]
- | @PSnoc [ // | @Psubst @(p_s_to_b v') @(p_e_to_s e) @(p_ve_to_e b) // ]
-] qed.
-*)
-
-(*
-lemma pract_cbeta_v : ∀x, b, e, v, ev, n. ∀(H: fresh_var 〈b,(push e [x←CValue v])〉≤n).
-CTrans 〈 AppValue (lambda x 〈 b, e〉) v, ev〉 (at (pi1 …(alpha b (push e [x←CValue v]) n H)) ev)
- → VE_Crumble (at (pi1 …(alpha b (push e [x←CValue v]) n H)) ev).
-#x #b #e #v #ev #n #H #H0 whd in match (alpha ? ? ? ?); 
-@(pract_alpha b (push e [x←CValue v]) n H)
-
-lemma pract_sub_var : ∀x, ev. CTrans 〈CValue (var x), ev〉〈evaluate x ev, ev〉
- → VE_Crumble 〈evaluate x ev, ev〉.
-
-lemma pract_sub_t :
-
-lemma pract_trans : ∀b1, e1, b2, e2. (VE_Crumble 〈b1, e1〉) → (CTrans 〈b1, e1〉 〈b2, e2〉) → VE_Crumble 〈b2, e2〉.
-#b1 #e1 #b2 @Environment_simple_ind2
-[ #H1 #H2 @PCCrumble //
-| #e2 #s2 #H1 #H2 #H3 cases H3
-*)
 
 let rec is_value_b (b: Bite) ≝
   match b with
@@ -445,39 +314,6 @@ lapply clos normalize #clos1 lapply (clos1 x) destruct normalize cut (veqb x x =
  [@eq_to_veq // | #veq >veq normalize >dom normalize #abs @(absurd (true=false)) //
 qed.
 
-
-     
-(*
-lemma closed_to_lam: ∀c, b, e. normal_c c
-→ closed_c c
- → c= 〈b, e〉
-  → is_lambda_b b = true.
-#c *
-[ *
- [ #v #e #norm #clos #eq normalize | #H1 #H2 #H3 #H4 #H5 #H6 normalize // ] |(*ottieni assurdo CTrans e ¬CTrans o esegui*)
-  lapply norm normalize #norm1 inversion b
-*)
-
-
-(*come formalizzare "senza perdita di generalità suppongo y∈fv ecc.."?*)
-(*ERRORE nella dim: y ∉ u invece che v`*)
-
-lemma D_one: ∀v, v', x. ∃vs. p_subst (val_to_term v) (psubst x (val_to_term v')) = val_to_term vs.
-*
-[ #y #v' #x inversion (veqb x y)
- [ #veqt lapply (atomic_subst y (val_to_term v')) lapply (veqb_true_to_eq x y) 
-   * #Hveq #_ lapply (Hveq veqt) #eq >eq #H1 >H1 % //
- | #veqf lapply (no_subst y x (val_to_term v') veqf) #H1 >H1 % // ]
-| #y #u #v' #x inversion (veqb x y)
- [ #veqt lapply (veqb_true_to_eq x y) * #H0 #_ lapply (H0 veqt) #eq >eq
-   lapply (no_subst2 x u (val_to_term v')) #eq2 >eq2 % //  
- | inversion (fvb_t y (val_to_term v'))
-  [ #fvbt #veqf lapply (abstr_step_subst2 y x u (val_to_term v') fvbt veqf) * #z #eq >eq % // 
-  | #fvbf #veqf lapply (abstr_step_subst y x u (val_to_term v') fvbf veqf) #eq >eq % //
-  ]
- ]
-] qed.
-
 lemma witness: ∀x, e. domb_e x e = true
 → VEnvironment e
  → ∃v. evaluate x e = CValue v.
@@ -497,31 +333,9 @@ lemma witness: ∀x, e. domb_e x e = true
  ]
 ] qed.
 
-(*
-lemma aux_rb_to_abst: ∀ev, x. VEnvironment ev
-→ domb_e x ev = true
- → ∃y, t. aux_read_back (val_to_term (pvar x)) ev = val_to_term (abstr y t).
-@Environment_simple_ind2
-[ #x #Venv whd in match (domb_e ? ?); #abs destruct
-| #e * #z #b #H1 #x #Venv #dom whd in match (aux_read_back ? ?); whd in match (match psubst z (read_back_b b) in pSubst return λ_:pSubst.Variable with 
-     [psubst (y0:Variable)   (t':pTerm)⇒y0]); whd in match (match psubst z (read_back_b b) in pSubst return λ_:pSubst.pTerm with 
-     [psubst (y0:Variable)   (t':pTerm)⇒t']); inversion (veqb x z)
- [ cut (domb_e x e = false) lapply (H1 x ? ?)
-  [ lapply dom whd in match (domb_e ? ?); >veq normalize
 
-
-lemma read_back_to_abst: ∀ev, x. VEnvironment ev
-→ domb_e x ev = true
- → ∃e1, e2. ev = concat e1 e2
-  → ∃y, c. read_back 〈CValue (var x), ev〉 = read_back 〈CValue (lambda y c), e2〉.
-@Environment_simple_ind2
-[ #x #Venv whd in match (domb_e ? ?); #abs destruct
-| #e #s #H1 #x #Venv #dom whd in match (read_back ?); whd in match (read_back_b ?);
- inversion (inb_s x s) #inb lapply (H1 x ? ?) whd in match (aux_read_back ? ?);   
-*)
 lemma snoc_to_concat: ∀e1, e2, s. Snoc (concat e1 e2) s = concat e1 (Snoc e2 s).
 // qed.
-
 
 
 lemma witness2: ∀x, e. domb_e x e = true
@@ -537,105 +351,47 @@ lemma witness2: ∀x, e. domb_e x e = true
  ]  
 ] qed.
 
-lemma readback_not_in_dom: ∀x, e. domb_e x e = false
-→ read_back 〈CValue (var x), e〉 = val_to_term (pvar x).
-#x @Environment_simple_ind2
-[ #domf normalize //
-| #e * #x' #b' #IH #domf
-  change with (aux_read_back (read_back_b (CValue (var x))) (Snoc e [x'←b'])) in match (read_back ?);
-  whd in match (read_back_b ?); cut (veqb x' x= false)
- [ lapply domf normalize inversion (veqb x x') [ #_ normalize #abs cases (? : False) @(absurd …abs) // | // normalize ]
- |  #veqf normalize @(no_subst x x' (val_to_term (pvar x)) veqf)
-  change with (match (subst x' b') with [ subst x' b1 ⇒ p_subst (aux_read_back (val_to_term (pvar x)) e) (psubst x' (read_back_b b1))]) in match (aux_read_back ?);
-]] qed.
+lemma domb_veqb_step: ∀x, y, e, b. domb_e x (Snoc e [y←b]) = true
+→ veqb y x = false
+ → domb_e x e = true.
+#x #y #e #b normalize #domt #veqf lapply (veqb_comm y x) #eq destruct lapply domt
+<eq >veqf normalize // qed.
 
-lemma D_two: ∀ev, v'. VEnvironment ev
-(*→ b = CValue v'*)
- →  ∃pv'. read_back 〈CValue v', ev〉= val_to_term pv'.
-@Environment_simple_ind2
-[ *
- [ #x #Venv normalize % //
- | #x * #b' #e'#Venv whd in match (read_back ?); % // ]
-| #e1  * #x' #b1   #IH *
- [ #x #Venv inversion (domb_e x (Snoc e1 (subst x' b1)))
-  [ #domT lapply (witness2 x (Snoc e1 (subst x' b1)) domT) * #e2 * #b2 * #e3 #eq whd in match (read_back ?);
-   cases s1 #x' #b1 whd in match (read_back_b ?);
-  |
-  ]
- |
+lemma domb_snoc: ∀x, e, s. domb_e x (Snoc e s) = false
+→ domb_e x e = false.
+#x #e * #y #b normalize cases (veqb x y)
+[ normalize #abs cases (? : False) @(absurd …abs) //
+| normalize // ] qed.
+
+lemma dombf_to_veqf: ∀x, e, y, b. domb_e x (Snoc e [y←b]) = false
+→ veqb x y = false.
+#x #e #y #b normalize cases (veqb x y)
+[ normalize #abs cases (? : False) @(absurd …abs) //
+| normalize //
+] qed.
+
+lemma myandl: ∀a,b. andb a b = true → a = true.
+/2/ qed.
+
+
+lemma myandr: ∀a,b. andb a b = true → b = true.
+/2/ qed.
+
+
+lemma snoc_to_concat2: ∀e3, e2, s. concat (Snoc e3 s) e2 = concat e3 (concat (Snoc Epsilon s) e2).
+//
+qed.
+
+lemma well_named_to_dist_dom: ∀b, e. well_named 〈b, e〉 = true
+→ dist_dom e = true.
+#b #e normalize inversion (well_named_b b)
+[ #wnbt inversion (well_named_e e)
+ [ #wnet normalize //
+ | normalize #_ #abs cases (? : False) @(absurd …abs) //
  ]
-] qed.
-*)
-
-
-(*
-lemma read_back_to_abs: ∀ev, x. VEnvironment ev
-→ domb_e x ev = true
- → ∃e1, e2. ev = concat e1 e2
-  → ∃y, c. read_back 〈CValue (var x), ev〉 = read_back 〈CValue (abstr y c), e2〉.
-
-
- whd in match (aux_read_back ? ?); % //
- | @Environment_simple_ind2
-  [ * #x' #b1 whd in match (aux_read_back ? ?); cases ev
-  [ whd in match (aux_read_back ? ?); whd in match (match psubst x' (read_back_b b1) in pSubst return λ_:pSubst.Variable with 
-    [psubst (y:Variable)   (t':pTerm)⇒y]); whd in match (match psubst x' (read_back_b b1) in pSubst return λ_:pSubst.pTerm with 
-    [psubst (y:Variable)   (t':pTerm)⇒t']); whd in match (p_subst_sig ? x' ? ? ?); cases (veqb x' var')
-*)
-
-lemma D_three: ∀c, b, ev, x, v, y, c'. c = 〈b, ev〉
-→ VEnvironment ev
- → b = CValue (lambda y c') ∨ b = CValue (var x) ∨ (b = AppValue (var x) v)
-  → closed_c c
-   → well_named c = true
-    → domb_e x ev = false
-     → V_Crumble c.
-#c #b #ev #x #v #y #c' #eq #Venv #or #closeC #WNc #nDomx
-cases or
-[ #or1 cases or1
- [ #H1 destruct @PCrumble
-  [ @PValue @Plambda | // ]
- | #H2 lapply (NPract_x c b ev x eq H2 closeC nDomx) #abs elim abs
- ]
-| #H3 lapply (NPract_App_x c b ev x v eq H3 closeC nDomx) #abs elim abs
+| normalize #_ #abs cases (? : False) @(absurd …abs) //
 ] qed.
 
-lemma normal_value: ∀c, b, v, e. b = CValue v
-→c = 〈b, e〉
- → VEnvironment e
-  → closed_c c
-   → well_named c = true
-    → normal_c c
-     → V_Crumble c.
-#c #b *
-[ #x #e #eq1 #eq2 #VEnv #clos #wnamed #norm inversion (domb_e x e)
- [ #domb cut (CTrans c (CCrumble (evaluate x e) e))
-  [ destruct @top_step @(sub_var x e VEnv domb)
-  | #Trans lapply norm normalize #norm1 lapply (norm1 〈evaluate x e,e〉) #abs elim abs #abs1 lapply (abs1 Trans) #False elim False ]
- | #ndom @(D_three c ? e x ? ? ? eq2 VEnv ? clos wnamed ndom) [ // | // | // | @or_introl @or_intror // ] ]
-| #y #c' #e #eq1 #eq2 #VEnv #clos #wnamed #norm destruct @PCrumble
- [ @PValue @Plambda | @VEnv ]
-] qed.
-
-
-
-corollary D_four: ∀c, b, e. c = 〈b, e〉
-→ VEnvironment e
- → closed_c c
-  → well_named c = true
-   → normal_c c
-    → V_Crumble c.
-#c *
-[ #v #e #eq #VEnv #clos #wnamed #norm @(normal_value c (CValue v) v e ? eq VEnv clos wnamed norm) //
-| *
- [ #x #v1 #e #eq #VEnv #clos #wnamed #norm inversion (domb_e x e)
-  [ #domt lapply (witness x e domt VEnv) #evCV lapply evCV * #v' #evCV' cut (CTrans c (CCrumble (AppValue v' v1) e))
-   [ destruct @top_step @(sub_t x v1 v' e VEnv domt evCV')
-   | #abs0 lapply norm normalize #nCTr lapply (nCTr  〈AppValue v' v1,e〉) #abs1 elim abs1 #abs2 lapply (abs2 abs0) #False elim False
-   ]
-  | #domf @(D_three ? (AppValue (var x) v1) e x v1 ? ? eq VEnv ? clos wnamed domf) // ]
- | #x * #b #e #v #ev #eq #Venv #clos #wnamed #norm cases (absurd ? ? (norm …)) [ destruct @top_step % @Venv | skip ]
-] qed.
 
 lemma concat_to_push :∀e, s. concat (Snoc Epsilon s) e = push e s.
 @Environment_simple_ind2
@@ -684,11 +440,10 @@ lemma wnamed_step: ∀b, x, b', e. well_named 〈b,concat (Snoc Epsilon [x←b']
 ] qed.
 
 lemma norm_step: ∀b1, e1, b2, e2, cc, x. 〈b1, e1〉 = plug_c cc 〈b2, e2〉
-(*∀b, e, x, b', e'.*) 
 → e1 = concat (Snoc Epsilon [x← b2]) e2
  → normal_c 〈b1, e1〉
   → normal_c 〈b2, e2〉.
-#b1 #e1 #b2 #e2(**) *
+#b1 #e1 #b2 #e2 *
 [ #x #eq1 #eq2 #norm cases (? : False) lapply eq1 normalize destruct #eq2 destruct /2/
 | #b' * #e' #y #x #eq1 #eq2 #norm whd in match (normal_c ?); * #b3 #e3 lapply norm
   whd in match (normal_c ?); #norm1 @nmk #ctr inversion ctr
@@ -709,7 +464,6 @@ lemma norm_step: ∀b1, e1, b2, e2, cc, x. 〈b1, e1〉 = plug_c cc 〈b2, e2〉
  ]
 ] qed.
 
-
 lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
 → closed_c 〈AppValue v1 v2, e〉
  → VEnvironment e
@@ -729,8 +483,8 @@ lemma norm_app_value: ∀v1, v2, e. normal_c 〈AppValue v1 v2, e〉
   ]
  ]
 | #x * #b #e #v2 #ev #norm #clos #VEnv lapply norm whd in match (normal_c ?); #norm1
-  lapply (norm1 (at (pi1 … (alpha b (push e [x ← CValue v2]) ? ? ) ) ev))
- [ 1,2: // | #nctr
+  lapply (norm1 (at (pi1 … (alpha b (push e [x ← CValue v2]) (fresh_var 〈b,push e [x←CValue v2]〉) ? ) ) ev))
+ [ // | #nctr
    lapply (cbeta_v x b e v2 ev VEnv) #ctr @(absurd ? (top_step … ctr) nctr)
  ]
 ] qed.
@@ -757,6 +511,327 @@ lemma practB_TCT_to_abs: ∀b, e, c'. PracticalBite b
 | #x #ev #VEnv #dombe #eq1 #eq2 destruct inversion P_B #v #P_V #eq destruct inversion P_V #v #c #eq destruct
 | #x #v #v' #ev #VEnv #dombe #eq1 #eq2 #eq3 destruct inversion P_B #v0 #P_V #eq1 destruct 
 ] qed.
+
+lemma well_named_c_to_b: ∀b, e. well_named 〈b, e〉 = true →
+well_named_b b = true.
+#b #e normalize inversion (well_named_b b)
+[ //
+| #wnb normalize //
+] qed.
+
+lemma well_named_b_to_v: ∀v. well_named_b (CValue v) = true
+→well_named_v v = true.
+#v normalize // qed.
+
+lemma well_named_c_to_e: ∀b, e. well_named 〈b, e〉 = true →
+well_named_e e = true.
+#b #e normalize inversion (well_named_b b)
+[ #wnb normalize inversion (well_named_e e)
+ [ #wne //
+ | #wne normalize #abs cases (? : False) @(absurd …abs) //
+ ]
+| #wnb normalize #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma well_named_e_snoc_s: ∀e, s. well_named_e (Snoc e s) = true →
+well_named_s s = true.
+#e #s normalize inversion (well_named_e e)
+[ #wnt normalize //
+| #wnf normalize #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma well_named_e_snoc_e: ∀e, s. well_named_e (Snoc e s) = true →
+well_named_e e = true.
+#e #s normalize inversion (well_named_e e)
+[ //
+| #wnf normalize #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma well_named_s_step: ∀x, b. well_named_s [x←b] = true
+→ well_named_b b = true.
+#x #b normalize // qed.
+
+lemma well_named_snoc: ∀b, e, s. well_named 〈b, Snoc e s〉 = true
+→ well_named 〈b, e〉 = true.
+#b #e #s whd in match (well_named ?); inversion (well_named_b b)
+[ #wnbt inversion (well_named_e (Snoc e s))
+ [ #wnet #distdom whd in match (well_named ?); >wnbt lapply (well_named_e_snoc_e ? ? wnet) #wnt >wnt
+   lapply (dist_dom_conservative ? ? distdom) normalize //
+ | normalize #_ #abs cases (? : False) @(absurd …abs) //
+ ]
+| normalize #_ #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma well_named_appl: ∀v, v', e. well_named 〈AppValue v v', e〉 = true
+→ well_named 〈CValue v, e〉 = true.
+#v #v' #e normalize inversion (well_named_v v)
+[ #wnv inversion (well_named_v v')
+ [ #wnv' normalize //
+ | #wnv' normalize #abs cases (? : False) @(absurd …abs) //
+ ]
+| #wnv normalize #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma well_named_appr: ∀v, v', e. well_named 〈AppValue v v', e〉 = true
+→ well_named 〈CValue v', e〉 = true.
+#v #v' #e normalize inversion (well_named_v v)
+[ #wnv normalize //
+| #wnv inversion (well_named_v v')
+ [ #wnv' normalize #abs cases (? : False) @(absurd …abs) //
+ | #wnv' normalize //
+ ]
+] qed.
+
+
+lemma well_named_concat_l: ∀e1, e2. well_named_e (concat e1 e2) = true
+→ well_named_e e1 = true.
+#e1 #e2 #wnc lapply (well_named_concat e2 e1) cases (well_named_e e2)
+[ normalize cases (well_named_e e1)
+ [ normalize //
+ | normalize >wnc #abs cases (? : False) @(absurd …abs) //
+ ]
+| normalize cases (well_named_e e1)
+  normalize >wnc #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma well_named_concat_r: ∀e1, e2. well_named_e (concat e1 e2) = true
+→ well_named_e e2 = true.
+#e1 #e2 #wnc lapply (well_named_concat e2 e1) cases (well_named_e e1)
+[ normalize #eq <eq @wnc
+| normalize >wnc #abs cases (? : False) @(absurd …abs) //
+] qed.
+
+lemma wnamed_eval_step: ∀x, e. well_named 〈CValue (var x), e〉 = true
+→ well_named 〈evaluate x e, e〉 = true.
+#x @Environment_simple_ind2
+[ #wnamed normalize //
+| #e * #y #b #IH #wnamed whd in match (evaluate ? ? ); lapply wnamed
+  whd in match (well_named ?); inversion (well_named_b (CValue (var x))∧well_named_e (Snoc e [y←b]))
+ [ #H1 #H2 lapply (myandr ? ? H1) #wnamed_e lapply (well_named_e_snoc_s ? ? wnamed_e) #wnamed_s
+   lapply (well_named_s_step ? ? wnamed_s) #wnamed_b
+   inversion (veqb y x)
+  [ #veqt whd in match (well_named ?); >wnamed_b >wnamed_e >H2 //
+  | #veqf whd in match (well_named ?); whd in match (if false then b else evaluate x e);
+    lapply (IH (well_named_snoc ? ? ? wnamed)) whd in match (well_named ?); 
+    inversion (well_named_b (evaluate x e)∧well_named_e e)
+   [ #wnt #distdom >wnamed_e lapply (myandl ? ? wnt) #wnbt >wnbt @H2
+   | normalize #_ #abs cases (? : False) @(absurd …abs) //
+   ]
+  ]
+ | normalize #_ #abs cases (? : False) @(absurd …abs) //
+ ]
+] qed.
+
+lemma domb_step_true: ∀x, y, e, b. veqb y x = true
+→ domb_e x (Snoc e [y←b]) = true
+ → dist_dom (Snoc e [y←b]) = true
+  → domb_e x e = false.
+#x #y #e #b #veqt #domt normalize inversion (domb_e y e)
+[ #domt2 normalize #abs cases (? : False) @(absurd …abs) //
+| #domf #_ lapply (veqb_true_to_eq y x) * #H1 #_ lapply (H1 veqt) #eq <eq @domf
+] qed.
+
+lemma wnamed_evaluate: ∀x, e. well_named 〈(CValue (var x)), e〉 = true
+→ domb_e x e = true
+ → well_named 〈evaluate x e, e〉 =  true.
+#x @Environment_simple_ind2
+[ //
+| #e * #y #b #IH #wnamed #domt normalize inversion (veqb y x)
+ [ #veqt >veqt lapply (well_named_s_step ? ? (well_named_e_snoc_s ? ? (well_named_c_to_e ? ? wnamed)))
+   #wnb lapply (well_named_e_snoc_e ? ? (well_named_c_to_e ? ? wnamed)) #wne normalize
+   >wnb >wne lapply (domb_step_true ? ? ? ? veqt domt (well_named_to_dist_dom ? ? wnamed))
+   lapply (veqb_true_to_eq y x) * #H1 #_ lapply (H1 veqt) #eq <eq #domf >domf normalize
+   lapply (well_named_to_dist_dom ? ? wnamed) /2/
+ | #veqf normalize lapply (IH (well_named_snoc ? ? ? wnamed) (domb_veqb_step ? ? ? ? domt veqf))
+   #wnamed2 lapply (well_named_c_to_b ? ? wnamed2) #wnb2 lapply (well_named_c_to_e ? ? wnamed2) #wne2
+   >wnb2 >wne2 normalize lapply (dist_dom_s_dom ? ? ? (well_named_to_dist_dom ? ? wnamed)) #domf
+   lapply (well_named_s_step ? ? (well_named_e_snoc_s ? ? (well_named_c_to_e ? ? wnamed))) #wnb
+   >domf >wnb normalize @(well_named_to_dist_dom ? ? wnamed2)
+ ]
+] qed.
+
+lemma well_named_build: ∀b, e, x, b'. well_named 〈b, e〉 = true
+→ well_named_b b' = true
+ → domb_e x e = false
+  → well_named 〈b, Snoc e [x←b']〉 = true.
+#b #e #x #b' #wnamed #wnb' #domf normalize
+>(well_named_c_to_b ? ? wnamed) >(well_named_c_to_e ? ? wnamed) >wnb' >domf >(well_named_to_dist_dom ? ? wnamed) normalize
+// qed.
+
+lemma wnamed_evaluate2: ∀x, v, v', e. well_named 〈(AppValue (var x) v), e〉 = true
+→ domb_e x e = true
+ → evaluate x e = CValue v'
+  → well_named 〈AppValue v' v, e〉 =  true.
+#x #v #v' @Environment_simple_ind2
+[ #wnamed normalize #abs cases (? : False) @(absurd …abs) //
+| #e * #y #b #IH #wnamed #domt #eq0 inversion (veqb y x)
+ [ #veqt lapply (domb_step_true ? ? ? ? veqt domt (well_named_to_dist_dom ? ? wnamed))
+   lapply (veqb_true_to_eq y x) * #H1 #_ lapply (H1 veqt) #eq <eq #domf
+   lapply (well_named_c_to_b ? ? (wnamed_evaluate ? ? (well_named_appl ? ? ? wnamed) domt)) >eq0 #wnbv'
+   lapply (well_named_b_to_v ? wnbv') #wnv' lapply (well_named_b_to_v ? (well_named_c_to_b ? ? ((well_named_appr ? ? ? wnamed))))
+   #wnv lapply (well_named_e_snoc_e ? ? (well_named_c_to_e ? ? wnamed)) #wne
+   lapply (well_named_s_step ? ? (well_named_e_snoc_s ? ? (well_named_c_to_e ? ? wnamed))) #wnb
+   lapply (well_named_to_dist_dom ? ? (well_named_snoc ? ? ? wnamed)) #disdom normalize
+   >wne >wnb >wnv' >wnv >domf >disdom normalize //
+ | #veqf lapply (domb_veqb_step  ? ? ? ? domt veqf) #domt2 lapply eq0 whd in match (evaluate ? ?); >veqf
+   whd in match (if false then b else evaluate x e); #eq1
+   @(well_named_build ? ? ? ? (IH (well_named_snoc ? ? ? wnamed) domt2 eq1) (well_named_s_step ? ? (well_named_e_snoc_s ? ? (well_named_c_to_e ? ? wnamed))) ?)
+   lapply (well_named_to_dist_dom ? ? wnamed) normalize inversion (domb_e y e)
+  [ #domt normalize #abs cases (? : False) @(absurd …abs) // | // ]
+ ]
+] qed.
+
+
+
+
+(* ERRORE nella dim: y ∉ u invece che v` *)
+(* aggiunto assioma per step p_subst nel caso fvbf, veqf *)
+(* LEMMA D.1 *)
+
+lemma D_one: ∀v, v', x. ∃vs. p_subst (val_to_term v) (psubst x (val_to_term v')) = val_to_term vs.
+*
+[ #y #v' #x inversion (veqb x y)
+ [ #veqt lapply (atomic_subst y (val_to_term v')) lapply (veqb_true_to_eq x y) 
+   * #Hveq #_ lapply (Hveq veqt) #eq >eq #H1 >H1 % //
+ | #veqf lapply (no_subst y x (val_to_term v') veqf) #H1 >H1 % // ]
+| #y #u #v' #x inversion (veqb x y)
+ [ #veqt lapply (veqb_true_to_eq x y) * #H0 #_ lapply (H0 veqt) #eq >eq
+   lapply (no_subst2 x u (val_to_term v')) #eq2 >eq2 % //  
+ | inversion (fvb_t y (val_to_term v'))
+  [ #fvbt #veqf lapply (abstr_step_subst2 y x u (val_to_term v') fvbt veqf) * #z #eq >eq % // 
+  | #fvbf #veqf lapply (abstr_step_subst y x u (val_to_term v') veqf fvbf) #eq >eq % //
+  ]
+ ]
+] qed.
+
+(*LEMMA D.2*)
+lemma D_two: ∀n, ev, v'. VEnvironment ev
+ → c_size_e ev = n
+  → well_named 〈CValue v', ev〉 = true
+   → ∃pv'. read_back 〈CValue v', ev〉= val_to_term pv'.
+#n @(nat_elim1 n) *
+[ #_ *
+ [ * #x [ normalize #_ #_ #_ % // | * #b #e #_ #_ #_ % // ] 
+ | #e * #v #b #v' #Venv normalize #abs #_ cases (? : False) <(plus_n_Sm) in abs; #abs2 destruct
+ ]
+| #m #IH #ev *
+ [ #x #Venv inversion (domb_e x ev)
+  [ #domT lapply (witness2 x ev domT) * #e2 *  * 
+   [ *
+    [ #y * #e1 #eq cases (? : False) lapply (p_e_to_s e1 [x←(CValue (var y))] (pract_concat_l ? e2 ?))
+     [ <eq @Venv | #ps inversion ps #v #b #pb #eq2 inversion pb #v0 #pv #eq3 inversion pv destruct #v1 #c #eq destruct ]
+    | #y #c * #e3 #eq
+      >eq #eq2 #wnamed whd in match (read_back ?); whd in match (read_back_b ?); >(snoc_to_concat2 e3 e2 [x←CValue (𝛌y.c)])
+      >(iper_concat_lemma (concat (Snoc Epsilon [x←CValue (𝛌y.c)]) e2) ? x ?)
+     [ >(concat_to_push e2 [x←CValue (𝛌y.c)])
+       >(push_lemma) >atomic_subst lapply(IH (c_size_e e2) ? e2 (lambda y c) ? ? ?)
+      [ -eq2 -domT -Venv -IH -n -m -eq whd in match (well_named ?); cut (well_named_b (CValue (𝛌y.c)) = true)
+       [ @(well_named_s_step ? ? (well_named_e_snoc_s ? ? (well_named_concat_l ? ?(well_named_c_to_e ? ? wnamed))))
+       | cut (well_named_e e2 = true)
+        [ @(well_named_concat_r ? ?(well_named_c_to_e ? ? wnamed))
+        | cut (dist_dom e2 = true)
+         [ lapply (dist_dom_concat ? ? (well_named_to_dist_dom ? ? wnamed)) * //
+         | #dd #wne #wnb >dd >wne >wnb // 
+         ]
+        ]
+       ]  
+      | //
+      | @(pract_concat_r (Snoc e3 [x←(CValue (𝛌y.c))]) e2) <eq @Venv
+      | >size_env_concat in eq2; normalize //
+      | * #x0 #H0 % [ @x0 | @H0 ]
+      ]
+     | @(dist_dom_s_dom e3 x (CValue (𝛌y.c)))
+       lapply (dist_dom_concat (Snoc e3 [x←CValue (𝛌y.c)]) e2) * [ // | @(well_named_to_dist_dom ? ? wnamed) ]
+     ]
+    ]
+   | #v1 #v2 * #e1 #eq cases (? : False) lapply (p_e_to_s e1 [x←(AppValue v1 v2)] (pract_concat_l ? e2 ?))
+    [ <eq @Venv | #ps inversion ps #v #b #pb #eq2 inversion pb #v0 #pv #eq3 inversion pv #v3 #c #eq4 destruct ] 
+   ]
+  | #domf #_ #_ whd in match (read_back ? ); %
+   [ @(pvar x) | @stronger_aux_read_back3 #y inversion (veqb y x)
+    [ #veqt lapply (veqb_true_to_eq y x) * #H1 #_ >(H1 veqt) >domf #abs cases (? : False) @(absurd …abs) //
+    | #veqf #domt normalize >veqf normalize //
+    ]
+   ]
+  ]
+ | #x * #b #e cases ev
+  [ #Venv normalize #abs cases (? : False) @(absurd …abs) // 
+  | #e1 * #y * 
+   [ #v0 #Venv #csize #wnamed lapply (IH (c_size_e e1) ? e1 (𝛌x.〈b,e〉) ? ? ?)
+    [ @(well_named_snoc ? ? ? wnamed)
+    | //
+    | @(p_e_to_e ? ? Venv)
+    | <csize normalize //
+    | * #z #eq change with (p_subst ? ?) in match (read_back ?); lapply eq change with (aux_read_back ? ?) in match (read_back ?);
+      #eq1 >eq1 whd in match (read_back_b ?); cases v0
+     [ #k whd in match (read_back_v ?); @(D_one)
+     | #k * #b2 #e2 whd in match (read_back_v ?); @(D_one) 
+     ]  
+    ]
+   | #v1 #v2 #Venv cases (? : False) lapply (p_e_to_s ? ? Venv) #ps lapply (p_s_to_b ? ? ps) #pb inversion pb #v #_ #eq destruct
+   ]
+  ]
+ ]
+] qed.
+
+(* LEMMA D.3 *)
+
+lemma D_three: ∀c, b, ev, x, v, y, c'. c = 〈b, ev〉
+→ VEnvironment ev
+ → b = CValue (lambda y c') ∨ b = CValue (var x) ∨ (b = AppValue (var x) v)
+  → closed_c c
+   → well_named c = true
+    → domb_e x ev = false
+     → V_Crumble c.
+#c #b #ev #x #v #y #c' #eq #Venv #or #closeC #WNc #nDomx
+cases or
+[ #or1 cases or1
+ [ #H1 destruct @PCrumble
+  [ @PValue @Plambda | // ]
+ | #H2 lapply (NPract_x c b ev x eq H2 closeC nDomx) #abs elim abs
+ ]
+| #H3 lapply (NPract_App_x c b ev x v eq H3 closeC nDomx) #abs elim abs
+] qed.
+
+lemma normal_value: ∀c, b, v, e. b = CValue v
+→c = 〈b, e〉
+ → VEnvironment e
+  → closed_c c
+   → well_named c = true
+    → normal_c c
+     → V_Crumble c.
+#c #b *
+[ #x #e #eq1 #eq2 #VEnv #clos #wnamed #norm inversion (domb_e x e)
+ [ #domb cut (CTrans c (CCrumble (evaluate x e) e))
+  [ destruct @top_step @(sub_var x e VEnv domb)
+  | #Trans lapply norm normalize #norm1 lapply (norm1 〈evaluate x e,e〉) #abs elim abs #abs1 lapply (abs1 Trans) #False elim False ]
+ | #ndom @(D_three c ? e x ? ? ? eq2 VEnv ? clos wnamed ndom) [ // | // | // | @or_introl @or_intror // ] ]
+| #y #c' #e #eq1 #eq2 #VEnv #clos #wnamed #norm destruct @PCrumble
+ [ @PValue @Plambda | @VEnv ]
+] qed.
+
+(* LEMMA (Corollary) D.4 *)
+
+corollary D_four: ∀c, b, e. c = 〈b, e〉
+→ VEnvironment e
+ → closed_c c
+  → well_named c = true
+   → normal_c c
+    → V_Crumble c.
+#c *
+[ #v #e #eq #VEnv #clos #wnamed #norm @(normal_value c (CValue v) v e ? eq VEnv clos wnamed norm) //
+| *
+ [ #x #v1 #e #eq #VEnv #clos #wnamed #norm inversion (domb_e x e)
+  [ #domt lapply (witness x e domt VEnv) #evCV lapply evCV * #v' #evCV' cut (CTrans c (CCrumble (AppValue v' v1) e))
+   [ destruct @top_step @(sub_t x v1 v' e VEnv domt evCV')
+   | #abs0 lapply norm normalize #nCTr lapply (nCTr  〈AppValue v' v1,e〉) #abs1 elim abs1 #abs2 lapply (abs2 abs0) #False elim False
+   ]
+  | #domf @(D_three ? (AppValue (var x) v1) e x v1 ? ? eq VEnv ? clos wnamed domf) // ]
+ | #x * #b #e #v #ev #eq #Venv #clos #wnamed #norm cases (absurd ? ? (norm …)) [ destruct @top_step % @Venv | skip ]
+] qed.
+
+
+(* PROP 5.3 *)
 
 lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
 → well_named 〈b, e〉 = true
@@ -818,61 +893,19 @@ lemma five_dot_three : ∀e, b. closed_c 〈b, e〉
  ]
 ] qed.
 
-lemma myandl: ∀a,b. andb a b = true → a = true.
-/2/ qed.
-
-
-lemma myandr: ∀a,b. andb a b = true → b = true.
-/2/ qed.
-
-lemma well_named_e_snoc_s: ∀e, s. well_named_e (Snoc e s) = true →
-well_named_s s = true.
-#e #s normalize inversion (well_named_e e)
-[ #wnt normalize //
-| #wnf normalize #abs cases (? : False) @(absurd …abs) //
-] qed.
-
-lemma well_named_e_snoc_e: ∀e, s. well_named_e (Snoc e s) = true →
-well_named_e e = true.
-#e #s normalize inversion (well_named_e e)
-[ //
-| #wnf normalize #abs cases (? : False) @(absurd …abs) //
-] qed.
-
-lemma well_named_s_step: ∀x, b. well_named_s [x←b] = true
-→ well_named_b b = true.
-#x #b normalize // qed.
-
-lemma well_named_snoc: ∀b, e, s. well_named 〈b, Snoc e s〉 = true
-→ well_named 〈b, e〉 = true.
-#b #e #s whd in match (well_named ?); inversion (well_named_b b)
-[ #wnbt inversion (well_named_e (Snoc e s))
- [ #wnet #distdom whd in match (well_named ?); >wnbt lapply (well_named_e_snoc_e ? ? wnet) #wnt >wnt
-   lapply (dist_dom_conservative ? ? distdom) normalize //
- | normalize #_ #abs cases (? : False) @(absurd …abs) //
+(*
+(*TODO*)
+lemma wnamed_tctr_step: ∀c1, c2. TCTrans c1 c2
+→ well_named c1 = true
+ → well_named c2 = true.
+* #b1 #e1 * #b2 #e2 #tctr elim tctr
+[ #x #b #e #v #ev #VEnv #eq1 @sigma_prop_gen  * #b3 #e3 #eq2 #H1 whd in match (well_named ?); inversion (well_named_b b2∧well_named_e e2)
+ [ #H2 normalize (*qua mi serve un lemma per well_named_alpha, *)lapply (w_well_named_alpha b3 e3 (S (fresh_var 〈b3, e3〉))) *
+  [ 2: // | #wwnamed #int_dom 
+ | 
  ]
-| normalize #_ #abs cases (? : False) @(absurd …abs) //
-] qed. 
-
-lemma wnamed_eval_step: ∀x, e. well_named 〈CValue (var x), e〉 = true
-→ well_named 〈evaluate x e, e〉 = true.
-#x @Environment_simple_ind2
-[ #wnamed normalize //
-| #e * #y #b #IH #wnamed whd in match (evaluate ? ? ); lapply wnamed
-  whd in match (well_named ?); inversion (well_named_b (CValue (var x))∧well_named_e (Snoc e [y←b]))
- [ #H1 #H2 lapply (myandr ? ? H1) #wnamed_e lapply (well_named_e_snoc_s ? ? wnamed_e) #wnamed_s
-   lapply (well_named_s_step ? ? wnamed_s) #wnamed_b
-   inversion (veqb y x)
-  [ #veqt whd in match (well_named ?); >wnamed_b >wnamed_e >H2 //
-  | #veqf whd in match (well_named ?); whd in match (if false then b else evaluate x e);
-    lapply (IH (well_named_snoc ? ? ? wnamed)) whd in match (well_named ?); 
-    inversion (well_named_b (evaluate x e)∧well_named_e e)
-   [ #wnt #distdom >wnamed_e lapply (myandl ? ? wnt) #wnbt >wnbt @H2
-   | normalize #_ #abs cases (? : False) @(absurd …abs) //
-   ]
-  ]
- | normalize #_ #abs cases (? : False) @(absurd …abs) //
- ]
+| #x #ev #VEnv #domt #wnamed @(wnamed_evaluate ? ? wnamed domt)
+| #x #v #v' #ev #VEnv #domt #eq1 #wnamed @(wnamed_evaluate2 ? ? ? ? wnamed domt eq1)
 ] qed.
 
 
@@ -894,7 +927,7 @@ lemma wnamed_ctr_step: ∀c1, c2. well_named c1 = true
 
 
 
-lemma five_dot_five_one: ∀c. reachable_Crumble c
+lemma five_dot_five_dot_one: ∀c. reachable_Crumble c
 → well_named c = true.
 #c whd in match (reachable_Crumble ?); * #c' * #t * #s #H3 lapply (proj2 … H3) #kclos lapply (proj2 …(proj1… H3))
 lapply (proj2 …(proj1 …(proj1… H3))) lapply (proj1 …(proj1 …(proj1… H3))) elim kclos 
@@ -920,7 +953,7 @@ lemma five_dot_five_four: ∀c. reachable_Crumble c
 
 lemma five_dot_five: ∀c. reachable_Crumble c
 → well_named c ∧ closed_c c ∧
-*)
+
 
 
 lemma D_eight : ∀(t: pTerm). ∀(u: pTerm). ∀(x: Variable). ∀(v : pValue). (*per casi su veqb e fvb_t *)
@@ -929,7 +962,7 @@ lemma D_eight : ∀(t: pTerm). ∀(u: pTerm). ∀(x: Variable). ∀(v : pValue).
 #t #u #x #v #H1 inversion H1 #v1 #t1 #t2 #eq1 #eq2  lapply (p_subst_distro (val_to_term (abstr v1 t1)) t2 (psubst x (val_to_term v))) #eq3 >eq3
 lapply (no_subst2 v1 t1 (val_to_term v))
 
-
+*)
 
 
 

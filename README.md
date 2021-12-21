@@ -17,5 +17,6 @@ This software is released under the GNU GPLv3 license, which is included in the 
 - Lemma 4.5.5 (4dot5dot5.ma, four_dot_five_dot_five)
 - Lemma 5.5.3 (\*) (other4dot4dot5.ma, alpha_e_idem)
 - Lemma 5.5.4 (\*)(4dot5dot5.ma, four_dot_five_dot_five_alpha)
+- Lemma 5.3 (transitions.ma, five_dot_three)
 
 Lemma that are marked whith (\*) have been partially or totally reformulated and proved in order to replace some incorrect results of [Crumbling Abstract Machines](https://arxiv.org/abs/1907.06057).

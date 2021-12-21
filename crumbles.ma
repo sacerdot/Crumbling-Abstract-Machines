@@ -66,6 +66,48 @@ inductive TermContext : Type[0] ≝
 | c_abstr : Variable → TermContext → TermContext
 .
 
+inductive CPracticalValue : Value → Prop ≝
+| Plambda : ∀ v, c. CPracticalValue (lambda v c)
+.
+
+inductive PracticalBite : Bite → Prop ≝
+| PValue : ∀v. CPracticalValue v → PracticalBite (CValue v)
+(*| PAppValue : ∀v1, v2. CPracticalValue v1 → CPracticalValue v2 → PracticalBite (AppValue v1 v2)
+*)
+.
+
+(*
+inductive EPracticalBite : Bite → Prop ≝
+| EPValue : ∀v. CPracticalValue v → EPracticalBite (CValue v)
+.
+*)
+
+inductive PracticalSubstitution : Substitution → Prop ≝
+| Psubst : ∀v, b. PracticalBite b → PracticalSubstitution (subst v b)
+.
+
+inductive VEnvironment : Environment → Prop ≝
+| PEpsilon : VEnvironment (Epsilon)
+| PSnoc : ∀e, s. VEnvironment e → PracticalSubstitution s → VEnvironment (Snoc e s)
+.
+
+inductive VE_Crumble : Crumble → Prop ≝
+| PCCrumble : ∀b, e. VEnvironment e → VE_Crumble (CCrumble b e)
+.
+
+inductive V_Crumble : Crumble → Prop ≝
+| PCrumble : ∀b, e. PracticalBite b → VEnvironment e → V_Crumble (CCrumble b e)
+.
+
+inductive PracticalValue : pValue → Prop ≝
+| practAbstr : ∀ v, t. PracticalValue (abstr v t)
+.
+
+inductive PracticalTerm : pTerm → Prop ≝
+| valT : ∀v. (PracticalValue v → PracticalTerm (val_to_term v))
+| applT : ∀t1, t2. (PracticalTerm t1 → PracticalTerm t2 → PracticalTerm (appl t1 t2))
+.
+
 notation "[ term 19 v ← term 19 b ]" non associative with precedence 90 for @{ 'substitution $v $b }.
 interpretation "Substitution" 'substitution v b =(subst v b).
 
@@ -207,6 +249,7 @@ match a with
 notation "hvbox(c @ e)" with precedence 35 for @{ 'at $c $e }.
 interpretation "@ operation" 'at c e =(at c e).
 
+(*
 definition v0: Value ≝ var ν0.
 definition b0: Bite ≝ CValue v0.
 definition e0: Environment ≝ Epsilon.
@@ -222,6 +265,7 @@ lemma test2: c0 = CCrumble b0 e1. // qed.
 
 lemma test3: (〈 b0, e1 〉 @ e2) = 〈 b0, concat e1 e2 〉.
 // qed.
+*)
 
 let rec pTerm_ind (P: pTerm → Prop) (Q: pValue → Prop)
 (H1: ?)
@@ -428,10 +472,80 @@ e on e ≝
  [ Epsilon ⇒ H1
  | Snoc e s ⇒ H2 e s (Environment_simple_ind2 P H1 H2 e)
  ].
+
+
+let rec reverse_env e on e ≝
+match e with
+[ Epsilon ⇒ Epsilon
+| Snoc e s ⇒ concat (Snoc Epsilon s) (reverse_env e)
+].
+
+lemma eps_concat: ∀e. concat Epsilon e = e.
+@Environment_simple_ind2
+[ normalize //
+| #e #s #eq normalize >eq //
+] qed.
+
+lemma comm_concat: ∀e1, e2, e3. concat e1 (concat e2 e3) = concat (concat e1 e2) e3.
+@Environment_simple_ind2
+[ @Environment_simple_ind2
+ [ @Environment_simple_ind2
+  [ normalize //
+  | #e #s #eq normalize lapply (eps_concat e) #eq1 >eq1 >eq1 //
+  ]
+ | #e #s #H1 @Environment_simple_ind2
+  [ normalize //
+  | #e' #s' #H2 normalize lapply (eps_concat e) #eq1 >eq1 lapply (eps_concat (concat (Snoc e s) e')) #eq2 >eq2 //
+  ]
+ ]
+| #e #s #H1 @Environment_simple_ind2
+ [ @Environment_simple_ind2
+  [ normalize //
+  | #e' #s' #H2 normalize lapply (eps_concat e') #eq1 >eq1 //
+  ]
+ | #e' #s' #H2 @Environment_simple_ind2
+  [ normalize //
+  | #e'' #s'' #H3 whd in match (concat (Snoc e s) (Snoc e' s')); 
+    whd in match (concat (Snoc (concat (Snoc e s) e') s') (Snoc e'' s''));
+    whd in match (concat (Snoc e s) (concat (Snoc e' s') (Snoc e'' s'')));
+    >H3 whd in match (concat (Snoc e s) (Snoc e' s')); //
+  ]
+ ]
+] qed.
+
+lemma rev_concat: ∀e1, e2. reverse_env (concat e1 e2) = concat (reverse_env e2) (reverse_env e1).
+@Environment_simple_ind2
+[ @Environment_simple_ind2
+ [ normalize //
+ | #e #s #eq normalize lapply (eps_concat e) #eq2 >eq2 //
+ ]
+| #e #s #Hind @Environment_simple_ind2
+ [ normalize lapply (eps_concat (concat (Snoc Epsilon s) (reverse_env e)))
+   #eq' >eq' //
+ | #e' #s' #eq normalize >eq lapply (comm_concat (Snoc Epsilon s') (reverse_env e') (reverse_env (Snoc e s)))
+   #eq2 >eq2 whd in match (reverse_env (Snoc e s)); //
+ ]
+] qed.
  
+
+ 
+lemma rev_env: ∀e. e= reverse_env (reverse_env e).
+@Environment_simple_ind2
+[ normalize //
+| #e #s #eq whd in match (reverse_env (Snoc e s)); lapply (rev_concat (Snoc Epsilon s) (reverse_env e))
+  #eq2 >eq2 <eq normalize //
+] qed.
+
+theorem Environment_reverse_ind : ∀P: Environment → Prop. 
+∀H1: P Epsilon.
+∀H2: ∀e.∀s. P e → P (concat (Snoc Epsilon s) e).
+∀e. P e.
+#P #H1 #H2 #e >(rev_env e) @(Environment_simple_ind2 ? ? ? (reverse_env e))
+[  @H1 | normalize #e0 #s @H2 ].
+qed.
 
 lemma concat_e_epsilon: ∀e. concat e Epsilon =e.
 @Environment_simple_ind2 // qed.
 
 lemma concat_epsilon_e: ∀e. concat Epsilon e=e.
-@Environment_simple_ind2 // #e' #s normalize #H >H // qed.
+@Environment_simple_ind2 // qed.

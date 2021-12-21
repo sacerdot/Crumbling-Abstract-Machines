@@ -846,14 +846,208 @@ cut (∀K, K1, K2. pi1 pTerm (λu0:pTerm
    [ 2: #K @K | #K #K1 #K2 >veqb_true in K K1 K2 ⊢ %; normalize #K #K1 #K2 //]
 qed.
 (*
-lemma abstr_step_subst: ∀x, y, t, u.
- veqb y x =false →
+axiom daemon: False.
+*)
+
+axiom abstr_step_subst2: ∀x, y, t, u. fvb_t x u = true →
+ veqb y x = false →
+  ∃z.p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr z (p_subst (p_subst t (psubst x (val_to_term (pvar z)))) (psubst y u)))).
+
+
+
+axiom abstr_step_subst: ∀x, y, t, u. fvb_t x u = false →
+ veqb y x = false →
   p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr x (p_subst t (psubst y u)))).
 
-#x #y #t #u #H
-change with (pi1 … (p_subst_sig …)) in match (p_subst (val_to_term (abstr x t)) (psubst y u));
+
+(*
+lemma abstr_step_subst: ∀x, y, t, u.
+ fvb_t x u = false →
+  veqb y x = false →
+   p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr x (p_subst t (psubst y u)))).
+#x #y #t #u #fv #veq whd in match (p_subst ? ?);
 whd in match (match ? in pSubst with [_ ⇒ ?]);
 whd in match (match ? in pSubst with [_ ⇒ ?]);
+
+cut (∀K, K1, K2. pi1 pTerm
+  (λu0:pTerm
+   .t_size u0
+    =plus (t_size (val_to_term (abstr x t)))
+     (free_occ_t y (val_to_term (abstr x t))*(minus (t_size u) 1))
+    ∧(∀z:Variable
+      .free_occ_t z u0
+       =if veqb y z 
+        then free_occ_t z (val_to_term (abstr x t))*free_occ_t z u 
+        else plus (free_occ_t y (val_to_term (abstr x t))*free_occ_t z u)
+                 (free_occ_t z (val_to_term (abstr x t)))))
+ (match veqb y x
+return λb.
+veqb y x = b
+→ S (t_size t) ≤ S (t_size t)
+→ Σu: pTerm. 
+ ?
+with
+  [ true ⇒ 
+   λH: veqb y x =true.
+     λp: S (t_size t ) ≤ S (t_size t).
+       «val_to_term (abstr x t), K H p »
+  | false ⇒
+   λH: veqb y x =false. match fvb_t x u
+       return λb'.
+         fvb_t x u = b'
+         → S (t_size t) ≤ S (t_size t)
+         → Σu: pTerm. ?
+       with
+        [ true ⇒
+          λHH: fvb_t x u = true. λp:S (t_size t) ≤ S (t_size t).
+           let z ≝ (max (S match x with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t) (fresh_var_t u))))
+           in
+            match (p_subst_sig (t_size t) (psubst x (val_to_term (pvar (variable z)))) t (le_n ?))
+            with
+             [ mk_Sig a h ⇒ «(val_to_term (abstr (variable z) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
+        | false ⇒
+         λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t).
+          «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »]
+      (refl bool (fvb_t x u))
+  ] (refl bool (veqb y x))  (le_n (S (t_size t))))= val_to_term (abstr x (p_subst t (psubst y u)))
+)
+[ >veq >fv #K #K1 #K2  // | #K @K                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         whd in match (t_size (val_to_term (abstr x t))); normalize
+@K
+
+ match veqb y x return λb. veqb y x = b → S (t_size t) ≤ S (t_size t) →
+    Σu: pTerm. ?
+ with
+  [ true ⇒ 
+   λH: veqb y x =true.
+     λp: S (t_size t ) ≤ S (t_size t).
+       «val_to_term (abstr x t), K H p »
+  | false ⇒ 
+   λH: veqb y x =false. match fvb_t x u 
+       return λb'.
+         fvb_t x u = b'
+         → S (t_size t) ≤ S (t_size t) 
+         → Σu: pTerm. ?
+       with
+        [ true ⇒
+          λHH: fvb_t x u = true. λp:S (t_size t) ≤ S (t_size t).
+           let z ≝ (max (S match x with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t) (fresh_var_t u))))
+           in
+            match (p_subst_sig (t_size t) (psubst x (val_to_term (pvar ν(z)))) t (le_n ?))
+            with
+             [ mk_Sig a h ⇒ «(val_to_term (abstr (ν(z)) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
+        | false ⇒
+         λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t).
+          «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »
+              ] (refl bool (fvb_t x u))
+  ] (refl bool (veqb y x))  (le_n (S (t_size t))))= val_to_term (abstr x (p_subst t (psubst y u))))
+[ >veq >fv normalize #K #K1 #K2 // | #K 
+ whd in match (p_subst_sig ? ? ? ?);
+ whd in match (match ? in pSubst with [_ ⇒ ?]); 
+ whd in match (t_size (val_to_term (abstr x t))); 
+ whd in match (match ? in pSubst with [_ ⇒ ?]);
+ whd in match (match ? in pSubst with [_ ⇒ ?]); 
+ whd in match (match ? in pSubst with [_ ⇒ ?]);
+ whd in match (match ? in pSubst with [_ ⇒ ?]);
+ @K
+
+
+
+
+
+
+whd in match (t_size (val_to_term (abstr x t)));
+
+cut (∀K, K2. (pi1 pTerm
+  (λu0:pTerm
+   .And (t_size u0
+    =(plus (t_size (val_to_term (abstr x t)))
+     ((free_occ_t y (val_to_term (abstr x t)))*(minus (t_size u) 1 ))) )
+     (∀zz:Variable
+      .free_occ_t zz u0
+       =if veqb y zz 
+        then free_occ_t zz (val_to_term (abstr x t))*free_occ_t zz u 
+        else plus (free_occ_t y (val_to_term (abstr x t))*free_occ_t zz u)
+                  (free_occ_t zz (val_to_term (abstr x t)) )))
+  ((match fvb_t x u 
+    with [ true ⇒ (λHH:fvb_t x u=true
+              .λp:t_size (val_to_term (abstr x t))≤S (t_size t)
+               .(let (z:ℕ) ≝
+                        max
+                        (S
+                         match y in Variable return λ_:Variable.ℕ with 
+                         [variable (n0:ℕ)⇒n0])
+                        (max
+                         (S
+                          match x in Variable return λ_:Variable.ℕ with 
+                          [variable (nx:ℕ)⇒nx])
+                         (max (fresh_var_t t) (fresh_var_t u))) in 
+                 match 
+                 p_subst_sig (t_size t) (psubst x (val_to_term (pvar (variable z)))) t
+                 (subst_aux_7 x t (t_size t) p)
+                  in Sig
+                  return 
+                 λ_:(Σu0:pTerm
+                        .t_size u0
+                         =t_size t+free_occ_t x t*(t_size (val_to_term (pvar (variable z)))-1)
+                         ∧(∀z0:Variable
+                           .free_occ_t z0 u0
+                            =if veqb x z0 
+                             then free_occ_t z0 t*free_occ_t z0 (val_to_term (pvar (variable z))) 
+                             else free_occ_t x t*free_occ_t z0 (val_to_term (pvar (variable z)))
+                                      +free_occ_t z0 t ))
+                 .(Σu0:pTerm
+                   .t_size u0
+                    =t_size (val_to_term (abstr x t))
+                     +free_occ_v y (abstr x t)*(t_size u-1)
+                    ∧(∀z0:Variable
+                      .free_occ_t z0 u0
+                       =if veqb y z0 
+                        then free_occ_v z0 (abstr x t)*free_occ_t z0 u 
+                        else free_occ_v y (abstr x t)*free_occ_t z0 u
+                                 +free_occ_v z0 (abstr x t) ))
+                  with 
+                 [mk_Sig
+                  (a:pTerm)
+                   
+                  (h:
+                  (t_size a
+                   =t_size t+free_occ_t x t*(t_size (val_to_term (pvar (variable z)))-1)
+                   ∧(∀z0:Variable
+                     .free_occ_t z0 a
+                      =if veqb x z0 
+                       then free_occ_t z0 t*free_occ_t z0 (val_to_term (pvar (variable z))) 
+                       else free_occ_t x t*free_occ_t z0 (val_to_term (pvar (variable z)))
+                                +free_occ_t z0 t )))⇒
+                  «val_to_term
+                   (abstr (variable z)
+                    (pi1 pTerm
+                     (λu0:pTerm
+                      .t_size u0=t_size a+free_occ_t y a*(t_size u-1)
+                       ∧(∀z0:Variable
+                         .free_occ_t z0 u0
+                          =if veqb y z0 
+                           then free_occ_t z0 a*free_occ_t z0 u 
+                           else free_occ_t y a*free_occ_t z0 u+free_occ_t z0 a ))
+                     (p_subst_sig (t_size t) (psubst y u) a
+                      (subst_aux_5 t x z a (t_size t) h p)))),
+                  K HH p»])) 
+    | false ⇒ (λHH:fvb_t x u=false 
+              .λp:t_size (val_to_term (abstr x t))≤S (t_size t)
+               .«val_to_term
+                 (abstr x
+                  (pi1 pTerm
+                   (λu0:pTerm
+                    .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                     ∧(∀zzz:Variable
+                       .free_occ_t zzz u0
+                        =if veqb y zzz 
+                         then free_occ_t zzz t*free_occ_t zzz u 
+                         else free_occ_t y t*free_occ_t zzz u+free_occ_t zzz t ))
+                   (p_subst_sig (t_size t) (psubst y u) t
+                    (subst_aux_7 x t (t_size t) p)))),
+                K2 HH p») ])
+   (refl bool (fvb_t x u)) (le_n (t_size (val_to_term (abstr x t)))))
+  =val_to_term (abstr x (p_subst t (psubst y u))))))
 
 cut (∀K, K1, K2. pi1 pTerm
   (λu0:pTerm
@@ -862,10 +1056,10 @@ cut (∀K, K1, K2. pi1 pTerm
      +free_occ_t y (val_to_term (abstr x t))*(t_size u-1)
     ∧(∀z:Variable
       .free_occ_t z u0
-       =if veqb y z 
-        then free_occ_t z (val_to_term (abstr x t))*free_occ_t z u 
-        else free_occ_t y (val_to_term (abstr x t))*free_occ_t z u
-                 +free_occ_t z (val_to_term (abstr x t)) ))
+       =if veqb y z 
+        then free_occ_t z (val_to_term (abstr x t))*free_occ_t z u 
+        else free_occ_t y (val_to_term (abstr x t))*free_occ_t z u
+                 +free_occ_t z (val_to_term (abstr x t)) ))
  (match veqb y x return λb. veqb y x = b → S (t_size t) ≤ S (t_size t) →
     Σu: pTerm. ?
  with
@@ -881,10 +1075,777 @@ cut (∀K, K1, K2. pi1 pTerm
                      [ mk_Sig a h ⇒ «(val_to_term (abstr (ν(z)) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
               | false ⇒ λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t). «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »
               ] (refl bool (fvb_t x u))
-
   ] (refl bool (veqb y x))  (le_n (S (t_size t))))= val_to_term (abstr x (p_subst t (psubst y u))))
-  [ 2: #UU   >UU
-  *)
+[ 2: whd in match (match ? in pSubst with [_ ⇒ ?]);
+     whd in match (match ? in pSubst with [_ ⇒ ?]);
+     whd in match (match ? in pSubst with [_ ⇒ ?]);
+     whd in match (match ? in pSubst with [_ ⇒ ?]);
+     whd in match (match ? in pSubst with [_ ⇒ ?]); #K lapply (K ? ?) 
+  [ #_ >fv #abs destruct | >veq #abs destruct
+  | #K1 lapply (K1 ?) [ #_ #_ #eq %
+   [ whd in match (t_size ?); whd in match (pi1 … ?);
+  @K
+
+cut (∀K, K1, K2. pi1 pTerm
+  (λu0:pTerm
+   .t_size u0=S (t_size t)+free_occ_t y (val_to_term (abstr x t))*(t_size u-1)
+    ∧(∀z:Variable
+      .free_occ_t z u0
+       =if veqb y z 
+        then free_occ_t z (val_to_term (abstr x t))*free_occ_t z u 
+        else free_occ_t y (val_to_term (abstr x t))*free_occ_t z u
+                 +free_occ_t z (val_to_term (abstr x t)) ))
+  (match veqb y x return λb. veqb y x = b → S (t_size t) ≤ S (t_size t) →
+    Σu: pTerm. ?
+ with
+  [ true ⇒ λH: veqb y x =true.
+     λp: S (t_size t ) ≤ S (t_size t).
+       «val_to_term (abstr x t), K H p »
+  |  false  ⇒ λH: veqb y x =false. match fvb_t x u return λb'. fvb_t x u = b' →
+                                       S (t_size t) ≤ S (t_size t) →
+                                        Σu: pTerm. ?
+              with
+              [ true ⇒ λHH: fvb_t x u = true. λp:S (t_size t) ≤ S (t_size t). let z ≝ (max (S match x with [variable n ⇒ n]) (max (S match x with [variable nx⇒ nx]) (max (fresh_var_t t) (fresh_var_t u))))
+                  in match (p_subst_sig (t_size t) (psubst x (val_to_term (pvar ν(z)))) t (le_n ?)) with
+                     [ mk_Sig a h ⇒ «(val_to_term (abstr (ν(z)) (pi1 … (p_subst_sig (t_size t) (psubst y u) a (subst_aux_5 … h p))))), K1 H HH p a h»]
+              | false ⇒ λHH: fvb_t x u = false. λp:S (t_size t) ≤ S (t_size t). «(val_to_term (abstr x (pi1 … (p_subst_sig (t_size t) (psubst y u) t (le_n ?))))), K2 H HH p »
+              ] (refl bool (fvb_t x u))
+
+  ] (refl bool (veqb y x))  (le_n (S (t_size t))))
+  =val_to_term (abstr x (p_subst t (psubst y u))))
+  [ 2: #K @K
+
+
+whd in match (p_subst_sig ? ? ? ?);
+whd in match (match psubst y u in pSubst return λ_:pSubst.Variable with 
+         [psubst (x0:Variable)   (t0:pTerm)⇒x0]);
+
+
+lapply (eq_ind_r bool false (λveqbyx. λH10.( pi1 pTerm
+  (λu0:pTerm.
+  (t_size u0 =(t_size (val_to_term (abstr x t))) + (free_occ_t y (val_to_term (abstr x t)))*(t_size u-1))
+    ∧(∀zz:Variable
+      .(free_occ_t zz u0)
+       =if (veqb y zz)
+        then (free_occ_t zz (val_to_term (abstr x t)))*(free_occ_t zz u)
+        else (free_occ_t y (val_to_term (abstr x t)))*(free_occ_t zz u)
+                 +(free_occ_t zz (val_to_term (abstr x t)))))
+  ((match (veqbyx) return λveqbyx2.∀H5:veqbyx = veqbyx2. ? 
+    with [ true ⇒ (λH5:veqbyx=true
+              .λp:t_size (val_to_term (abstr x t))≤S (t_size t)
+               .«val_to_term (abstr x t),
+                (*subst_aux_4 t x (psubst y u) (t_size t) H5 p*) ?») 
+    | false ⇒ (λH5:veqbyx=false
+              .(match fvb_t x
+                     match psubst y u in pSubst return λH0:pSubst.pTerm with 
+                     [psubst (x0:Variable)   (t0:pTerm)⇒t0] return λAAAA. ∀BBBB:fvb_t x
+                     match psubst y u in pSubst return λH0:pSubst.pTerm with 
+                     [psubst (x0:Variable)   (t0:pTerm)⇒t0] =AAAA. ?
+                with [true ⇒ (λHH:fvb_t x
+                                  match psubst y u in pSubst return λ_:pSubst.pTerm with 
+                                  [psubst (x0:Variable)   (t0:pTerm)⇒t0]
+                                  =true
+                          .λp:t_size (val_to_term (abstr x t))≤S (t_size t)
+                           .(let (z:ℕ) ≝
+                                    max
+                                    (S
+                                     match psubst y u in pSubst return λ_:pSubst.ℕ with 
+                                     [psubst (x0:Variable)   (t0:pTerm)⇒
+                                      match x0 in Variable return λ_:Variable.ℕ with 
+                                      [variable (n0:ℕ)⇒n0]])
+                                    (max
+                                     (S
+                                      match x in Variable return λ_:Variable.ℕ with 
+                                      [variable (nx:ℕ)⇒nx])
+                                     (max (fresh_var_t t)
+                                      (fresh_var_t
+                                       match psubst y u in pSubst return λ_:pSubst.pTerm
+                                        with 
+                                       [psubst (x0:Variable)   (t0:pTerm)⇒t0]))) in 
+                             match 
+                             p_subst_sig (t_size t) (psubst x (val_to_term (pvar (variable z)))) t
+                             (subst_aux_7 x t (t_size t) p)
+                              in Sig
+                              return 
+                             λ_:(Σu0:pTerm
+                                    .t_size u0
+                                     =t_size t
+                                      +free_occ_t
+                                       match psubst x (val_to_term (pvar (variable z)))
+                                        in pSubst
+                                        return λ_:pSubst.Variable
+                                        with 
+                                       [psubst (x0:Variable)   (t0:pTerm)⇒x0] t
+                                       *(t_size
+                                         match psubst x (val_to_term (pvar (variable z)))
+                                          in pSubst
+                                          return λ_:pSubst.pTerm
+                                          with 
+                                         [psubst (x0:Variable)   (t0:pTerm)⇒t0]
+                                         -1)
+                                     ∧(∀z0:Variable
+                                       .free_occ_t z0 u0
+                                        =if veqb 
+                                              match psubst x (val_to_term (pvar (variable z)))
+                                               in pSubst
+                                               return λ_:pSubst.Variable
+                                               with 
+                                              [psubst (y0:Variable)   (t':pTerm)⇒y0] z0 
+                                        then free_occ_t z0 t
+                                                  *free_occ_t z0
+                                                   match psubst x (val_to_term (pvar (variable z)))
+                                                    in pSubst
+                                                    return λ_:pSubst.pTerm
+                                                    with 
+                                                   [psubst (y0:Variable)   (t':pTerm)⇒t'] 
+                                        else free_occ_t
+                                                  match psubst x (val_to_term (pvar (variable z)))
+                                                   in pSubst
+                                                   return λ_:pSubst.Variable
+                                                   with 
+                                                  [psubst (y0:Variable)   (t':pTerm)⇒y0] t
+                                                  *free_occ_t z0
+                                                   match psubst x (val_to_term (pvar (variable z)))
+                                                    in pSubst
+                                                   return λ_:pSubst.pTerm
+                                                    with 
+                                                   [psubst (y0:Variable)   (t':pTerm)⇒t']
+                                                  +free_occ_t z0 t ))
+                             .(Σu0:pTerm
+                              .t_size u0
+                                =t_size (val_to_term (abstr x t))
+                                 +free_occ_v y (abstr x t)
+                                  *(t_size
+                                    (match psubst y u in pSubst  return λ_:pSubst.pTerm
+                                   with 
+                                    [psubst (x0:Variable)   (t0:pTerm)⇒t0])
+                                   -1)
+                               ∧(∀z0:Variable
+                                  .free_occ_t z0 u0
+                                   =if veqb y z0 
+                                    then free_occ_v z0 (abstr x t)
+                                             *free_occ_t z0
+                                              match psubst y u
+                                               in pSubst
+                                               return λ_:pSubst.pTerm
+                                               with 
+                                              [psubst (y0:Variable)   (t':pTerm)⇒t'] 
+                                    else free_occ_v y (abstr x t)
+                                             *free_occ_t z0
+                                              match psubst y u
+                                               in pSubst
+                                               return λ_:pSubst.pTerm
+                                               with 
+                                              [psubst (y0:Variable)   (t':pTerm)⇒t']
+                                             +free_occ_v z0 (abstr x t) ))
+                              with
+                            [mk_Sig
+                              (a:pTerm)
+                               
+                              (h:
+                              (t_size a
+                               =t_size t
+                                +free_occ_t
+                                 match psubst x (val_to_term (pvar (variable z)))
+                                  in pSubst
+                                  return λ_:pSubst.Variable
+                                  with 
+                                 [psubst (x0:Variable)   (t0:pTerm)⇒x0] t
+                                 *(t_size
+                                   match psubst x (val_to_term (pvar (variable z)))
+                                    in pSubst
+                                    return λ_:pSubst.pTerm
+                                    with 
+                                   [psubst (x0:Variable)   (t0:pTerm)⇒t0]
+                                   -1)
+                               ∧(∀z0:Variable
+                                 .free_occ_t z0 a
+                                  =if veqb
+                                        match psubst x (val_to_term (pvar (variable z)))
+                                         in pSubst
+                                         return λ_:pSubst.Variable
+                                         with 
+                                        [psubst (y0:Variable)   (t':pTerm)⇒y0] z0 
+                                   then free_occ_t z0 t
+                                            *free_occ_t z0
+                                             match psubst x (val_to_term (pvar (variable z)))
+                                              in pSubst
+                                              return λ_:pSubst.pTerm
+                                              with 
+                                             [psubst (y0:Variable)   (t':pTerm)⇒t'] 
+                                   else free_occ_t
+                                            match psubst x (val_to_term (pvar (variable z)))
+                                             in pSubst
+                                             return λ_:pSubst.Variable
+                                             with 
+                                            [psubst (y0:Variable)   (t':pTerm)⇒y0] t
+                                            *free_occ_t z0
+                                             match psubst x (val_to_term (pvar (variable z)))
+                                              in pSubst
+                                              return λ_:pSubst.pTerm
+                                              with 
+                                             [psubst (y0:Variable)   (t':pTerm)⇒t']
+                                            +free_occ_t z0 t )))⇒
+                              «val_to_term
+                               (abstr (variable z)
+                                (pi1 pTerm
+                                 (λu0:pTerm
+                                  .t_size u0
+                                   =t_size a
+                                    +free_occ_t y a
+                                     *(t_size
+                                       match psubst y u in pSubst return λ_:pSubst.pTerm
+                                        with 
+                                       [psubst (x0:Variable)   (t0:pTerm)⇒t0]
+                                       -1)
+                                   ∧(∀z0:Variable
+                                     .free_occ_t z0 u0
+                                     =if veqb y z0 
+                                       then free_occ_t z0 a
+                                                *free_occ_t z0
+                                                 match psubst y u
+                                                  in pSubst
+                                                  return λ_:pSubst.pTerm
+                                                  with 
+                                                 [psubst (y0:Variable)   (t':pTerm)⇒t'] 
+                                       else free_occ_t y a
+                                                *free_occ_t z0
+                                                 match psubst y u
+                                                  in pSubst
+                                                  return λ_:pSubst.pTerm
+                                                  with 
+                                                 [psubst (y0:Variable)   (t':pTerm)⇒t']
+                                                +free_occ_t z0 a ))
+                                 (p_subst_sig (t_size t) (psubst y u) a
+                                  (subst_aux_5 t x z a (t_size t) h p)))), ?»])) 
+                | false ⇒ (λHH:fvb_t x
+                                  match psubst y u in pSubst return λ_:pSubst.pTerm with 
+                                  [psubst (x0:Variable)   (t0:pTerm)⇒t0]
+                                  =false
+                          . ?)] )
+               (refl bool
+                (fvb_t x
+                 match psubst y u in pSubst return λ_:pSubst.pTerm with 
+                 [psubst (x0:Variable)   (t0:pTerm)⇒t0])))] ) 
+   (refl bool (veqbyx)) (le_n (t_size (val_to_term (abstr x t)))))
+  =val_to_term (abstr x (p_subst t (psubst y u) ) ) ) ) ? (veqb y x) veq)
+  
+ [ 2: cases (?:False) lapply H5 >H10 #abs destruct
+ | 3: lapply HH whd in match (match psubst y u in pSubst return λ_:pSubst.pTerm with 
+   [psubst (x0:Variable)   (t0:pTerm)⇒t0]); -HH #HH cases (? : False) lapply HH >fv #abs destruct 
+ | 4: #p % [ @(val_to_term
+                             (abstr x
+                              (pi1 pTerm
+                               (λu0:pTerm
+                                .t_size u0
+                                 =t_size t
+                                  +free_occ_t y t
+                                   *(t_size
+                                     match psubst y u in pSubst return λ_:pSubst.pTerm
+                                      with 
+                                     [psubst (x0:Variable)   (t0:pTerm)⇒t0]
+                                     -1)
+                                 ∧(∀zzz:Variable
+                                   .(free_occ_t zzz u0)
+                                    =if (veqb y zzz) 
+                                     then (free_occ_t zzz t)
+                                              *(free_occ_t zzz
+                                               match psubst y u
+                                                in pSubst
+                                                return λ_:pSubst.pTerm
+                                                with 
+                                               [psubst (y0:Variable)   (t':pTerm)⇒t']) 
+                                     else free_occ_t y t
+                                              *(free_occ_t zzz
+                                               match psubst y u
+                                                in pSubst
+                                                return λ_:pSubst.pTerm
+                                                with 
+                                               [psubst (y0:Variable)   (t':pTerm)⇒t'])
+                                              +(free_occ_t zzz t) ))
+                               (p_subst_sig (t_size t) (psubst y u) t
+                                (subst_aux_7 x t (t_size t) p)))))
+  | -HH whd in match (match psubst y u in pSubst return λ_:pSubst.pTerm with [psubst (x0:Variable)   (t0:pTerm)⇒t0]);
+   @conj
+   [ whd in match (t_size ?); inversion (p_subst_sig (t_size t) (psubst y u) t (subst_aux_7 x t (t_size t) p))
+    whd in match (match psubst y u in pSubst return λH11:pSubst.Variable with [psubst (x0:Variable)   (t0:pTerm)⇒x0]);
+    whd in match (match psubst y u in pSubst return λH12:pSubst.pTerm with [psubst (x0:Variable)   (t0:pTerm)⇒t0]);
+    #term0 #H11 #eq lapply (proj1 … H11) #eq2 >eq2 normalize >veq whd in match (if false then O else free_occ_t y t ); //
+   | #z inversion (p_subst_sig (t_size t) (psubst y u) t (subst_aux_7 x t (t_size t) p))
+    whd in match (match psubst y u in pSubst return λH11:pSubst.Variable with [psubst (x0:Variable)   (t0:pTerm)⇒x0]);
+    whd in match (match psubst y u in pSubst return λH12:pSubst.pTerm with [psubst (x0:Variable)   (t0:pTerm)⇒t0]);
+    #term0 #H13 #eq inversion (veqb y z)
+    [ #veqbyz whd in match (if true then free_occ_v z (abstr x t)*free_occ_t z u else free_occ_v y (abstr x t)*free_occ_t z u+free_occ_v z (abstr x t) );
+     normalize cut (veqb z x = false)
+     [ lapply (veqb_true_to_eq y z) * #veq_to_eq #_
+      lapply (veq_to_eq veqbyz) #eq <eq @veq
+     | #veqbzx >veqbzx whd in match (if false then O else free_occ_t z term0);
+      whd in match (if false then O else free_occ_t z t); lapply (proj2 … H13) #freocc lapply (freocc z) >veqbyz
+      whd in match (if true then free_occ_t z t*free_occ_t z u else free_occ_t y t*free_occ_t z u+free_occ_t z t);
+      #th @th ]
+    | #veqbyz whd in match (if false then free_occ_v z (abstr x t)*free_occ_t z u else free_occ_v y (abstr x t)*free_occ_t z u+free_occ_v z (abstr x t) );
+      normalize inversion (veqb z x)
+      [ #veqbzx whd in match (if true then O else free_occ_t z term0); >veq
+        whd in match (if false then O else free_occ_t y t);
+        lapply (veqb_fv z x u veqbzx) #eq2 lapply fv <eq2 #fvz lapply (free_occ_to_fv z …) #fotf
+        lapply (proj1 … fotf) -fotf #fotf lapply (fotf u) * #_ #Hfin lapply (Hfin fvz) #focc
+        >focc lapply (times_O (free_occ_t y t)) #Htimes >Htimes //
+      | #veqbzx whd in match (if false then O else free_occ_t z term0); >veq
+       whd in match (if false then O else free_occ_t y t);
+       whd in match (if false then O else free_occ_t z t);
+       lapply (proj2 … H13) -H13 #H13 lapply (H13 z) -H13 >veqbyz
+       whd in match (if false then free_occ_t z t*free_occ_t z u else free_occ_t y t*free_occ_t z u+free_occ_t z t);
+       #H @H
+      ]
+    ]
+   ]
+  ]  
+  | 5: #H @H 
+  | whd in match (match psubst y u in pSubst return λH30:pSubst.pTerm with [psubst (x0:Variable)   (t0:pTerm)⇒t0]); 
+    whd in match (match psubst y u in pSubst return λH29:pSubst.ℕ with [psubst (x0:Variable)   (t0:pTerm)⇒ match x0 in Variable return λ_:Variable.ℕ with [variable (n0:ℕ)⇒n0]]);
+    whd in match (match psubst x (val_to_term (pvar ?)) in pSubst return λH29:pSubst.Variable with [psubst (x0:Variable)   (t0:pTerm)⇒x0]);
+    whd in match (match psubst x (val_to_term (pvar ?)) in pSubst return λH30:pSubst.pTerm with [psubst (x0:Variable)   (t0:pTerm)⇒t0]);
+    whd in match (match psubst y u in pSubst return λH31:pSubst.Variable with [psubst (x0:Variable)   (t0:pTerm)⇒x0]);
+
+    whd in ⊢ (? ? (? ? ? %) ?);
+    check Sig_inv_ind
+    check  ( (pi1 pTerm
+  (λu0:pTerm
+   .And (t_size u0
+    =(plus (t_size (val_to_term (abstr x t)))
+     ((free_occ_t y (val_to_term (abstr x t)))*(minus (t_size u) 1 ))) )
+     (∀zz:Variable
+      .free_occ_t zz u0
+       =if veqb y zz 
+        then free_occ_t zz (val_to_term (abstr x t))*free_occ_t zz u 
+        else plus (free_occ_t y (val_to_term (abstr x t))*free_occ_t zz u)
+                  (free_occ_t zz (val_to_term (abstr x t)) )))
+  ((match fvb_t x u 
+    with [ true ⇒ (λHH:fvb_t x u=true
+              .λp:t_size (val_to_term (abstr x t))≤S (t_size t)
+               .(let (z:ℕ) ≝
+                        max
+                        (S
+                         match y in Variable return λ_:Variable.ℕ with 
+                         [variable (n0:ℕ)⇒n0])
+                        (max
+                         (S
+                          match x in Variable return λ_:Variable.ℕ with 
+                          [variable (nx:ℕ)⇒nx])
+                         (max (fresh_var_t t) (fresh_var_t u))) in 
+                 match 
+                 p_subst_sig (t_size t) (psubst x (val_to_term (pvar (variable z)))) t
+                 (subst_aux_7 x t (t_size t) p)
+                  in Sig
+                  return 
+                 λ_:(Σu0:pTerm
+                        .t_size u0
+                         =t_size t+free_occ_t x t*(t_size (val_to_term (pvar (variable z)))-1)
+                         ∧(∀z0:Variable
+                           .free_occ_t z0 u0
+                            =if veqb x z0 
+                             then free_occ_t z0 t*free_occ_t z0 (val_to_term (pvar (variable z))) 
+                             else free_occ_t x t*free_occ_t z0 (val_to_term (pvar (variable z)))
+                                      +free_occ_t z0 t ))
+                 .(Σu0:pTerm
+                   .t_size u0
+                    =t_size (val_to_term (abstr x t))
+                     +free_occ_v y (abstr x t)*(t_size u-1)
+                    ∧(∀z0:Variable
+                      .free_occ_t z0 u0
+                       =if veqb y z0 
+                        then free_occ_v z0 (abstr x t)*free_occ_t z0 u 
+                        else free_occ_v y (abstr x t)*free_occ_t z0 u
+                                 +free_occ_v z0 (abstr x t) ))
+                  with 
+                 [mk_Sig
+                  (a:pTerm)
+                   
+                  (h:
+                  (t_size a
+                   =t_size t+free_occ_t x t*(t_size (val_to_term (pvar (variable z)))-1)
+                   ∧(∀z0:Variable
+                     .free_occ_t z0 a
+                      =if veqb x z0 
+                       then free_occ_t z0 t*free_occ_t z0 (val_to_term (pvar (variable z))) 
+                       else free_occ_t x t*free_occ_t z0 (val_to_term (pvar (variable z)))
+                                +free_occ_t z0 t )))⇒
+                  «?(*val_to_term
+                   (abstr (variable z)
+                    (pi1 pTerm
+                     (λu0:pTerm
+                      .t_size u0=t_size a+free_occ_t y a*(t_size u-1)
+                       ∧(∀z0:Variable
+                         .free_occ_t z0 u0
+                          =if veqb y z0 
+                           then free_occ_t z0 a*free_occ_t z0 u 
+                           else free_occ_t y a*free_occ_t z0 u+free_occ_t z0 a ))
+                     (p_subst_sig (t_size t) (psubst y u) a
+                      (subst_aux_5 t x z a (t_size t) h p))))*),
+                  ?(*match 
+                  (eq_ind_r bool false (λx0:bool.λ_:x0=false.x0=true→False)
+                   (λabs:false=true
+                    .eq_ind_r bool false (λx0:bool.λ_:x0=false.x0=false→False)
+                     (λH50:false=false.bool_discr false true abs False) false
+                     (refl bool false) (refl bool false))
+                   (fvb_t x u) fv HH
+                  :False)
+                   in False
+                   return 
+                  λ_:False
+                  .(t_size
+                    (val_to_term
+                     (abstr (variable z)
+                      (pi1 pTerm
+                       (λu0:pTerm
+                        .t_size u0=t_size a+free_occ_t y a*(t_size u-1)
+                         ∧(∀z0:Variable
+                           .free_occ_t z0 u0
+                            =if veqb y z0 
+                             then free_occ_t z0 a*free_occ_t z0 u 
+                             else free_occ_t y a*free_occ_t z0 u+free_occ_t z0 a ))
+                       (p_subst_sig (t_size t) (psubst y u) a
+                        (subst_aux_5 t x z a (t_size t) h p)))))
+                    =t_size (val_to_term (abstr x t))
+                     +free_occ_v y (abstr x t)*(t_size u-1)
+                    ∧(∀z0:Variable
+                      .free_occ_t z0
+                       (val_to_term
+                        (abstr (variable z)
+                         (pi1 pTerm
+                          (λu0:pTerm
+                           .t_size u0=t_size a+free_occ_t y a*(t_size u-1)
+                            ∧(∀z00:Variable
+                              .free_occ_t z00 u0
+                               =if veqb y z00 
+                                then free_occ_t z00 a*free_occ_t z00 u 
+                                else free_occ_t y a*free_occ_t z00 u
+                                         +free_occ_t z00 a ))
+                          (p_subst_sig (t_size t) (psubst y u) a
+                           (subst_aux_5 t x z a (t_size t) h p)))))
+                       =if veqb y z0 
+                        then free_occ_v z0 (abstr x t)*free_occ_t z0 u 
+                        else free_occ_v y (abstr x t)*free_occ_t z0 u
+                                 +free_occ_v z0 (abstr x t) ))
+                   with 
+                  []*)»])) 
+    | false ⇒ (λHH:fvb_t x u=false 
+              .λp:t_size (val_to_term (abstr x t))≤S (t_size t)
+               .«val_to_term
+                 (abstr x
+                  (pi1 pTerm
+                   (λu0:pTerm
+                    .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                     ∧(∀zzz:Variable
+                       .free_occ_t zzz u0
+                        =if veqb y zzz 
+                         then free_occ_t zzz t*free_occ_t zzz u 
+                         else free_occ_t y t*free_occ_t zzz u+free_occ_t zzz t ))
+                   (p_subst_sig (t_size t) (psubst y u) t
+                    (subst_aux_7 x t (t_size t) p)))),
+                conj
+                (t_size
+                 (val_to_term
+                  (abstr x
+                   (pi1 pTerm
+                    (λu0:pTerm
+                     .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                      ∧(∀zzz:Variable
+                        .free_occ_t zzz u0
+                         =if veqb y zzz 
+                          then free_occ_t zzz t*free_occ_t zzz u 
+                          else free_occ_t y t*free_occ_t zzz u+free_occ_t zzz t ))
+                    (p_subst_sig (t_size t) (psubst y u) t
+                     (subst_aux_7 x t (t_size t) p)))))
+                 =plus (t_size (val_to_term (abstr x t)))
+                  (free_occ_v y (abstr x t)*(minus (t_size u) 1)))
+                (∀z0:Variable
+                 .free_occ_t z0
+                  (val_to_term
+                   (abstr x
+                    (pi1 pTerm
+                     (λu0:pTerm
+                      .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                       ∧(∀zzz:Variable
+                         .free_occ_t zzz u0
+                          =if veqb y zzz 
+                           then free_occ_t zzz t*free_occ_t zzz u 
+                           else free_occ_t y t*free_occ_t zzz u+free_occ_t zzz t ))
+                     (p_subst_sig (t_size t) (psubst y u) t
+                      (subst_aux_7 x t (t_size t) p)))))
+                  =if veqb y z0 
+                   then free_occ_v z0 (abstr x t)*free_occ_t z0 u 
+                   else free_occ_v y (abstr x t)*free_occ_t z0 u
+                            +free_occ_v z0 (abstr x t) )
+                (Sig_inv_ind pTerm
+                 (λu0:pTerm
+                  .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                   ∧(∀z:Variable
+                     .free_occ_t z u0
+                      =if veqb y z 
+                       then free_occ_t z t*free_occ_t z u 
+                       else free_occ_t y t*free_occ_t z u+free_occ_t z t ))
+                 (p_subst_sig (t_size t) (psubst y u) t
+                  (subst_aux_7 x t (t_size t) p))
+                 (λH31:Σu0:pTerm
+                                  .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                                   ∧(∀z:Variable
+                                     .free_occ_t z u0
+                                      =if veqb y z 
+                                       then free_occ_t z t*free_occ_t z u 
+                                       else free_occ_t y t*free_occ_t z u+free_occ_t z t )
+                  .True (*S
+                   (t_size
+                    (pi1 pTerm
+                     (λu0:pTerm
+                      .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                       ∧(∀zzz:Variable
+                         .free_occ_t zzz u0
+                          =if veqb y zzz 
+                           then free_occ_t zzz t*free_occ_t zzz u 
+                           else free_occ_t y t*free_occ_t zzz u+free_occ_t zzz t ))
+                     H31))
+                   =t_size (val_to_term (abstr x t))
+                    +free_occ_v y (abstr x t)*(minus (t_size u) 1)*))
+                 (λterm0:pTerm
+                  .λH11:t_size term0=t_size t+free_occ_t y t*(t_size u-1)
+                             ∧(∀z:Variable
+                               .free_occ_t z term0
+                                =if veqb y z 
+                                 then free_occ_t z t*free_occ_t z u 
+                                 else free_occ_t y t*free_occ_t z u+free_occ_t z t )
+                   .λeq:p_subst_sig (t_size t) (psubst y u) t
+                            (subst_aux_7 x t (t_size t) p)
+                            =«term0,H11»
+                    .eq_ind_r ℕ (t_size t+free_occ_t y t*(t_size u-1))
+                     (λx0:ℕ
+                      .λ_:x0=t_size t+free_occ_t y t*(t_size u-1)
+                       .S x0
+                        =t_size (val_to_term (abstr x t))
+                         +free_occ_v y (abstr x t)*(t_size u-1))
+                     (eq_ind_r bool false
+                      (λx0:bool
+                       .λ_:x0=false
+                        .S (t_size t+free_occ_t y t*(t_size u-1))
+                         =S
+                          (t_size t+(if x0 then O else free_occ_t y t )*(t_size u-1)))
+                      (let (clause_2117:
+                              t_size term0=t_size t+free_occ_t y t*pred (t_size u)) ≝
+                              rewrite_r ℕ (t_size u-O)
+                              (λx0:ℕ.t_size term0=t_size t+free_occ_t y t*pred x0)
+                              (rewrite_l ℕ (t_size u-1)
+                               (λx0:ℕ.t_size term0=t_size t+free_occ_t y t*x0)
+                               (proj1
+                                (t_size term0=t_size t+free_occ_t y t*(t_size u-1))
+                                (∀z:Variable
+                                 .free_occ_t z term0
+                                  =if veqb y z 
+                                   then free_occ_t z t*free_occ_t z u 
+                                   else free_occ_t y t*free_occ_t z u+free_occ_t z t )
+                                H11)
+                               (pred (t_size u-O)) (eq_minus_S_pred (t_size u) O))
+                              (t_size u) (minus_n_O (t_size u)) in 
+                       ?(*rewrite_r ℕ (pred (t_size u-O))
+                       (λx0:ℕ
+                        .S (t_size t+free_occ_t y t*x0)
+                         =S (t_size t+free_occ_t y t*(t_size u-1)))
+                       (rewrite_l ℕ (t_size u)
+                        (λx0:ℕ
+                         .S (t_size t+free_occ_t y t*pred x0)
+                          =S (t_size t+free_occ_t y t*(t_size u-1)))
+                        (rewrite_l ℕ (t_size term0)
+                         (λx0:ℕ.S x0=S (t_size t+free_occ_t y t*(t_size u-1)))
+                         (rewrite_r ℕ (pred (t_size u-O))
+                          (λx0:ℕ.S (t_size term0)=S (t_size t+free_occ_t y t*x0))
+                          (rewrite_l ℕ (t_size u)
+                           (λx0:ℕ
+                            .S (t_size term0)=S (t_size t+free_occ_t y t*pred x0))
+                           (rewrite_l ℕ (t_size term0) (λx0:ℕ.S (t_size term0)=S x0)
+                            (refl ℕ (S (t_size term0)))
+                            (t_size t+free_occ_t y t*pred (t_size u)) clause_2117)
+                           (t_size u-O) (minus_n_O (t_size u)))
+                          (t_size u-1) (eq_minus_S_pred (t_size u) O))
+                         (t_size t+free_occ_t y t*pred (t_size u)) clause_2117)
+                        (t_size u-O) (minus_n_O (t_size u)))
+                       (t_size u-1) (eq_minus_S_pred (t_size u) O)*))
+                      (veqb y x) veq)
+                     (t_size term0)
+                     ( ?(*proj1 (t_size term0=t_size t+free_occ_t y t*(t_size u-1))
+                      (∀z:Variable
+                       .free_occ_t z term0
+                        =if veqb y z 
+                         then free_occ_t z t*free_occ_t z u 
+                         else free_occ_t y t*free_occ_t z u+free_occ_t z t ) H11*))))
+                (λz:Variable
+                 .Sig_inv_ind pTerm
+                  (λu0:pTerm
+                   .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                    ∧(∀z0:Variable
+                      .free_occ_t z0 u0
+                       =if veqb y z0 
+                        then free_occ_t z0 t*free_occ_t z0 u 
+                        else free_occ_t y t*free_occ_t z0 u+free_occ_t z0 t ))
+                  (p_subst_sig (t_size t) (psubst y u) t
+                   (subst_aux_7 x t (t_size t) p))
+                  (λH32:Σu0:pTerm
+                                   .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                                    ∧(∀z0:Variable
+                                      .free_occ_t z0 u0
+                                       =if veqb y z0 
+                                        then free_occ_t z0 t*free_occ_t z0 u 
+                                        else free_occ_t y t*free_occ_t z0 u+free_occ_t z0 t )
+                   .free_occ_t z
+                    (val_to_term
+                     (abstr x
+                      (pi1 pTerm
+                       (λu0:pTerm
+                        .t_size u0=t_size t+free_occ_t y t*(t_size u-1)
+                         ∧(∀zzz:Variable
+                           .free_occ_t zzz u0
+                            =if veqb y zzz 
+                             then free_occ_t zzz t*free_occ_t zzz u 
+                             else free_occ_t y t*free_occ_t zzz u+free_occ_t zzz t ))
+                       H32)))
+                    =if veqb y z 
+                     then free_occ_v z (abstr x t)*free_occ_t z u 
+                     else free_occ_v y (abstr x t)*free_occ_t z u
+                              +free_occ_v z (abstr x t) )
+                  (λterm0:pTerm
+                   .λH13:t_size term0=t_size t+free_occ_t y t*(t_size u-1)
+                              ∧(∀z0:Variable
+                                .free_occ_t z0 term0
+                                 =if veqb y z0 
+                                  then free_occ_t z0 t*free_occ_t z0 u 
+                                  else free_occ_t y t*free_occ_t z0 u+free_occ_t z0 t )
+                    .λeq:p_subst_sig (t_size t) (psubst y u) t
+                             (subst_aux_7 x t (t_size t) p)
+                             =«term0,H13»
+                     .bool_inv_ind (veqb y z)
+                      (λH33:bool
+                       .free_occ_t z (val_to_term (abstr x term0))
+                        =if H33 
+                         then free_occ_v z (abstr x t)*free_occ_t z u 
+                         else free_occ_v y (abstr x t)*free_occ_t z u
+                                  +free_occ_v z (abstr x t) )
+                      (λveqbyz:veqb y z=true
+                       .eq_ind_r bool false
+                        (λx0:bool
+                         .λ_:x0=false
+                          .if x0 then O else free_occ_t z term0 
+                           =(if x0 then O else free_occ_t z t )*free_occ_t z u)
+                        (eq_ind_r bool true
+                         (λx0:bool
+                          .λ_:x0=true
+                           .free_occ_t z term0
+                            =if x0 
+                             then free_occ_t z t*free_occ_t z u 
+                             else free_occ_t y t*free_occ_t z u+free_occ_t z t 
+                            →free_occ_t z term0=free_occ_t z t*free_occ_t z u)
+                         (λth:free_occ_t z term0=free_occ_t z t*free_occ_t z u.th)
+                         (veqb y z) veqbyz
+                         (proj2 (t_size term0=t_size t+free_occ_t y t*(t_size u-1))
+                          (∀z0:Variable
+                           .free_occ_t z0 term0
+                            =if veqb y z0 
+                             then free_occ_t z0 t*free_occ_t z0 u 
+                             else free_occ_t y t*free_occ_t z0 u+free_occ_t z0 t )
+                          H13 z))
+                        (veqb z x)
+                        match veqb_true_to_eq y z
+                         in And
+                         return 
+                        λ_:((veqb y z=true→y=z)∧(y=z→veqb y z=true))
+                        .(veqb z x=false)
+                         with 
+                        [conj
+                         (veq_to_eq:(veqb y z=true→y=z))
+                          
+                         (_:(y=z→veqb y z=true))⇒
+                         eq_ind Variable y
+                         (λx_1:Variable.λ_x_2:y=x_1.veqb x_1 x=false) veq z
+                         (veq_to_eq veqbyz)])
+                      (λveqbyz:veqb y z=false
+                       .bool_inv_ind (veqb z x)
+                        (λH34:bool
+                         .if H34 then O else free_occ_t z term0 
+                          =(if veqb y x then O else free_occ_t y t )*free_occ_t z u
+                           +(if H34 then O else free_occ_t z t ))
+                        (λveqbzx:veqb z x=true
+                         .eq_ind_r bool false
+                          (λx0:bool
+                           .λ_:x0=false
+                            .O=(if x0 then O else free_occ_t y t )*free_occ_t z u+O)
+                          (eq_ind bool (fvb_t z u)
+                           (λx_1:bool
+                            .λ_x_2:fvb_t z u=x_1
+                             .x_1=false→O=free_occ_t y t*free_occ_t z u+O)
+                           (λfvz:fvb_t z u=false
+                            .match 
+                             proj1 (∀t0:pTerm.free_occ_t z t0=O↔fvb_t z t0=false)
+                             (∀v:pValue.free_occ_v z v=O↔fvb_tv z v=false)
+                             (free_occ_to_fv z) u
+                              in And
+                              return 
+                             λ_:((free_occ_t z u=O→fvb_t z u=false)
+                                    ∧(fvb_t z u=false→free_occ_t z u=O))
+                             .(O=free_occ_t y t*free_occ_t z u+O)
+                              with 
+                             [conj
+                              (_:(free_occ_t z u=O→fvb_t z u=false))
+                               
+                              (Hfin:(fvb_t z u=false→free_occ_t z u=O))⇒
+                              eq_ind_r ℕ O (λx0:ℕ.λH34:x0=O.O=free_occ_t y t*x0+O)
+                              (eq_ind_r ℕ O (λx0:ℕ.λH35:x0=O.O=x0+O)
+                               (rewrite_l ℕ O (λx0:ℕ.O=x0) (refl ℕ O) (O+O)
+                                (plus_O_n O))
+                               (free_occ_t y t*O) (times_O (free_occ_t y t)))
+                              (free_occ_t z u) (Hfin fvz)])
+                           (fvb_t x u) (veqb_fv z x u veqbzx) fv)
+                          (veqb y x) veq)
+                        ?(*(λveqbzx:veqb z x=false
+                         .eq_ind_r bool false
+                          (λx0:bool
+                           .λ_:x0=false
+                            .free_occ_t z term0
+                             =(if x0 then O else free_occ_t y t )*free_occ_t z u
+                              +(if false then O else free_occ_t z t ))
+                          (eq_ind_r bool false
+                           (λx0:bool
+                            .λ_:x0=false
+                             .free_occ_t z term0
+                              =if x0 
+                               then free_occ_t z t*free_occ_t z u 
+                               else free_occ_t y t*free_occ_t z u+free_occ_t z t 
+                              →free_occ_t z term0
+                               =free_occ_t y t*free_occ_t z u+free_occ_t z t)
+                           (λH:free_occ_t z term0
+                                  =free_occ_t y t*free_occ_t z u+free_occ_t z t
+                            .H)
+                           (veqb y z) veqbyz
+                           ?(*(proj2
+                            (t_size term0=t_size t+free_occ_t y t*(t_size u-1))
+                            (∀z0:Variable
+                             .free_occ_t z0 term0
+                              =if veqb y z0 
+                               then free_occ_t z0 t*free_occ_t z0 u 
+                               else free_occ_t y t*free_occ_t z0 u+free_occ_t z0 t )
+                            H13 z)*))
+                          (veqb y x) veq)*))))») ])
+   (refl bool (fvb_t x u)) (le_n (t_size (val_to_term (abstr x t)))))
+  =val_to_term (abstr x (p_subst t (psubst y u)))))
+    
+    (************************)
+    
+    
+    >fv
+
+  
+(**+++++++++++++++*)
+(**+++++++++++++++*)
+(**+++++++++++++++*)
+  
+  ] qed. 
+*)
 
 axiom p_subst_bound_irrelevance:
  ∀n, n', t, s. t_size t ≤ n →

@@ -2875,7 +2875,7 @@ lemma alphae_absorbance: ∀e, n, m, H, H'.∀ K: n + (e_len e) ≤ m.
           alpha_e_aux4 alpha_e n e y b a H h»]); #H' #LL
   whd in match (alpha_e (Snoc ? ?) ? ?);*)
   
-  check alpha_c
+
 definition alpha2_c ≝ λc, n. match c with [CCrumble b e ⇒ λH. alpha2 b e n H].
 
 lemma aca2c: ∀c, n, H. alpha2_c c n H = alpha_c c n H. * #b #e #n #H

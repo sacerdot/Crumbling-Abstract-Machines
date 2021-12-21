@@ -303,7 +303,7 @@ lemma neqb_refl: ∀x. neqb x x = true.
 lemma gtb_O_plus_to_or: ∀n,m. gtb (plus n m) O = true →
  (gtb n O) = true ∨ (gtb m O) = true.
 
-#n #m cases n cases m /2/ qed.
+#n #m cases n cases m /2/ normalize // qed.
 
 lemma lt_to_le_S: ∀n, m. n < m → S n ≤ m.
 #n cases n // qed.

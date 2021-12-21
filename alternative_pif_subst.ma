@@ -1365,6 +1365,10 @@ whd in match (match ? in pSubst with [_ ⇒ ?]);
 whd in match (match ? in pSubst with [_ ⇒ ?]);
  >abstr_step_subst0 // [ 2: normalize @le_S @le_n] @eq_f @eq_f /2/ qed.
 
+axiom abstr_step_subst2: ∀x, y, t, u. fvb_t x u = true →
+ veqb y x = false →
+  ∃z.p_subst (val_to_term (abstr x t)) (psubst y u) = (val_to_term (abstr z (p_subst (p_subst t (psubst x (val_to_term (pvar z)))) (psubst y u)))). 
+ 
 lemma no_subst5:
  (∀t,y,t'. fvb_t (νy) t =false → p_subst t (psubst (νy) t')=t).
 #t #y #t' #H
